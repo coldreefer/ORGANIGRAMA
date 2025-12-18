@@ -1,10 +1,20 @@
 const chart = new d3.OrgChart()
   .container('#chart')
+
+  // Tamaños
   .nodeWidth(() => 220)
   .nodeHeight(() => 130)
-  .childrenMargin(() => 40)
-  .compactMarginBetween(() => 30)
-  .compactMarginPair(() => 50)
+
+  // 🔑 CLAVE PARA HORIZONTALIDAD
+  .compact(true)
+
+  // Espaciados
+  .childrenMargin(() => 60)
+  .siblingsMargin(() => 40)
+  .compactMarginBetween(() => 40)
+  .compactMarginPair(() => 80)
+
+  // Contenido del nodo
   .nodeContent(d => {
     const img = d.data.ImageURL || '';
     return `
@@ -17,10 +27,13 @@ const chart = new d3.OrgChart()
       </div>
     `;
   })
+
+  // Click para expandir / colapsar
   .onNodeClick(d => {
-    chart.toggleNode(d.data["Email (required)"]).render();
+    chart.toggleNode(d.data.id).render();
   });
 
+// CSV
 Papa.parse("team.csv", {
   download: true,
   header: true,
