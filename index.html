@@ -23,9 +23,9 @@
 
   function initChart(data) {
 
-    /* =============================
+    /* ============================
        1. Detectar columnas reales
-       ============================= */
+       ============================ */
     const headers = Object.keys(data[0]);
     const col = {
       name: pick(headers, ["name", "nombre"]),
@@ -36,69 +36,77 @@
 
     const ROOT_ID = "__ROOT__";
 
-    /* =============================
+    /* ============================
        2. Crear nodos base
-       ============================= */
+       ============================ */
     const nodes = data.map((d, i) => ({
       id: `node-${i}`,
       parentId: null,
       name: (d[col.name] || "").trim(),
       role: d[col.role] || "",
       supervisorName: (d[col.supervisor] || "").trim(),
-      image: d[col.image] || "",
-      level: "personal" // default
+      image: d[col.image] || ""
     }));
 
-    const byName = new Map(nodes.map(n => [n.name.toLowerCase(), n]));
-
-    /* =============================
-       3. Resolver supervisor directo
-       ============================= */
-    nodes.forEach(n => {
-      if (!n.supervisorName) return;
-      const sup = byName.get(n.supervisorName.toLowerCase());
-      if (sup && sup.id !== n.id) {
-        n.parentId = sup.id;
-        sup.level = "supervisor";
-      }
-    });
-
-    /* =============================
-       4. Detectar JEFE
-       ============================= */
-    const jefe = nodes.find(n =>
-      !n.supervisorName &&
-      nodes.some(x => x.parentId === n.id)
+    /* ============================
+       3. Detectar TEAM LEADER
+       ============================ */
+    const teamLeader = nodes.find(n =>
+      /team leader|leader|head/i.test(n.role)
     );
 
-    if (jefe) jefe.level = "jefe";
+    if (!teamLeader) {
+      alert("No se encontró Team Leader en el CSV");
+      return;
+    }
 
-    /* =============================
-       5. ROOT ARTIFICIAL
-       ============================= */
+    /* ============================
+       4. Crear ROOT
+       ============================ */
     nodes.push({
       id: ROOT_ID,
       parentId: null,
       name: "EMR TEAM",
       role: "",
-      image: "",
-      level: "root"
+      image: ""
     });
 
-    if (jefe) jefe.parentId = ROOT_ID;
+    // ROOT → TEAM LEADER
+    teamLeader.parentId = ROOT_ID;
 
-    /* =============================
-       6. Forzar colgar nodos sueltos
-       ============================= */
+    const byName = new Map(nodes.map(n => [n.name.toLowerCase(), n]));
+
+    /* ============================
+       5. Jerarquía FORZADA
+       ============================ */
     nodes.forEach(n => {
-      if (!n.parentId && n.level !== "root") {
-        n.parentId = jefe ? jefe.id : ROOT_ID;
+      if (n.id === teamLeader.id || n.id === ROOT_ID) return;
+
+      // Si su supervisor es el Team Leader → supervisor directo
+      if (
+        n.supervisorName &&
+        n.supervisorName.toLowerCase() === teamLeader.name.toLowerCase()
+      ) {
+        n.parentId = teamLeader.id;
+        return;
       }
+
+      // Si tiene supervisor distinto → cuelga del supervisor
+      if (n.supervisorName) {
+        const sup = byName.get(n.supervisorName.toLowerCase());
+        if (sup) {
+          n.parentId = sup.id;
+          return;
+        }
+      }
+
+      // Fallback: todo cuelga del Team Leader
+      n.parentId = teamLeader.id;
     });
 
-    /* =============================
-       7. Crear OrgChart
-       ============================= */
+    /* ============================
+       6. Render OrgChart
+       ============================ */
     const chart = new OrgChart()
       .container("#chart-container")
       .data(nodes)
@@ -119,13 +127,12 @@
 
     chart.render();
 
-    /* =============================
-       8. Estado inicial EXACTO
-       ============================= */
+    /* ============================
+       7. Estado inicial EXACTO
+       ============================ */
     chart.collapseAll();
-
-    // solo ROOT visible
-    chart.expand(ROOT_ID);
+    chart.expand(ROOT_ID);          // muestra EMR TEAM
+    chart.expand(teamLeader.id);    // muestra SOLO el jefe
   }
 
   function pick(headers, keys) {
