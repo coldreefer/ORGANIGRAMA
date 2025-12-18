@@ -10,7 +10,7 @@ const chart = new d3.OrgChart()
 
   // Contenido del nodo
   .nodeContent(d => {
-    if (d.data._isRow) return ''; // nodo invisible
+    if (d.data._isRow) return '';
 
     const img = d.data.ImageURL || '';
     return `
@@ -24,10 +24,12 @@ const chart = new d3.OrgChart()
     `;
   })
 
+  // ✅ CLICK CORREGIDO
   .onNodeClick(d => {
-    if (!d.data._isRow) {
-      chart.toggleNode(d.data.id).render();
-    }
+    if (d.data._isRow) return;
+
+    d.expanded = !d.expanded;
+    chart.render();
   });
 
 Papa.parse("team.csv", {
@@ -38,43 +40,44 @@ Papa.parse("team.csv", {
 
     const raw = res.data.filter(d => d["Email (required)"]);
 
-    // Team Leader (sin supervisor)
+    // Leader (sin supervisor)
     const leader = raw.find(d => !d["SupervisorEmail (required)"]);
 
-    // Supervisores directos del leader
+    // Supervisores directos
     const supervisors = raw.filter(
       d => d["SupervisorEmail (required)"] === leader["Email (required)"]
     );
 
-    // Nodo fila invisible
     const ROW_ID = "__SUPERVISOR_ROW__";
-
     const data = [];
 
     // Leader
     data.push({
       ...leader,
       id: leader["Email (required)"],
-      parentId: null
+      parentId: null,
+      expanded: true
     });
 
     // Row invisible
     data.push({
       id: ROW_ID,
       parentId: leader["Email (required)"],
-      _isRow: true
+      _isRow: true,
+      expanded: true
     });
 
-    // Supervisores → cuelgan del row
+    // Supervisores (horizontal)
     supervisors.forEach(s => {
       data.push({
         ...s,
         id: s["Email (required)"],
-        parentId: ROW_ID
+        parentId: ROW_ID,
+        expanded: false
       });
     });
 
-    // Resto del personal → cuelga normal del supervisor
+    // Resto del personal
     raw.forEach(p => {
       if (
         p["SupervisorEmail (required)"] &&
@@ -84,7 +87,8 @@ Papa.parse("team.csv", {
         data.push({
           ...p,
           id: p["Email (required)"],
-          parentId: p["SupervisorEmail (required)"]
+          parentId: p["SupervisorEmail (required)"],
+          expanded: false
         });
       }
     });
