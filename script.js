@@ -15,11 +15,9 @@ const diagram = $(go.Diagram, "diagramDiv", {
   minScale: 0.4,
   maxScale: 2,
 
-  // ✋ PAN
+  // ✋ PAN (por defecto en GoJS moderno)
   allowHorizontalScroll: true,
   allowVerticalScroll: true,
-  "toolManager.panningTool.isEnabled": true,
-  "toolManager.mouseWheelBehavior": go.ToolManager.WheelZoom,
 
   "undoManager.isEnabled": false,
 
@@ -47,7 +45,7 @@ function circularPhoto(size) {
     {
       width: size,
       height: size,
-      clipping: true // 🔑 recorte circular real
+      clipping: true   // 👈 CLAVE para círculo real
     },
 
     $(go.Shape, "Circle", {
@@ -67,7 +65,7 @@ function circularPhoto(size) {
 }
 
 /* ======================================================
-   TARJETA PERSONA (MISMO PORTE)
+   TARJETA PERSONA
    ====================================================== */
 function personTemplate(borderColor, roleColor) {
   return $(go.Node, "Vertical",
@@ -143,7 +141,7 @@ diagram.groupTemplate =
       cursor: "pointer",
 
       layout: $(go.GridLayout, {
-        wrappingColumn: 2,       // 2 personas por fila
+        wrappingColumn: 2,
         spacing: new go.Size(22, 22)
       }),
 
@@ -171,7 +169,6 @@ diagram.groupTemplate =
 
         circularPhoto(64),
 
-        // NOMBRE SUPERVISOR
         $(go.TextBlock, {
           margin: new go.Margin(10, 6, 2, 6),
           font: "bold 13px Inter, sans-serif",
@@ -181,7 +178,6 @@ diagram.groupTemplate =
           overflow: go.TextBlock.Ellipsis
         }, new go.Binding("text", "name")),
 
-        // CARGO SUPERVISOR
         $(go.TextBlock, {
           margin: new go.Margin(2, 6, 0, 6),
           font: "11px Inter, sans-serif",
