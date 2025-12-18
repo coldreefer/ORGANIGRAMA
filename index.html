@@ -1,147 +1,18 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Organigrama EMR</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="./styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
+  <h1>Organigrama EMR</h1>
 
-<h1>Organigrama EMR</h1>
-<div id="chart-container" style="width:100%; height: calc(100vh - 80px);"></div>
+  <div id="org-root"></div>
 
-<script type="module">
-  import * as d3 from "https://esm.sh/d3@7?target=es2019";
-  import { OrgChart } from "https://esm.sh/d3-org-chart@3?target=es2019";
-
-  fetch("./team.csv")
-    .then(r => r.text())
-    .then(text => d3.csvParse(text))
-    .then(data => initChart(data));
-
-  function initChart(data) {
-
-    /* =====================================
-       1. Detectar columnas reales del CSV
-       ===================================== */
-    const headers = Object.keys(data[0]);
-    const col = {
-      name: pick(headers, ["name", "nombre"]),
-      role: pick(headers, ["title", "position", "cargo", "role"]),
-      supervisor: pick(headers, ["supervisor", "manager", "reports"]),
-      image: pick(headers, ["image", "photo", "picture"])
-    };
-
-    const ROOT_ID = "__ROOT__";
-
-    /* =====================================
-       2. Crear nodos base
-       ===================================== */
-    const nodes = data.map((d, i) => ({
-      id: `node-${i}`,
-      parentId: null,
-      name: (d[col.name] || "").trim(),
-      role: d[col.role] || "",
-      supervisorName: (d[col.supervisor] || "").trim(),
-      image: d[col.image] || ""
-    }));
-
-    /* =====================================
-       3. Detectar TEAM LEADER (JEFE)
-       ===================================== */
-    const teamLeader = nodes.find(n =>
-      /team leader|leader|head/i.test(n.role)
-    );
-
-    if (!teamLeader) {
-      alert("No se encontró Team Leader en el CSV");
-      return;
-    }
-
-    /* =====================================
-       4. Crear ROOT
-       ===================================== */
-    nodes.push({
-      id: ROOT_ID,
-      parentId: null,
-      name: "EMR TEAM",
-      role: "",
-      image: ""
-    });
-
-    teamLeader.parentId = ROOT_ID;
-
-    const byName = new Map(nodes.map(n => [n.name.toLowerCase(), n]));
-
-    /* =====================================
-       5. Jerarquía FORZADA (como OrgChart)
-       ===================================== */
-    nodes.forEach(n => {
-      if (n.id === ROOT_ID || n.id === teamLeader.id) return;
-
-      // Supervisor directo del Team Leader
-      if (
-        n.supervisorName &&
-        n.supervisorName.toLowerCase() === teamLeader.name.toLowerCase()
-      ) {
-        n.parentId = teamLeader.id;
-        return;
-      }
-
-      // Personal → su supervisor
-      if (n.supervisorName) {
-        const sup = byName.get(n.supervisorName.toLowerCase());
-        if (sup) {
-          n.parentId = sup.id;
-          return;
-        }
-      }
-
-      // Fallback seguro
-      n.parentId = teamLeader.id;
-    });
-
-    /* =====================================
-       6. Crear OrgChart (layout correcto)
-       ===================================== */
-    const chart = new OrgChart()
-      .container("#chart-container")
-      .data(nodes)
-      .compact(true)
-      .nodeWidth(() => 190)
-      .nodeHeight(() => 120)
-      .childrenMargin(() => 60)
-      .compactMarginBetween(() => 40)
-      .compactMarginPair(() => 80)
-      .nodeContent(d => `
-        <div class="org-card">
-          ${
-            d.data.image
-              ? `<img src="${d.data.image}" />`
-              : `<div style="width:44px;height:44px;border-radius:50%;background:#cbd5e1;margin:0 auto 6px"></div>`
-          }
-          <div class="org-name">${d.data.name}</div>
-          <div class="org-role">${d.data.role}</div>
-        </div>
-      `);
-
-    chart.render();
-
-    /* =====================================
-       7. ESTADO INICIAL EXACTO (CLAVE)
-       ===================================== */
-    chart.collapseAll();
-    chart.expand(ROOT_ID);   // SOLO EMR TEAM
-  }
-
-  function pick(headers, keys) {
-    return headers.find(h =>
-      keys.some(k => h.toLowerCase().includes(k))
-    );
-  }
-</script>
-
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="orgchart.js"></script>
 </body>
 </html>
