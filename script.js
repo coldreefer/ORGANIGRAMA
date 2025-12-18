@@ -1,9 +1,5 @@
-// ==============================
-// ORG CHART CONFIG
-// ==============================
 const chart = new d3.OrgChart()
   .container('#chart')
-
   .svgWidth(4000)
   .svgHeight(2200)
 
@@ -14,9 +10,9 @@ const chart = new d3.OrgChart()
   .childrenMargin(() => 120)
   .siblingsMargin(() => 80)
 
-  // ==============================
-  // NODE CONTENT (TARJETA)
-  // ==============================
+  // ======================
+  // TARJETA COMPLETA
+  // ======================
   .nodeContent(d => {
     if (d.data._isRow) return '';
 
@@ -30,30 +26,32 @@ const chart = new d3.OrgChart()
           ${d.data["First name (required)"]} ${d.data["Last name (required)"]}
         </div>
         <div class="role">${d.data.Position || ''}</div>
-        ${
-          count > 0
-            ? `<div class="count">${count} personas</div>`
-            : ''
-        }
+        ${count > 0 ? `<div class="count">${count} personas</div>` : ``}
       </div>
     `;
   })
 
-  // ==============================
-  // CLICK EN LA TARJETA / IMAGEN
-  // ==============================
+  // ======================
+  // CLICK EN LA IMAGEN
+  // ======================
   .onNodeClick(d => {
     if (d.data._isRow) return;
 
-    // 🔑 ESTA ES LA FORMA CORRECTA
-    d.data.expanded = !d.data.expanded;
+    // 🔑 guardar posición de cámara
+    const transform = chart.getTransform();
+
+    // 🔑 expand / collapse REAL
+    d.data._expanded = !d.data._expanded;
     chart.render();
+
+    // 🔑 restaurar cámara
+    chart.setTransform(transform);
   });
 
 
-// ==============================
-// CSV LOAD
-// ==============================
+// ======================
+// CARGA CSV
+// ======================
 Papa.parse("team.csv", {
   download: true,
   header: true,
@@ -62,9 +60,6 @@ Papa.parse("team.csv", {
 
     const raw = res.data.filter(d => d["Email (required)"]);
 
-    // ------------------------------
-    // Detectar Team Leader
-    // ------------------------------
     const leader = raw.find(d => !d["SupervisorEmail (required)"]);
     if (!leader) {
       alert("No se pudo detectar Team Leader");
@@ -78,9 +73,6 @@ Papa.parse("team.csv", {
     const ROW_ID = "__SUPERVISOR_ROW__";
     const data = [];
 
-    // ------------------------------
-    // Conteo recursivo
-    // ------------------------------
     function countChildren(id) {
       const direct = raw.filter(p => p["SupervisorEmail (required)"] === id);
       let total = direct.length;
@@ -90,43 +82,35 @@ Papa.parse("team.csv", {
       return total;
     }
 
-    // ------------------------------
     // Leader
-    // ------------------------------
     data.push({
       ...leader,
       id: leader["Email (required)"],
       parentId: null,
-      expanded: true,
+      _expanded: true,
       _childrenCount: supervisors.length
     });
 
-    // ------------------------------
-    // Row invisible (horizontalidad)
-    // ------------------------------
+    // Row invisible
     data.push({
       id: ROW_ID,
       parentId: leader["Email (required)"],
       _isRow: true,
-      expanded: true
+      _expanded: true
     });
 
-    // ------------------------------
     // Supervisores
-    // ------------------------------
     supervisors.forEach(s => {
       data.push({
         ...s,
         id: s["Email (required)"],
         parentId: ROW_ID,
-        expanded: false,
+        _expanded: false,
         _childrenCount: countChildren(s["Email (required)"])
       });
     });
 
-    // ------------------------------
     // Personal
-    // ------------------------------
     raw.forEach(p => {
       const parent = p["SupervisorEmail (required)"];
       if (parent && parent !== leader["Email (required)"]) {
@@ -134,7 +118,7 @@ Papa.parse("team.csv", {
           ...p,
           id: p["Email (required)"],
           parentId: parent,
-          expanded: false
+          _expanded: false
         });
       }
     });
