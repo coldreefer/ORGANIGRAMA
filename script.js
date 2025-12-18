@@ -20,8 +20,9 @@ const diagram = $(go.Diagram, "diagramDiv", {
 
   layout: $(go.TreeLayout, {
     angle: 90,
-    arrangement: go.TreeLayout.ArrangementHorizontal,
-    nodeSpacing: 40,
+    arrangement: go.TreeLayout.ArrangementFixedRoots,
+    alignment: go.TreeLayout.AlignmentCenterChildren,
+    nodeSpacing: 20,
     layerSpacing: 60
   })
 });
@@ -35,18 +36,23 @@ function proxyImage(url) {
 }
 
 /* ======================================================
-   PHOTO WITH CIRCULAR FRAME (NO CLIPPING)
+   PHOTO WITH CIRCULAR FRAME (CORRECT CENTERING)
    ====================================================== */
 function photoWithCircle(size) {
   return $(go.Panel, "Spot",
     { width: size, height: size },
 
-    // Image (normal square)
-    $(go.Picture, {
-      width: size,
-      height: size,
-      imageStretch: go.GraphObject.UniformToFill
-    }, new go.Binding("source", "image", proxyImage)),
+    // Fixed container for the image
+    $(go.Panel, "Auto",
+      { width: size, height: size },
+
+      $(go.Picture, {
+        width: size,
+        height: size,
+        alignment: go.Spot.Center,
+        imageStretch: go.GraphObject.UniformToFill
+      }, new go.Binding("source", "image", proxyImage))
+    ),
 
     // Circular frame on top
     $(go.Shape, "Circle", {
@@ -133,7 +139,7 @@ diagram.groupTemplate =
       selectionAdorned: false,
       cursor: "pointer",
 
-      // Workers layout: 2 columns, then vertical
+      // Workers layout: 2 columns, vertical growth
       layout: $(go.GridLayout, {
         wrappingColumn: 2,
         spacing: new go.Size(20, 20)
@@ -226,7 +232,7 @@ function buildModel(rows) {
     image: ""
   });
 
-  // TEAM LEADER (no supervisor email)
+  // TEAM LEADER
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
 
