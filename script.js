@@ -1,33 +1,73 @@
 const CSV_PATH = "team.csv";
 
 fetch(CSV_PATH)
-  .then(res => res.text())
+  .then(res => {
+    if (!res.ok) throw new Error("No se pudo cargar el CSV");
+    return res.text();
+  })
   .then(parseCSV)
   .then(buildOrgChart)
-  .catch(err => console.error("Error cargando CSV:", err));
+  .catch(err => console.error(err));
 
+/* =======================
+   CSV PARSER REAL
+   ======================= */
 function parseCSV(text) {
-  const lines = text.trim().split("\n");
-  const headers = lines.shift().split(",");
+  const rows = [];
+  let row = [];
+  let current = "";
+  let insideQuotes = false;
 
-  return lines.map(line => {
-    const values = line.split(",");
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (char === '"' && insideQuotes && next === '"') {
+      current += '"';
+      i++;
+    } else if (char === '"') {
+      insideQuotes = !insideQuotes;
+    } else if (char === "," && !insideQuotes) {
+      row.push(current.trim());
+      current = "";
+    } else if (char === "\n" && !insideQuotes) {
+      row.push(current.trim());
+      rows.push(row);
+      row = [];
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  if (current.length) {
+    row.push(current.trim());
+    rows.push(row);
+  }
+
+  const headers = rows.shift();
+
+  return rows.map(r => {
     const obj = {};
-    headers.forEach((h, i) => obj[h.trim()] = values[i]?.trim());
+    headers.forEach((h, i) => {
+      obj[h.trim()] = r[i]?.trim() || "";
+    });
     return obj;
   });
 }
 
+/* =======================
+   ORGANIGRAMA
+   ======================= */
 function buildOrgChart(data) {
   const people = {};
   const tree = {};
+  let root = null;
 
   data.forEach(p => {
     people[p.Email] = p;
     tree[p.Email] = [];
   });
-
-  let root = null;
 
   data.forEach(p => {
     if (p.SupervisorEmail) {
@@ -37,12 +77,18 @@ function buildOrgChart(data) {
     }
   });
 
-  const chart = document.getElementById("org-chart");
-  chart.appendChild(createNode(root, people, tree));
+  if (!root) {
+    console.error("No se encontró raíz (SupervisorEmail vacío)");
+    return;
+  }
+
+  const container = document.getElementById("org-chart");
+  container.innerHTML = "";
+  container.appendChild(createNode(root, people, tree));
 }
 
 function createNode(email, people, tree) {
-  const person = people[email];
+  const p = people[email];
 
   const node = document.createElement("div");
   node.className = "node";
@@ -50,31 +96,31 @@ function createNode(email, people, tree) {
   node.innerHTML = `
     <div class="arrow">▸</div>
     <div class="node-header">
-      <img src="${person.ImageURL || "https://via.placeholder.com/100"}" />
+      <img src="${p.ImageURL || "https://via.placeholder.com/100"}" />
       <div>
-        <div class="node-name">${person["First name"]} ${person["Last name"]}</div>
-        <div class="node-role">${person.Position}</div>
+        <div class="node-name">${p["First name"]} ${p["Last name"]}</div>
+        <div class="node-role">${p.Position}</div>
       </div>
     </div>
   `;
 
-  const childrenContainer = document.createElement("div");
-  childrenContainer.className = "children";
+  const children = document.createElement("div");
+  children.className = "children";
 
-  tree[email].forEach(childEmail => {
-    childrenContainer.appendChild(createNode(childEmail, people, tree));
+  (tree[email] || []).forEach(child => {
+    children.appendChild(createNode(child, people, tree));
   });
 
-  if (tree[email].length > 0) {
+  if (tree[email] && tree[email].length > 0) {
     node.addEventListener("click", e => {
       e.stopPropagation();
-      const open = childrenContainer.classList.toggle("open");
+      const open = children.classList.toggle("open");
       node.querySelector(".arrow").textContent = open ? "▾" : "▸";
     });
   } else {
     node.querySelector(".arrow").style.display = "none";
   }
 
-  node.appendChild(childrenContainer);
+  node.appendChild(children);
   return node;
 }
