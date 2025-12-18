@@ -1,5 +1,6 @@
 const chart = new d3.OrgChart()
   .container('#chart')
+
   .svgWidth(4000)
   .svgHeight(2200)
 
@@ -10,6 +11,9 @@ const chart = new d3.OrgChart()
   .childrenMargin(() => 120)
   .siblingsMargin(() => 80)
 
+  // 🔥 ELIMINAR FLECHAS INTERNAS
+  .buttonContent(() => '')
+
   // ======================
   // TARJETA COMPLETA
   // ======================
@@ -17,7 +21,6 @@ const chart = new d3.OrgChart()
     if (d.data._isRow) return '';
 
     const img = d.data.ImageURL || '';
-    const count = d.data._childrenCount || 0;
 
     return `
       <div class="org-node clickable">
@@ -26,22 +29,24 @@ const chart = new d3.OrgChart()
           ${d.data["First name (required)"]} ${d.data["Last name (required)"]}
         </div>
         <div class="role">${d.data.Position || ''}</div>
-        ${count > 0 ? `<div class="count">${count} personas</div>` : ``}
       </div>
     `;
   })
 
   // ======================
-  // CLICK EN CARD / IMAGEN
+  // CLICK EN LA IMAGEN / CARD
   // ======================
   .onNodeClick(d => {
     if (d.data._isRow) return;
 
-    // 🔑 ÚNICA forma soportada
     d.data._expanded = !d.data._expanded;
     chart.render();
   });
 
+
+// ======================
+// CARGA CSV
+// ======================
 Papa.parse("team.csv", {
   download: true,
   header: true,
@@ -63,25 +68,15 @@ Papa.parse("team.csv", {
     const ROW_ID = "__SUPERVISOR_ROW__";
     const data = [];
 
-    function countChildren(id) {
-      const direct = raw.filter(p => p["SupervisorEmail (required)"] === id);
-      let total = direct.length;
-      direct.forEach(c => {
-        total += countChildren(c["Email (required)"]);
-      });
-      return total;
-    }
-
     // Leader
     data.push({
       ...leader,
       id: leader["Email (required)"],
       parentId: null,
-      _expanded: true,
-      _childrenCount: supervisors.length
+      _expanded: true
     });
 
-    // Row invisible
+    // Row invisible (para horizontalidad)
     data.push({
       id: ROW_ID,
       parentId: leader["Email (required)"],
@@ -95,8 +90,7 @@ Papa.parse("team.csv", {
         ...s,
         id: s["Email (required)"],
         parentId: ROW_ID,
-        _expanded: false,
-        _childrenCount: countChildren(s["Email (required)"])
+        _expanded: false
       });
     });
 
