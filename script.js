@@ -48,6 +48,7 @@ function photoWithCircle(size) {
     // Imagen centrada en contenedor fijo
     $(go.Panel, "Auto",
       { width: size, height: size },
+
       $(go.Picture, {
         width: size,
         height: size,
@@ -61,7 +62,7 @@ function photoWithCircle(size) {
       width: size,
       height: size,
       fill: "transparent",
-      stroke: "#cbd5e1",
+      stroke: "#2563eb",   // azul visible
       strokeWidth: 2
     })
   );
@@ -191,7 +192,6 @@ diagram.groupTemplate =
       )
     ),
 
-    // Workers placeholder
     $(go.Placeholder, { padding: 18 })
   );
 
@@ -215,7 +215,7 @@ Papa.parse("team.csv", {
 });
 
 /* ======================================================
-   BUILD MODEL (LEADER ES ROOT)
+   BUILD MODEL (TEAM LEADER ES ROOT)
    ====================================================== */
 function buildModel(rows) {
 
@@ -225,7 +225,7 @@ function buildModel(rows) {
   const nodes = [];
   const links = [];
 
-  // TEAM LEADER (ROOT REAL)
+  // TEAM LEADER
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
 
@@ -241,7 +241,6 @@ function buildModel(rows) {
   people.forEach(sup => {
     if (sup["SupervisorEmail (required)"] === leader["Email (required)"]) {
 
-      // Supervisor
       nodes.push({
         key: sup.__id,
         isGroup: true,
@@ -252,7 +251,6 @@ function buildModel(rows) {
 
       links.push({ from: leader.__id, to: sup.__id });
 
-      // Workers
       people.forEach(worker => {
         if (worker["SupervisorEmail (required)"] === sup["Email (required)"]) {
           nodes.push({
