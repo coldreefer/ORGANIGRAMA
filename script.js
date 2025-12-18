@@ -13,7 +13,6 @@ fetch("./team.csv")
     return res.text();
   })
   .then(text => {
-    // eliminar BOM si existe
     if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
     return d3.csvParse(text);
   })
@@ -29,41 +28,54 @@ function buildChart(data) {
     throw new Error("CSV vacío");
   }
 
-  // Normalizar datos
-  data.forEach(d => {
-    d.Email = d.Email?.trim();
-    d.SupervisorEmail = d.SupervisorEmail?.trim();
-  });
+  const headers = Object.keys(data[0]).map(h => h.toLowerCase());
+
+  // 🔍 detección automática de columnas
+  const col = {
+    firstName: find(headers, ["first", "nombre"]),
+    lastName: find(headers, ["last", "apellido"]),
+    position: find(headers, ["position", "cargo", "role"]),
+    email: find(headers, ["email", "mail"]),
+    supervisor: find(headers, ["supervisor", "manager", "reports"]),
+    image: find(headers, ["image", "photo", "picture"])
+  };
+
+  function val(row, key) {
+    const h = headers.indexOf(col[key]);
+    return h >= 0 ? row[Object.keys(row)[h]]?.trim() : "";
+  }
+
+  // Normalizar personas
+  const people = data.map(d => ({
+    id: val(d, "email") || crypto.randomUUID(),
+    name: `${val(d, "firstName")} ${val(d, "lastName")}`.trim() || "Sin nombre",
+    role: val(d, "position") || "",
+    supervisor: val(d, "supervisor"),
+    image: val(d, "image"),
+    children: []
+  }));
 
   // Mapas
   const map = new Map();
   const supervisors = new Set();
 
-  data.forEach(d => {
-    map.set(d.Email, { ...d, children: [] });
-    if (d.SupervisorEmail) supervisors.add(d.SupervisorEmail);
+  people.forEach(p => {
+    map.set(p.id, p);
+    if (p.supervisor) supervisors.add(p.supervisor);
   });
 
-  // Detectar raíz REAL
-  const rootCandidates = [...map.keys()].filter(
-    email => !supervisors.has(email)
-  );
+  // Root = quien no aparece como subordinado
+  const rootId = [...map.keys()].find(id => !supervisors.has(id));
+  if (!rootId) throw new Error("No se pudo detectar raíz");
 
-  if (rootCandidates.length === 0) {
-    throw new Error("No se encontró raíz (estructura cíclica o datos inválidos)");
-  }
-
-  const rootEmail = rootCandidates[0];
-  const rootData = map.get(rootEmail);
-
-  // Construir jerarquía
-  map.forEach(p => {
-    if (p.SupervisorEmail && map.has(p.SupervisorEmail)) {
-      map.get(p.SupervisorEmail).children.push(p);
+  // Construir árbol
+  people.forEach(p => {
+    if (p.supervisor && map.has(p.supervisor)) {
+      map.get(p.supervisor).children.push(p);
     }
   });
 
-  const root = d3.hierarchy(rootData);
+  const root = d3.hierarchy(map.get(rootId));
   root.x0 = 0;
   root.y0 = 0;
 
@@ -80,12 +92,11 @@ function buildChart(data) {
 
     const nodes = root.descendants();
     const links = root.links();
-
     const t = svg.transition().duration(400);
 
-    // LINKS
+    // Links
     g.selectAll(".link")
-      .data(links, d => d.target.data.Email)
+      .data(links, d => d.target.data.id)
       .join(
         enter => enter.append("path")
           .attr("class", "link")
@@ -99,9 +110,9 @@ function buildChart(data) {
         exit => exit.transition(t).remove()
       );
 
-    // NODES
+    // Nodes
     const node = g.selectAll(".node")
-      .data(nodes, d => d.data.Email);
+      .data(nodes, d => d.data.id);
 
     const nodeEnter = node.enter()
       .append("g")
@@ -115,27 +126,20 @@ function buildChart(data) {
       .attr("width", 160)
       .attr("height", 80);
 
-    nodeEnter.append("image")
-      .attr("x", -18)
-      .attr("y", -32)
-      .attr("width", 36)
-      .attr("height", 36)
-      .attr("href", d => d.data.ImageURL || "https://via.placeholder.com/80");
+    nodeEnter.append("circle")
+      .attr("cy", -20)
+      .attr("r", 18)
+      .attr("fill", "#cbd5e1");
 
     nodeEnter.append("text")
       .attr("class", "name")
       .attr("y", 15)
-      .text(d => `${d.data["First name"]} ${d.data["Last name"]}`);
+      .text(d => d.data.name);
 
     nodeEnter.append("text")
       .attr("class", "role")
       .attr("y", 32)
-      .text(d => d.data.Position);
-
-    nodeEnter.append("text")
-      .attr("class", "count")
-      .attr("y", 55)
-      .text(d => (d.children || d._children) ? `👤 ${count(d)}` : "");
+      .text(d => d.data.role);
 
     node.merge(nodeEnter)
       .transition(t)
@@ -159,10 +163,9 @@ function buildChart(data) {
     }
     update(d);
   }
+}
 
-  function count(d) {
-    let n = 0;
-    d.each(() => n++);
-    return n - 1;
-  }
+// util
+function find(headers, keywords) {
+  return headers.find(h => keywords.some(k => h.includes(k))) || "";
 }
