@@ -19,22 +19,21 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 // ===============================
-// TEMPLATE DE NODO
-// CLICK EN TODA LA TARJETA / IMAGEN
+// TEMPLATE DE NODO (CLAVE)
 // ===============================
 diagram.nodeTemplate =
   $(go.Node, "Vertical",
     {
       cursor: "pointer",
+      // 🔑 toggle REAL sobre el NODE
       click: (e, node) => {
-        // 🔑 TOGGLE REAL
-        diagram.model.setDataProperty(
-          node.data,
-          "isTreeExpanded",
-          !node.data.isTreeExpanded
-        );
+        node.isTreeExpanded = !node.isTreeExpanded;
       }
     },
+
+    // 🔴 BINDING OBLIGATORIO
+    new go.Binding("isTreeExpanded").makeTwoWay(),
+
     $(go.Panel, "Auto",
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
@@ -99,7 +98,6 @@ function buildModel(rows) {
     children[sup].push(p);
   });
 
-  // detectar leader (sin supervisor)
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) {
     alert("No se pudo detectar Team Leader");
@@ -108,14 +106,14 @@ function buildModel(rows) {
 
   const nodes = [];
 
-  // ROOT (EXPANDIDO)
+  // ROOT
   nodes.push({
     key: "ROOT",
     name: "EMR TEAM",
     isTreeExpanded: true
   });
 
-  // LEADER (EXPANDIDO)
+  // LEADER
   nodes.push({
     key: leader["Email (required)"],
     parent: "ROOT",
@@ -125,7 +123,7 @@ function buildModel(rows) {
     isTreeExpanded: true
   });
 
-  // SUPERVISORES (EXPANDIDOS)
+  // SUPERVISORES (HORIZONTALES Y EXPANDIDOS)
   (children[leader["Email (required)"]] || []).forEach(s => {
     nodes.push({
       key: s["Email (required)"],
@@ -136,7 +134,7 @@ function buildModel(rows) {
       isTreeExpanded: true
     });
 
-    // PERSONAL (NO TIENE HIJOS, NO IMPORTA)
+    // PERSONAL
     (children[s["Email (required)"]] || []).forEach(p => {
       nodes.push({
         key: p["Email (required)"],
