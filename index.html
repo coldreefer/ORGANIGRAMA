@@ -23,13 +23,12 @@
 
   function initChart(data) {
 
-    /* ======================================================
+    /* =============================
        1. Detectar columnas reales
-       ====================================================== */
+       ============================= */
     const headers = Object.keys(data[0]);
-
     const col = {
-      name: pick(headers, ["name", "nombre", "full"]),
+      name: pick(headers, ["name", "nombre"]),
       role: pick(headers, ["title", "position", "cargo", "role"]),
       supervisor: pick(headers, ["supervisor", "manager", "reports"]),
       image: pick(headers, ["image", "photo", "picture"])
@@ -37,47 +36,69 @@
 
     const ROOT_ID = "__ROOT__";
 
-    /* ======================================================
+    /* =============================
        2. Crear nodos base
-       ====================================================== */
+       ============================= */
     const nodes = data.map((d, i) => ({
       id: `node-${i}`,
-      parentId: ROOT_ID,
+      parentId: null,
       name: (d[col.name] || "").trim(),
       role: d[col.role] || "",
       supervisorName: (d[col.supervisor] || "").trim(),
-      image: d[col.image] || ""
+      image: d[col.image] || "",
+      level: "personal" // default
     }));
 
-    const byName = new Map(
-      nodes.map(n => [n.name.toLowerCase(), n])
-    );
+    const byName = new Map(nodes.map(n => [n.name.toLowerCase(), n]));
 
-    /* ======================================================
-       3. Resolver jerarquía por nombre
-       ====================================================== */
+    /* =============================
+       3. Resolver supervisor directo
+       ============================= */
     nodes.forEach(n => {
       if (!n.supervisorName) return;
       const sup = byName.get(n.supervisorName.toLowerCase());
       if (sup && sup.id !== n.id) {
         n.parentId = sup.id;
+        sup.level = "supervisor";
       }
     });
 
-    /* ======================================================
-       4. ROOT ÚNICO
-       ====================================================== */
+    /* =============================
+       4. Detectar JEFE
+       ============================= */
+    const jefe = nodes.find(n =>
+      !n.supervisorName &&
+      nodes.some(x => x.parentId === n.id)
+    );
+
+    if (jefe) jefe.level = "jefe";
+
+    /* =============================
+       5. ROOT ARTIFICIAL
+       ============================= */
     nodes.push({
       id: ROOT_ID,
       parentId: null,
       name: "EMR TEAM",
       role: "",
-      image: ""
+      image: "",
+      level: "root"
     });
 
-    /* ======================================================
-       5. Render
-       ====================================================== */
+    if (jefe) jefe.parentId = ROOT_ID;
+
+    /* =============================
+       6. Forzar colgar nodos sueltos
+       ============================= */
+    nodes.forEach(n => {
+      if (!n.parentId && n.level !== "root") {
+        n.parentId = jefe ? jefe.id : ROOT_ID;
+      }
+    });
+
+    /* =============================
+       7. Crear OrgChart
+       ============================= */
     const chart = new OrgChart()
       .container("#chart-container")
       .data(nodes)
@@ -91,13 +112,19 @@
               ? `<img src="${d.data.image}" />`
               : `<div style="width:44px;height:44px;border-radius:50%;background:#cbd5e1;margin:0 auto 6px"></div>`
           }
-          <div class="org-name">${d.data.name || "(sin nombre)"}</div>
+          <div class="org-name">${d.data.name}</div>
           <div class="org-role">${d.data.role}</div>
         </div>
       `);
 
     chart.render();
+
+    /* =============================
+       8. Estado inicial EXACTO
+       ============================= */
     chart.collapseAll();
+
+    // solo ROOT visible
     chart.expand(ROOT_ID);
   }
 
