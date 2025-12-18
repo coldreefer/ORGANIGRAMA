@@ -3,12 +3,12 @@ const chart = new d3.OrgChart()
   .svgWidth(4000)
   .svgHeight(2200)
   .nodeWidth(() => 220)
-  .nodeHeight(d => d.data._isRow ? 10 : 140)
+  .nodeHeight(d => d.data._isRow ? 10 : 150)
   .compact(false)
   .childrenMargin(() => 120)
   .siblingsMargin(() => 80)
 
-  // Contenido del nodo
+  // Contenido del nodo (TARJETA COMPLETA CLICKEABLE)
   .nodeContent(d => {
     if (d.data._isRow) return '';
 
@@ -16,7 +16,7 @@ const chart = new d3.OrgChart()
     const count = d.data._childrenCount || 0;
 
     return `
-      <div class="org-node">
+      <div class="org-node clickable">
         <img src="${img}">
         <div class="name">
           ${d.data["First name (required)"]} ${d.data["Last name (required)"]}
@@ -25,21 +25,21 @@ const chart = new d3.OrgChart()
 
         ${
           count > 0
-            ? `<div class="count">⌄ ${count}</div>`
+            ? `<div class="count">${count} personas</div>`
             : ''
         }
       </div>
     `;
   })
 
-  // ✅ CLICK CORRECTO
+  // ✅ CLICK EN CUALQUIER PARTE DEL NODO
   .onNodeClick(d => {
     if (d.data._isRow) return;
 
     const id = d.data.id;
-    const isExpanded = chart.getExpanded(id);
+    const expanded = chart.getExpanded(id);
 
-    chart.setExpanded(id, !isExpanded);
+    chart.setExpanded(id, !expanded);
     chart.render();
   });
 
@@ -59,7 +59,7 @@ Papa.parse("team.csv", {
     const ROW_ID = "__SUPERVISOR_ROW__";
     const data = [];
 
-    // Función para contar descendientes
+    // Conteo recursivo
     function countChildren(id) {
       const direct = raw.filter(p => p["SupervisorEmail (required)"] === id);
       let total = direct.length;
@@ -88,17 +88,16 @@ Papa.parse("team.csv", {
 
     // Supervisores
     supervisors.forEach(s => {
-      const count = countChildren(s["Email (required)"]);
       data.push({
         ...s,
         id: s["Email (required)"],
         parentId: ROW_ID,
         expanded: false,
-        _childrenCount: count
+        _childrenCount: countChildren(s["Email (required)"])
       });
     });
 
-    // Resto del personal
+    // Personal
     raw.forEach(p => {
       if (
         p["SupervisorEmail (required)"] &&
