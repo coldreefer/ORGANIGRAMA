@@ -1,20 +1,108 @@
-* { box-sizing: border-box; }
+/* =========================
+   BASE
+   ========================= */
+* {
+  box-sizing: border-box;
+}
 
 html, body {
   margin: 0;
   height: 100%;
-  font-family: system-ui, -apple-system;
-  background: #f6f8fb;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  color: #0f172a;
 }
 
 h1 {
   text-align: center;
-  margin: 20px 0;
-  color: #0f172a;
+  margin: 18px 0 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
 }
 
+/* =========================
+   CONTENEDOR DIAGRAMA
+   ========================= */
 #diagramDiv {
   width: 100%;
-  height: calc(100vh - 80px);
-  background: #f6f8fb;
+  height: calc(100vh - 70px);
+  background:
+    radial-gradient(circle at 1px 1px, #e5e7eb 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+/* =========================
+   TARJETAS GENERALES
+   ========================= */
+.go-node {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.go-node:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+}
+
+/* =========================
+   IMÁGENES
+   ========================= */
+.go-node img {
+  border-radius: 50%;
+  border: 2px solid #e5e7eb;
+}
+
+/* =========================
+   TEXTO
+   ========================= */
+.go-node .name {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.go-node .role {
+  font-size: 12px;
+  color: #475569;
+}
+
+/* =========================
+   TEAM LEADER
+   ========================= */
+.go-leader {
+  border: 2px solid #2563eb !important;
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.25);
+}
+
+.go-leader .role {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+/* =========================
+   SUPERVISOR (GROUP)
+   ========================= */
+.go-supervisor {
+  border: 2px solid #14b8a6 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f0fdfa 100%);
+}
+
+.go-supervisor .role {
+  color: #0f766e;
+  font-weight: 600;
+}
+
+/* =========================
+   PERSONAL
+   ========================= */
+.go-worker {
+  border: 1px solid #e5e7eb !important;
+  background: #ffffff;
+}
+
+/* =========================
+   LINKS
+   ========================= */
+.go-link path {
+  stroke: #cbd5e1 !important;
+  stroke-width: 1.5px;
 }
