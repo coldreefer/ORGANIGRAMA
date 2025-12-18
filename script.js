@@ -4,15 +4,11 @@
 const chart = new d3.OrgChart()
   .container('#chart')
 
-  // 🔒 Evitar que la cámara se mueva sola
-  .centerActiveNode(false)
-  .nodeCentering(null)
-
-  // Tamaño grande para layout horizontal
+  // Canvas grande para evitar wrap
   .svgWidth(4000)
   .svgHeight(2200)
 
-  // Tamaño de nodos
+  // Tamaño nodos
   .nodeWidth(() => 220)
   .nodeHeight(d => d.data._isRow ? 10 : 150)
 
@@ -22,7 +18,7 @@ const chart = new d3.OrgChart()
   .siblingsMargin(() => 80)
 
   // ==============================
-  // CONTENIDO DEL NODO (TARJETA)
+  // CONTENIDO DEL NODO
   // ==============================
   .nodeContent(d => {
     if (d.data._isRow) return '';
@@ -47,7 +43,7 @@ const chart = new d3.OrgChart()
   })
 
   // ==============================
-  // CLICK EN LA TARJETA COMPLETA
+  // CLICK EN TARJETA (EXPAND / COLLAPSE)
   // ==============================
   .onNodeClick(d => {
     if (d.data._isRow) return;
@@ -56,12 +52,12 @@ const chart = new d3.OrgChart()
     const expanded = chart.getExpanded(id);
 
     chart.setExpanded(id, !expanded);
-    chart.render(); // ⚠️ sin fit(), sin center()
+    chart.render(); // ⚠️ SIN fit() ni center()
   });
 
 
 // ==============================
-// CARGA DEL CSV
+// CARGA CSV
 // ==============================
 Papa.parse("team.csv", {
   download: true,
@@ -72,16 +68,14 @@ Papa.parse("team.csv", {
     const raw = res.data.filter(d => d["Email (required)"]);
 
     // ------------------------------
-    // Detectar Team Leader
+    // Team Leader
     // ------------------------------
     const leader = raw.find(d => !d["SupervisorEmail (required)"]);
-
     if (!leader) {
       alert("No se pudo detectar Team Leader");
       return;
     }
 
-    // Supervisores directos del leader
     const supervisors = raw.filter(
       d => d["SupervisorEmail (required)"] === leader["Email (required)"]
     );
@@ -90,7 +84,7 @@ Papa.parse("team.csv", {
     const data = [];
 
     // ------------------------------
-    // Función para contar descendientes
+    // Conteo recursivo
     // ------------------------------
     function countChildren(id) {
       const direct = raw.filter(p => p["SupervisorEmail (required)"] === id);
@@ -113,7 +107,7 @@ Papa.parse("team.csv", {
     });
 
     // ------------------------------
-    // Row invisible (fuerza horizontal)
+    // Row invisible (fuerza supervisores horizontales)
     // ------------------------------
     data.push({
       id: ROW_ID,
@@ -123,7 +117,7 @@ Papa.parse("team.csv", {
     });
 
     // ------------------------------
-    // Supervisores (horizontales)
+    // Supervisores
     // ------------------------------
     supervisors.forEach(s => {
       data.push({
@@ -136,14 +130,11 @@ Papa.parse("team.csv", {
     });
 
     // ------------------------------
-    // Resto del personal
+    // Personal
     // ------------------------------
     raw.forEach(p => {
       const parent = p["SupervisorEmail (required)"];
-      if (
-        parent &&
-        parent !== leader["Email (required)"]
-      ) {
+      if (parent && parent !== leader["Email (required)"]) {
         data.push({
           ...p,
           id: p["Email (required)"],
@@ -154,7 +145,7 @@ Papa.parse("team.csv", {
     });
 
     // ------------------------------
-    // Render final
+    // Render
     // ------------------------------
     chart.data(data).render();
   }
