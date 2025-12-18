@@ -1,14 +1,29 @@
+// ==============================
+// CONFIGURACIÓN DEL ORG CHART
+// ==============================
 const chart = new d3.OrgChart()
   .container('#chart')
+
+  // 🔒 Evitar que la cámara se mueva sola
+  .centerActiveNode(false)
+  .nodeCentering(null)
+
+  // Tamaño grande para layout horizontal
   .svgWidth(4000)
   .svgHeight(2200)
+
+  // Tamaño de nodos
   .nodeWidth(() => 220)
   .nodeHeight(d => d.data._isRow ? 10 : 150)
+
+  // Layout
   .compact(false)
   .childrenMargin(() => 120)
   .siblingsMargin(() => 80)
 
-  // Contenido del nodo (TARJETA COMPLETA CLICKEABLE)
+  // ==============================
+  // CONTENIDO DEL NODO (TARJETA)
+  // ==============================
   .nodeContent(d => {
     if (d.data._isRow) return '';
 
@@ -22,7 +37,6 @@ const chart = new d3.OrgChart()
           ${d.data["First name (required)"]} ${d.data["Last name (required)"]}
         </div>
         <div class="role">${d.data.Position || ''}</div>
-
         ${
           count > 0
             ? `<div class="count">${count} personas</div>`
@@ -32,7 +46,9 @@ const chart = new d3.OrgChart()
     `;
   })
 
-  // ✅ CLICK EN CUALQUIER PARTE DEL NODO
+  // ==============================
+  // CLICK EN LA TARJETA COMPLETA
+  // ==============================
   .onNodeClick(d => {
     if (d.data._isRow) return;
 
@@ -40,9 +56,13 @@ const chart = new d3.OrgChart()
     const expanded = chart.getExpanded(id);
 
     chart.setExpanded(id, !expanded);
-    chart.render();
+    chart.render(); // ⚠️ sin fit(), sin center()
   });
 
+
+// ==============================
+// CARGA DEL CSV
+// ==============================
 Papa.parse("team.csv", {
   download: true,
   header: true,
@@ -51,7 +71,17 @@ Papa.parse("team.csv", {
 
     const raw = res.data.filter(d => d["Email (required)"]);
 
+    // ------------------------------
+    // Detectar Team Leader
+    // ------------------------------
     const leader = raw.find(d => !d["SupervisorEmail (required)"]);
+
+    if (!leader) {
+      alert("No se pudo detectar Team Leader");
+      return;
+    }
+
+    // Supervisores directos del leader
     const supervisors = raw.filter(
       d => d["SupervisorEmail (required)"] === leader["Email (required)"]
     );
@@ -59,7 +89,9 @@ Papa.parse("team.csv", {
     const ROW_ID = "__SUPERVISOR_ROW__";
     const data = [];
 
-    // Conteo recursivo
+    // ------------------------------
+    // Función para contar descendientes
+    // ------------------------------
     function countChildren(id) {
       const direct = raw.filter(p => p["SupervisorEmail (required)"] === id);
       let total = direct.length;
@@ -69,7 +101,9 @@ Papa.parse("team.csv", {
       return total;
     }
 
+    // ------------------------------
     // Leader
+    // ------------------------------
     data.push({
       ...leader,
       id: leader["Email (required)"],
@@ -78,7 +112,9 @@ Papa.parse("team.csv", {
       _childrenCount: supervisors.length
     });
 
-    // Row invisible
+    // ------------------------------
+    // Row invisible (fuerza horizontal)
+    // ------------------------------
     data.push({
       id: ROW_ID,
       parentId: leader["Email (required)"],
@@ -86,7 +122,9 @@ Papa.parse("team.csv", {
       expanded: true
     });
 
-    // Supervisores
+    // ------------------------------
+    // Supervisores (horizontales)
+    // ------------------------------
     supervisors.forEach(s => {
       data.push({
         ...s,
@@ -97,21 +135,27 @@ Papa.parse("team.csv", {
       });
     });
 
-    // Personal
+    // ------------------------------
+    // Resto del personal
+    // ------------------------------
     raw.forEach(p => {
+      const parent = p["SupervisorEmail (required)"];
       if (
-        p["SupervisorEmail (required)"] &&
-        p["SupervisorEmail (required)"] !== leader["Email (required)"]
+        parent &&
+        parent !== leader["Email (required)"]
       ) {
         data.push({
           ...p,
           id: p["Email (required)"],
-          parentId: p["SupervisorEmail (required)"],
+          parentId: parent,
           expanded: false
         });
       }
     });
 
+    // ------------------------------
+    // Render final
+    // ------------------------------
     chart.data(data).render();
   }
 });
