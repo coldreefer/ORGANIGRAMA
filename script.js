@@ -1,126 +1,135 @@
-const CSV_PATH = "team.csv";
+const width = 2200;
+const dx = 120;
+const dy = 260;
 
-fetch(CSV_PATH)
-  .then(res => {
-    if (!res.ok) throw new Error("No se pudo cargar el CSV");
-    return res.text();
-  })
+const tree = d3.tree().nodeSize([dx, dy]);
+const diagonal = d3.linkVertical().x(d => d.x).y(d => d.y);
+
+fetch("team.csv")
+  .then(r => r.text())
   .then(parseCSV)
-  .then(buildOrgChart)
-  .catch(err => console.error(err));
+  .then(buildChart);
 
-/* =======================
-   CSV PARSER REAL
-   ======================= */
 function parseCSV(text) {
-  const rows = [];
-  let row = [];
-  let current = "";
-  let insideQuotes = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    const next = text[i + 1];
-
-    if (char === '"' && insideQuotes && next === '"') {
-      current += '"';
-      i++;
-    } else if (char === '"') {
-      insideQuotes = !insideQuotes;
-    } else if (char === "," && !insideQuotes) {
-      row.push(current.trim());
-      current = "";
-    } else if (char === "\n" && !insideQuotes) {
-      row.push(current.trim());
-      rows.push(row);
-      row = [];
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-
-  if (current.length) {
-    row.push(current.trim());
-    rows.push(row);
-  }
-
-  const headers = rows.shift();
-
-  return rows.map(r => {
-    const obj = {};
-    headers.forEach((h, i) => {
-      obj[h.trim()] = r[i]?.trim() || "";
-    });
-    return obj;
-  });
+  return d3.csvParse(text);
 }
 
-/* =======================
-   ORGANIGRAMA
-   ======================= */
-function buildOrgChart(data) {
-  const people = {};
-  const tree = {};
-  let root = null;
+function buildChart(data) {
+  const map = new Map();
+  data.forEach(d => map.set(d.Email, { ...d, children: [] }));
 
-  data.forEach(p => {
-    people[p.Email] = p;
-    tree[p.Email] = [];
-  });
+  let rootData = null;
 
-  data.forEach(p => {
-    if (p.SupervisorEmail) {
-      tree[p.SupervisorEmail]?.push(p.Email);
+  data.forEach(d => {
+    if (d.SupervisorEmail) {
+      map.get(d.SupervisorEmail)?.children.push(map.get(d.Email));
     } else {
-      root = p.Email;
+      rootData = map.get(d.Email);
     }
   });
 
-  if (!root) {
-    console.error("No se encontró raíz (SupervisorEmail vacío)");
-    return;
-  }
+  const root = d3.hierarchy(rootData, d => d.children);
+  root.x0 = 0;
+  root.y0 = 0;
 
-  const container = document.getElementById("org-chart");
-  container.innerHTML = "";
-  container.appendChild(createNode(root, people, tree));
-}
+  const svg = d3.select("#chart")
+    .append("svg")
+    .attr("viewBox", [-width / 2, -50, width, 1000]);
 
-function createNode(email, people, tree) {
-  const p = people[email];
+  const g = svg.append("g");
 
-  const node = document.createElement("div");
-  node.className = "node";
+  update(root);
 
-  node.innerHTML = `
-    <div class="arrow">▸</div>
-    <div class="node-header">
-      <img src="${p.ImageURL || "https://via.placeholder.com/100"}" />
-      <div>
-        <div class="node-name">${p["First name"]} ${p["Last name"]}</div>
-        <div class="node-role">${p.Position}</div>
-      </div>
-    </div>
-  `;
+  function update(source) {
+    const nodes = root.descendants();
+    const links = root.links();
 
-  const children = document.createElement("div");
-  children.className = "children";
+    tree(root);
 
-  (tree[email] || []).forEach(child => {
-    children.appendChild(createNode(child, people, tree));
-  });
+    const transition = svg.transition().duration(400);
 
-  if (tree[email] && tree[email].length > 0) {
-    node.addEventListener("click", e => {
-      e.stopPropagation();
-      const open = children.classList.toggle("open");
-      node.querySelector(".arrow").textContent = open ? "▾" : "▸";
+    /** LINKS **/
+    g.selectAll(".link")
+      .data(links, d => d.target.data.Email)
+      .join(
+        enter => enter.append("path")
+          .attr("class", "link")
+          .attr("d", d => {
+            const o = { x: source.x0, y: source.y0 };
+            return diagonal({ source: o, target: o });
+          })
+          .transition(transition)
+          .attr("d", diagonal),
+        update => update.transition(transition).attr("d", diagonal),
+        exit => exit.transition(transition).remove()
+      );
+
+    /** NODES **/
+    const node = g.selectAll(".node")
+      .data(nodes, d => d.data.Email);
+
+    const nodeEnter = node.enter()
+      .append("g")
+      .attr("class", "node")
+      .attr("transform", d => `translate(${source.x0},${source.y0})`)
+      .on("click", (e, d) => toggle(d));
+
+    nodeEnter.append("rect")
+      .attr("x", -80)
+      .attr("y", -40)
+      .attr("width", 160)
+      .attr("height", 80);
+
+    nodeEnter.append("image")
+      .attr("x", -18)
+      .attr("y", -32)
+      .attr("width", 36)
+      .attr("height", 36)
+      .attr("href", d => d.data.ImageURL || "https://via.placeholder.com/80");
+
+    nodeEnter.append("text")
+      .attr("class", "name")
+      .attr("y", 15)
+      .text(d => `${d.data["First name"]} ${d.data["Last name"]}`);
+
+    nodeEnter.append("text")
+      .attr("class", "role")
+      .attr("y", 32)
+      .text(d => d.data.Position);
+
+    nodeEnter.append("text")
+      .attr("class", "count")
+      .attr("y", 55)
+      .text(d => d.children || d._children ? `👤 ${count(d)}` : "");
+
+    node.merge(nodeEnter)
+      .transition(transition)
+      .attr("transform", d => `translate(${d.x},${d.y})`);
+
+    node.exit()
+      .transition(transition)
+      .remove();
+
+    nodes.forEach(d => {
+      d.x0 = d.x;
+      d.y0 = d.y;
     });
-  } else {
-    node.querySelector(".arrow").style.display = "none";
   }
 
-  node.appendChild(children);
-  return node;
+  function toggle(d) {
+    if (d.children) {
+      d._children = d.children;
+      d.children = null;
+    } else {
+      d.children = d._children;
+      d._children = null;
+    }
+    update(d);
+  }
+
+  function count(d) {
+    let n = 0;
+    d.each(c => n++);
+    return n - 1;
+  }
 }
