@@ -29,28 +29,37 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ======================================================
-   TEMPLATE BASE
+   TEMPLATE BASE PERSONA
    ====================================================== */
-const baseNode =
+const baseNodeTemplate =
   $(go.Node, "Vertical",
-    { selectable: false, cursor: "pointer" },
+    {
+      selectable: false,
+      selectionAdorned: false,
+      cursor: "pointer"
+    },
     $(go.Panel, "Auto",
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
         stroke: "#e5e7eb",
         strokeWidth: 1
       }),
-      $(go.Panel, "Vertical", { margin: 10 },
+      $(go.Panel, "Vertical",
+        { margin: 10 },
+
         $(go.Picture, {
           width: 52,
           height: 52,
           margin: new go.Margin(0, 0, 6, 0),
           background: "#cbd5e1"
         }, new go.Binding("source", "image")),
+
         $(go.TextBlock, {
           font: "bold 12px sans-serif",
+          stroke: "#0f172a",
           textAlign: "center"
         }, new go.Binding("text", "name")),
+
         $(go.TextBlock, {
           font: "11px sans-serif",
           stroke: "#475569",
@@ -60,41 +69,54 @@ const baseNode =
     )
   );
 
-diagram.nodeTemplate = baseNode;
+diagram.nodeTemplate = baseNodeTemplate;
 
 /* ======================================================
-   GROUP = SUPERVISOR
+   GROUP TEMPLATE = SUPERVISOR
    ====================================================== */
 diagram.groupTemplate =
   $(go.Group, "Vertical",
     {
+      selectable: false,
+      selectionAdorned: false,
       cursor: "pointer",
       ungroupable: false,
-      isSubGraphExpanded: false,
+
       layout: $(go.GridLayout, {
         wrappingColumn: 2,
         spacing: new go.Size(20, 20)
       }),
-      click: (e, g) => g.isSubGraphExpanded = !g.isSubGraphExpanded
+
+      isSubGraphExpanded: false,
+
+      click: (e, group) => {
+        group.isSubGraphExpanded = !group.isSubGraphExpanded;
+      }
     },
     new go.Binding("isSubGraphExpanded").makeTwoWay(),
+
     $(go.Panel, "Auto",
       $(go.Shape, "RoundedRectangle", {
         fill: "#ffffff",
         stroke: "#94a3b8",
         strokeWidth: 1.2
       }),
-      $(go.Panel, "Vertical", { margin: 10 },
+      $(go.Panel, "Vertical",
+        { margin: 10 },
+
         $(go.Picture, {
           width: 52,
           height: 52,
           margin: new go.Margin(0, 0, 6, 0),
           background: "#cbd5e1"
         }, new go.Binding("source", "image")),
+
         $(go.TextBlock, {
           font: "bold 13px sans-serif",
+          stroke: "#0f172a",
           textAlign: "center"
         }, new go.Binding("text", "name")),
+
         $(go.TextBlock, {
           font: "12px sans-serif",
           stroke: "#475569",
@@ -102,6 +124,7 @@ diagram.groupTemplate =
         }, new go.Binding("text", "role"))
       )
     ),
+
     $(go.Placeholder, { padding: 12 })
   );
 
@@ -111,40 +134,43 @@ diagram.groupTemplate =
 diagram.linkTemplate =
   $(go.Link,
     { routing: go.Link.Orthogonal, corner: 6 },
-    $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.5 })
+    $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.4 })
   );
 
 /* ======================================================
-   CSV
+   CARGA CSV
    ====================================================== */
 Papa.parse("team.csv", {
   download: true,
   header: true,
   skipEmptyLines: true,
-  complete: r => buildModel(r.data)
+  complete: res => buildModel(res.data)
 });
 
 /* ======================================================
-   MODELO ROBUSTO (SIN EMAIL COMO KEY)
+   CONSTRUCCIÓN DEL MODELO (ROBUSTA)
    ====================================================== */
 function buildModel(rows) {
 
   const people = rows.filter(r => r["First name (required)"]);
 
-  const idByEmail = {};
   const nodes = [];
   const links = [];
 
-  // ROOT
-  nodes.push({ key: "ROOT", name: "EMR TEAM", role: "", image: "" });
-
-  // Crear IDs internos
+  const idByEmail = {};
   people.forEach((p, i) => {
-    const id = "P_" + i;
-    p.__id = id;
+    p.__id = "P_" + i;
     if (p["Email (required)"]) {
-      idByEmail[p["Email (required)"]] = id;
+      idByEmail[p["Email (required)"]] = p.__id;
     }
+  });
+
+  // ROOT
+  nodes.push({
+    key: "ROOT",
+    name: "EMR TEAM",
+    role: "",
+    image: ""
   });
 
   // Team Leader = sin supervisor
