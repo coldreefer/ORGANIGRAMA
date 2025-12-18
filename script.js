@@ -44,7 +44,7 @@ function circularPhoto(size) {
       width: size,
       height: size,
       imageStretch: go.GraphObject.UniformToFill,
-      sourceCrossOrigin: "anonymous" // 👈 CLAVE PARA CCV
+      sourceCrossOrigin: "anonymous" // necesario para CCV
     }, new go.Binding("source", "image"))
   );
 }
@@ -73,16 +73,17 @@ function personTemplate(borderColor, roleColor) {
 
         circularPhoto(64),
 
+        // NOMBRE
         $(go.TextBlock, {
           margin: new go.Margin(8, 6, 0, 6),
           font: "bold 12px Inter, sans-serif",
           textAlign: "center",
           wrap: go.TextBlock.WrapFit,
           maxLines: 2,
-          overflow: go.TextBlock.Ellipsis,
-          lineHeight: 1.1
+          overflow: go.TextBlock.Ellipsis
         }, new go.Binding("text", "name")),
 
+        // CARGO
         $(go.TextBlock, {
           margin: new go.Margin(4, 6, 0, 6),
           font: "12px Inter, sans-serif",
@@ -124,7 +125,7 @@ diagram.groupTemplate =
       cursor: "pointer",
 
       layout: $(go.GridLayout, {
-        wrappingColumn: 2,
+        wrappingColumn: 2,   // 2 trabajadores por fila
         spacing: new go.Size(22, 22)
       }),
 
@@ -152,19 +153,23 @@ diagram.groupTemplate =
 
         circularPhoto(64),
 
+        // NOMBRE SUPERVISOR
         $(go.TextBlock, {
           margin: new go.Margin(8, 6, 0, 6),
           font: "bold 13px Inter, sans-serif",
           textAlign: "center",
+          wrap: go.TextBlock.WrapFit,
           maxLines: 2,
           overflow: go.TextBlock.Ellipsis
         }, new go.Binding("text", "name")),
 
+        // CARGO SUPERVISOR
         $(go.TextBlock, {
           margin: new go.Margin(4, 6, 0, 6),
           font: "12px Inter, sans-serif",
           stroke: "#0f766e",
           textAlign: "center",
+          wrap: go.TextBlock.WrapFit,
           maxLines: 2,
           overflow: go.TextBlock.Ellipsis
         }, new go.Binding("text", "role"))
