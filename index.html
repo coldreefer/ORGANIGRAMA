@@ -5,7 +5,7 @@
   <title>Organigrama EMR</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- GoJS (Community / Free) -->
+  <!-- GoJS (Community / Free para uso no comercial) -->
   <script src="https://unpkg.com/gojs/release/go.js"></script>
 
   <style>
@@ -18,6 +18,7 @@
     h1 {
       text-align: center;
       margin: 20px 0;
+      color: #0f172a;
     }
 
     #myDiagramDiv {
@@ -36,7 +37,14 @@
 <script>
   const $ = go.GraphObject.make;
 
+  /* =============================
+     1. CREAR DIAGRAMA (ORGCHART REAL)
+     ============================= */
   const diagram = $(go.Diagram, "myDiagramDiv", {
+    initialContentAlignment: go.Spot.Center,
+    allowZoom: true,
+    allowMove: false,
+    allowCopy: false,
     layout: $(go.TreeLayout, {
       angle: 90,
       arrangement: go.TreeLayout.ArrangementHorizontal,
@@ -46,17 +54,17 @@
     "undoManager.isEnabled": false
   });
 
-  /* ============================
-     NODE TEMPLATE (CLON VISUAL)
-     ============================ */
+  /* =============================
+     2. TEMPLATE DE NODO (CLON VISUAL)
+     ============================= */
   diagram.nodeTemplate =
     $(go.Node, "Vertical",
       {
         selectionObjectName: "BODY",
         click: (e, node) => {
-          const data = node.data;
+          const d = node.data;
           diagram.model.setDataProperty(
-            data,
+            d,
             "isTreeExpanded",
             !node.isTreeExpanded
           );
@@ -68,9 +76,7 @@
           {
             fill: "white",
             stroke: "#e5e7eb",
-            strokeWidth: 1,
-            spot1: go.Spot.TopLeft,
-            spot2: go.Spot.BottomRight
+            strokeWidth: 1
           }
         ),
         $(go.Panel, "Vertical",
@@ -119,14 +125,15 @@
       $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.5 })
     );
 
-  /* ============================
-     CARGAR CSV Y CONSTRUIR MODELO
-     ============================ */
+  /* =============================
+     3. CARGAR CSV
+     ============================= */
   fetch("team.csv")
     .then(r => r.text())
     .then(text => buildModel(text));
 
   function buildModel(csvText) {
+
     const rows = csvText.trim().split("\n").map(r => r.split(","));
     const headers = rows.shift().map(h => h.trim().toLowerCase());
 
@@ -134,27 +141,34 @@
       name: find(headers, ["name", "nombre"]),
       role: find(headers, ["role", "cargo", "title"]),
       supervisor: find(headers, ["supervisor", "manager"]),
-      image: find(headers, ["image", "photo"])
+      image: find(headers, ["image", "photo"]),
+      isLeader: find(headers, ["isleader"])
     };
 
     const people = rows.map(r => ({
       name: r[idx.name]?.trim(),
       role: r[idx.role]?.trim() || "",
       supervisor: r[idx.supervisor]?.trim() || "",
-      image: r[idx.image] || ""
+      image: r[idx.image] || "",
+      isLeader: (r[idx.isLeader] || "").trim().toUpperCase()
     })).filter(p => p.name);
 
-    /* === DETECTAR TEAM LEADER === */
-    let leader = people.find(p => !p.supervisor)
-      || people.find(p => /leader|jefe/i.test(p.role));
+    /* =============================
+       4. TEAM LEADER EXPLÍCITO
+       ============================= */
+    const leader = people.find(p => p.isLeader === "YES");
 
     if (!leader) {
-      alert("No se pudo detectar Team Leader");
+      alert("No se pudo detectar Team Leader (IsLeader=YES)");
       return;
     }
 
-    /* === CREAR NODOS === */
+    /* =============================
+       5. CREAR MODELO JERÁRQUICO
+       ============================= */
     const nodes = [];
+
+    // ROOT
     nodes.push({
       key: "ROOT",
       name: "EMR TEAM",
@@ -162,6 +176,7 @@
       isTreeExpanded: false
     });
 
+    // TEAM LEADER
     nodes.push({
       key: leader.name,
       parent: "ROOT",
@@ -171,7 +186,10 @@
       isTreeExpanded: false
     });
 
-    const supervisors = people.filter(p => p.supervisor === leader.name);
+    // SUPERVISORES
+    const supervisors = people.filter(p =>
+      p.supervisor === leader.name
+    );
 
     supervisors.forEach(s => {
       nodes.push({
@@ -183,19 +201,22 @@
         isTreeExpanded: false
       });
 
-      const staff = people.filter(p => p.supervisor === s.name);
-      staff.forEach(p => {
-        nodes.push({
-          key: p.name,
-          parent: s.name,
-          name: p.name,
-          role: p.role,
-          image: p.image
+      // PERSONAL
+      people.filter(p => p.supervisor === s.name)
+        .forEach(p => {
+          nodes.push({
+            key: p.name,
+            parent: s.name,
+            name: p.name,
+            role: p.role,
+            image: p.image
+          });
         });
-      });
     });
 
-    /* === CONTADORES === */
+    /* =============================
+       6. CONTADORES
+       ============================= */
     nodes.forEach(n => {
       n.count = nodes.filter(x => x.parent === n.key).length;
     });
@@ -204,7 +225,9 @@
   }
 
   function find(arr, keys) {
-    return arr.findIndex(h => keys.some(k => h.includes(k)));
+    return arr.findIndex(h =>
+      keys.some(k => h.includes(k))
+    );
   }
 </script>
 
