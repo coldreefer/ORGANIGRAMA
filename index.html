@@ -23,42 +23,39 @@
 
   function initChart(data) {
 
-    /* ============================
-       1. Detectar columnas
-       ============================ */
-    const headers = Object.keys(data[0]).map(h => h.toLowerCase());
+    /* ======================================================
+       1. Detectar columnas reales
+       ====================================================== */
+    const headers = Object.keys(data[0]);
+
     const col = {
-      first: find(headers, ["first", "nombre"]),
-      last: find(headers, ["last", "apellido"]),
-      role: find(headers, ["position", "cargo", "role"]),
-      supervisor: find(headers, ["supervisor", "manager", "reports"]),
-      image: find(headers, ["image", "photo", "picture"])
+      name: pick(headers, ["name", "nombre", "full"]),
+      role: pick(headers, ["title", "position", "cargo", "role"]),
+      supervisor: pick(headers, ["supervisor", "manager", "reports"]),
+      image: pick(headers, ["image", "photo", "picture"])
     };
 
     const ROOT_ID = "__ROOT__";
 
-    /* ============================
-       2. Crear nodos BASE
-       TODOS cuelgan del ROOT
-       ============================ */
-    const nodes = data.map((d, i) => {
-      const name = `${d[col.first] || ""} ${d[col.last] || ""}`.trim();
-      return {
-        id: `node-${i}`,
-        parentId: ROOT_ID,          // 🔒 clave: nadie queda sin padre
-        name,
-        role: d[col.role] || "",
-        supervisorName: (d[col.supervisor] || "").trim(),
-        image: d[col.image] || ""
-      };
-    });
+    /* ======================================================
+       2. Crear nodos base
+       ====================================================== */
+    const nodes = data.map((d, i) => ({
+      id: `node-${i}`,
+      parentId: ROOT_ID,
+      name: (d[col.name] || "").trim(),
+      role: d[col.role] || "",
+      supervisorName: (d[col.supervisor] || "").trim(),
+      image: d[col.image] || ""
+    }));
 
-    const byName = new Map(nodes.map(n => [n.name.toLowerCase(), n]));
+    const byName = new Map(
+      nodes.map(n => [n.name.toLowerCase(), n])
+    );
 
-    /* ============================
-       3. Resolver jerarquía REAL
-       personal → supervisor
-       ============================ */
+    /* ======================================================
+       3. Resolver jerarquía por nombre
+       ====================================================== */
     nodes.forEach(n => {
       if (!n.supervisorName) return;
       const sup = byName.get(n.supervisorName.toLowerCase());
@@ -67,30 +64,20 @@
       }
     });
 
-    /* ============================
-       4. Insertar ROOT ÚNICO
-       ============================ */
+    /* ======================================================
+       4. ROOT ÚNICO
+       ====================================================== */
     nodes.push({
       id: ROOT_ID,
-      parentId: null,              // 🔴 el ÚNICO null
+      parentId: null,
       name: "EMR TEAM",
       role: "",
       image: ""
     });
 
-    /* ============================
-       5. Seguridad final
-       (debug, pero no rompe)
-       ============================ */
-    const roots = nodes.filter(n => n.parentId === null);
-    if (roots.length !== 1) {
-      console.error("Roots detectados:", roots);
-      throw new Error("Estructura inválida: multiple roots");
-    }
-
-    /* ============================
-       6. Render OrgChart
-       ============================ */
+    /* ======================================================
+       5. Render
+       ====================================================== */
     const chart = new OrgChart()
       .container("#chart-container")
       .data(nodes)
@@ -104,7 +91,7 @@
               ? `<img src="${d.data.image}" />`
               : `<div style="width:44px;height:44px;border-radius:50%;background:#cbd5e1;margin:0 auto 6px"></div>`
           }
-          <div class="org-name">${d.data.name}</div>
+          <div class="org-name">${d.data.name || "(sin nombre)"}</div>
           <div class="org-role">${d.data.role}</div>
         </div>
       `);
@@ -114,8 +101,10 @@
     chart.expand(ROOT_ID);
   }
 
-  function find(headers, keys) {
-    return headers.find(h => keys.some(k => h.includes(k))) || "";
+  function pick(headers, keys) {
+    return headers.find(h =>
+      keys.some(k => h.toLowerCase().includes(k))
+    );
   }
 </script>
 
