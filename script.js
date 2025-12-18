@@ -20,7 +20,6 @@ const diagram = $(go.Diagram, "diagramDiv", {
 
   "undoManager.isEnabled": false,
 
-  // Árbol SOLO para ROOT → Leader → Supervisores
   layout: $(go.TreeLayout, {
     angle: 90,
     arrangement: go.TreeLayout.ArrangementHorizontal,
@@ -69,11 +68,11 @@ const baseNodeTemplate =
     )
   );
 
-/* ======================================================
-   NODE TEMPLATES
-   ====================================================== */
 diagram.nodeTemplate = baseNodeTemplate;
 
+/* ======================================================
+   CATEGORÍAS
+   ====================================================== */
 diagram.nodeTemplateMap.add("Leader",
   baseNodeTemplate.copy().add(
     new go.Binding("cssClass", "", () => "go-node go-leader")
@@ -96,9 +95,8 @@ diagram.groupTemplate =
       ungroupable: false,
 
       layout: $(go.GridLayout, {
-        wrappingColumn: 2,        // 2 personas por fila
-        spacing: new go.Size(20, 20),
-        alignment: go.GridLayout.Position
+        wrappingColumn: 2,
+        spacing: new go.Size(20, 20)
       }),
 
       isSubGraphExpanded: false,
@@ -163,23 +161,31 @@ Papa.parse("team.csv", {
 });
 
 /* ======================================================
-   CONSTRUCCIÓN DEL MODELO
+   CONSTRUCCIÓN MODELO (ROBUSTA)
    ====================================================== */
 function buildModel(rows) {
 
-  const people = rows.filter(r => r["Email (required)"]);
+  const people = rows.filter(r => r["First name (required)"]);
 
-  // SupervisorEmail → hijos
+  const keyMap = {};
+  const getKey = (row, idx) => {
+    const k = row["Email (required)"];
+    if (k && !keyMap[k]) {
+      keyMap[k] = true;
+      return k;
+    }
+    return "AUTO_" + idx;
+  };
+
   const children = {};
-  people.forEach(p => {
+  people.forEach((p, i) => {
     const sup = (p["SupervisorEmail (required)"] || "").trim();
     if (!children[sup]) children[sup] = [];
-    children[sup].push(p);
+    children[sup].push({ row: p, idx: i });
   });
 
-  // Team Leader = sin supervisor
-  const leader = people.find(p => !p["SupervisorEmail (required)"]);
-  if (!leader) {
+  const leaderEntry = people.find(p => !p["SupervisorEmail (required)"]);
+  if (!leaderEntry) {
     alert("No se pudo detectar Team Leader");
     return;
   }
@@ -187,7 +193,6 @@ function buildModel(rows) {
   const nodes = [];
   const links = [];
 
-  // ROOT
   nodes.push({
     key: "ROOT",
     name: "EMR TEAM",
@@ -196,38 +201,35 @@ function buildModel(rows) {
     category: "Leader"
   });
 
-  // TEAM LEADER
+  const leaderKey = getKey(leaderEntry, 0);
+
   nodes.push({
-    key: leader["Email (required)"],
-    name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
-    role: leader.Position || "",
-    image: leader.ImageURL || "",
+    key: leaderKey,
+    name: `${leaderEntry["First name (required)"]} ${leaderEntry["Last name (required)"]}`,
+    role: leaderEntry.Position || "",
+    image: leaderEntry.ImageURL || "",
     category: "Leader"
   });
 
-  links.push({ from: "ROOT", to: leader["Email (required)"] });
+  links.push({ from: "ROOT", to: leaderKey });
 
-  // SUPERVISORES (GROUPS)
-  (children[leader["Email (required)"]] || []).forEach(s => {
+  (children[leaderEntry["Email (required)"]] || []).forEach(({ row: s, idx }) => {
+    const supKey = getKey(s, idx);
 
     nodes.push({
-      key: s["Email (required)"],
+      key: supKey,
       isGroup: true,
       name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
       role: s.Position || "",
       image: s.ImageURL || ""
     });
 
-    links.push({
-      from: leader["Email (required)"],
-      to: s["Email (required)"]
-    });
+    links.push({ from: leaderKey, to: supKey });
 
-    // TRABAJADORES (DENTRO DEL SUPERVISOR)
-    (children[s["Email (required)"]] || []).forEach(p => {
+    (children[s["Email (required)"]] || []).forEach(({ row: p, idx }) => {
       nodes.push({
-        key: p["Email (required)"],
-        group: s["Email (required)"],
+        key: getKey(p, idx),
+        group: supKey,
         name: `${p["First name (required)"]} ${p["Last name (required)"]}`,
         role: p.Position || "",
         image: p.ImageURL || "",
