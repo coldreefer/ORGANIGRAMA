@@ -20,34 +20,83 @@ const diagram = $(go.Diagram, "diagramDiv", {
 
   "undoManager.isEnabled": false,
 
+  // Árbol SOLO para Leader → Supervisores
   layout: $(go.TreeLayout, {
-    angle: 90, // árbol hacia abajo
+    angle: 90,
     arrangement: go.TreeLayout.ArrangementHorizontal,
-    nodeSpacing: 30,
-    layerSpacing: 40
+    nodeSpacing: 40,
+    layerSpacing: 50
   })
 });
 
 /* ======================================================
-   TEMPLATE NODO NORMAL
+   TEMPLATE PERSONA (NODO NORMAL)
    ====================================================== */
 diagram.nodeTemplate =
   $(go.Node, "Vertical",
     {
-      cursor: "pointer",
-      click: (e, node) => {
-        if (node.findTreeChildrenNodes().count > 0) {
-          node.isTreeExpanded = !node.isTreeExpanded;
-        }
-      }
+      selectable: false
     },
-    new go.Binding("isTreeExpanded").makeTwoWay(),
-
     $(go.Panel, "Auto",
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
         stroke: "#e5e7eb",
         strokeWidth: 1
+      }),
+      $(go.Panel, "Vertical",
+        { margin: 10 },
+
+        $(go.Picture, {
+          width: 52,
+          height: 52,
+          margin: new go.Margin(0, 0, 6, 0),
+          background: "#cbd5e1"
+        }, new go.Binding("source", "image")),
+
+        $(go.TextBlock, {
+          font: "bold 12px sans-serif",
+          stroke: "#0f172a",
+          textAlign: "center"
+        }, new go.Binding("text", "name")),
+
+        $(go.TextBlock, {
+          font: "11px sans-serif",
+          stroke: "#475569",
+          textAlign: "center"
+        }, new go.Binding("text", "role"))
+      )
+    )
+  );
+
+/* ======================================================
+   TEMPLATE SUPERVISOR = GROUP
+   ====================================================== */
+diagram.groupTemplate =
+  $(go.Group, "Vertical",
+    {
+      cursor: "pointer",
+      ungroupable: false,
+
+      // 🔑 Grid para trabajadores
+      layout: $(go.GridLayout, {
+        wrappingColumn: 2,                 // 👈 2 personas por fila
+        spacing: new go.Size(20, 20),
+        alignment: go.GridLayout.Position
+      }),
+
+      isSubGraphExpanded: false,
+
+      click: (e, group) => {
+        group.isSubGraphExpanded = !group.isSubGraphExpanded;
+      }
+    },
+    new go.Binding("isSubGraphExpanded").makeTwoWay(),
+
+    $(go.Panel, "Auto",
+      $(go.Shape, "RoundedRectangle", {
+        fill: "#ffffff",
+        stroke: "#94a3b8",
+        strokeWidth: 1.2
       }),
       $(go.Panel, "Vertical",
         { margin: 10 },
@@ -71,21 +120,14 @@ diagram.nodeTemplate =
           textAlign: "center"
         }, new go.Binding("text", "role"))
       )
-    )
+    ),
+
+    // Aquí se dibujan los trabajadores al expandir
+    $(go.Placeholder, { padding: 12 })
   );
 
 /* ======================================================
-   TEMPLATE FILA INVISIBLE (SOLO ESTRUCTURA)
-   ====================================================== */
-diagram.nodeTemplateMap.add("Row",
-  $(go.Node,
-    { selectable: false, visible: false },
-    new go.Binding("isTreeExpanded").makeTwoWay()
-  )
-);
-
-/* ======================================================
-   LINKS
+   LINKS (Leader → Supervisores)
    ====================================================== */
 diagram.linkTemplate =
   $(go.Link,
@@ -94,7 +136,7 @@ diagram.linkTemplate =
   );
 
 /* ======================================================
-   CSV
+   CARGA CSV
    ====================================================== */
 Papa.parse("team.csv", {
   download: true,
@@ -104,12 +146,13 @@ Papa.parse("team.csv", {
 });
 
 /* ======================================================
-   MODELO — JERARQUÍA CORRECTA
+   MODELO DESDE CSV
    ====================================================== */
 function buildModel(rows) {
 
   const people = rows.filter(r => r["Email (required)"]);
 
+  // Mapa supervisor → personal
   const children = {};
   people.forEach(p => {
     const sup = (p["SupervisorEmail (required)"] || "").trim();
@@ -117,6 +160,7 @@ function buildModel(rows) {
     children[sup].push(p);
   });
 
+  // Team Leader = sin supervisor
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) {
     alert("No se pudo detectar Team Leader");
@@ -124,50 +168,46 @@ function buildModel(rows) {
   }
 
   const nodes = [];
-  const ROW_KEY = "__SUP_ROW__";
+  const links = [];
 
   // ROOT
   nodes.push({
     key: "ROOT",
     name: "EMR TEAM",
-    isTreeExpanded: true
+    role: "",
+    image: "",
   });
 
-  // TEAM LEADER (HIJO DEL ROOT)
+  // TEAM LEADER
   nodes.push({
     key: leader["Email (required)"],
-    parent: "ROOT",
     name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
     role: leader.Position || "",
-    image: leader.ImageURL || "",
-    isTreeExpanded: true
+    image: leader.ImageURL || ""
   });
+  links.push({ from: "ROOT", to: leader["Email (required)"] });
 
-  // FILA INVISIBLE — HIJA DEL TEAM LEADER
-  nodes.push({
-    key: ROW_KEY,
-    parent: leader["Email (required)"],
-    category: "Row",
-    isTreeExpanded: true
-  });
-
-  // SUPERVISORES — HIJOS DE LA FILA
+  // SUPERVISORES = GROUPS (HORIZONTALES)
   (children[leader["Email (required)"]] || []).forEach(s => {
 
     nodes.push({
       key: s["Email (required)"],
-      parent: ROW_KEY,
+      isGroup: true,
       name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
       role: s.Position || "",
-      image: s.ImageURL || "",
-      isTreeExpanded: false   // personal oculto
+      image: s.ImageURL || ""
     });
 
-    // PERSONAL — HIJOS DEL SUPERVISOR (VERTICAL)
+    links.push({
+      from: leader["Email (required)"],
+      to: s["Email (required)"]
+    });
+
+    // TRABAJADORES (DENTRO DEL GROUP)
     (children[s["Email (required)"]] || []).forEach(p => {
       nodes.push({
         key: p["Email (required)"],
-        parent: s["Email (required)"],
+        group: s["Email (required)"],
         name: `${p["First name (required)"]} ${p["Last name (required)"]}`,
         role: p.Position || "",
         image: p.ImageURL || ""
@@ -175,5 +215,5 @@ function buildModel(rows) {
     });
   });
 
-  diagram.model = new go.TreeModel(nodes);
+  diagram.model = new go.GraphLinksModel(nodes, links);
 }
