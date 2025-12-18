@@ -4,35 +4,56 @@
   <meta charset="UTF-8" />
   <title>Organigrama EMR</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <!-- ========================= -->
-  <!-- D3 (requerido)           -->
-  <!-- ========================= -->
-  <script src="https://d3js.org/d3.v7.min.js"></script>
-
-  <!-- ========================= -->
-  <!-- d3-org-chart (UMD 2.x)   -->
-  <!-- ESTA ES LA CLAVE         -->
-  <!-- ========================= -->
-  <script src="https://unpkg.com/d3-org-chart@2.6.1/dist/d3-org-chart.js"></script>
-
-  <!-- ========================= -->
-  <!-- Estilos                  -->
-  <!-- ========================= -->
   <link rel="stylesheet" href="./styles.css" />
 </head>
 
 <body>
 
   <h1>Organigrama EMR</h1>
-
-  <!-- Contenedor del organigrama -->
   <div id="chart-container" style="width:100%; height: calc(100vh - 80px);"></div>
 
   <!-- ========================= -->
-  <!-- Lógica del organigrama   -->
+  <!-- SCRIPT COMO ES MODULE     -->
   <!-- ========================= -->
-  <script src="./script.js"></script>
+  <script type="module">
+
+    import * as d3 from "https://esm.sh/d3@7";
+    import { OrgChart } from "https://esm.sh/d3-org-chart@3";
+
+    fetch("./team.csv")
+      .then(r => r.text())
+      .then(text => d3.csvParse(text))
+      .then(data => initChart(data));
+
+    function initChart(data) {
+
+      // detección simple de columnas (ajustable)
+      const nodes = data.map((d, i) => ({
+        id: d.Email || `node-${i}`,
+        parentId: d.SupervisorEmail || null,
+        name: `${d["First name"] || ""} ${d["Last name"] || ""}`.trim(),
+        role: d.Position || "",
+        image: d.ImageURL || ""
+      }));
+
+      const chart = new OrgChart()
+        .container("#chart-container")
+        .data(nodes)
+        .nodeWidth(() => 190)
+        .nodeHeight(() => 120)
+        .childrenMargin(() => 40)
+        .nodeContent(d => `
+          <div class="org-card">
+            ${d.data.image ? `<img src="${d.data.image}" />` : ""}
+            <div class="org-name">${d.data.name}</div>
+            <div class="org-role">${d.data.role}</div>
+          </div>
+        `);
+
+      chart.render();
+    }
+
+  </script>
 
 </body>
 </html>
