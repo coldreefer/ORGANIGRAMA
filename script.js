@@ -9,12 +9,15 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowMove: false,
   allowCopy: false,
 
-  // Zoom & Pan
+  // Zoom
   mouseWheelBehavior: go.Diagram.Zoom,
-  minScale: 0.4,
-  maxScale: 2,
+  minScale: 0.3,
+  maxScale: 2.5,
+
+  // Pan + scroll libre
   allowHorizontalScroll: true,
   allowVerticalScroll: true,
+  scrollMode: go.Diagram.InfiniteScroll,
 
   "undoManager.isEnabled": false,
 
@@ -36,16 +39,15 @@ function proxyImage(url) {
 }
 
 /* ======================================================
-   PHOTO WITH CIRCULAR FRAME (CORRECT CENTERING)
+   PHOTO + CIRCULAR FRAME (NO CLIPPING)
    ====================================================== */
 function photoWithCircle(size) {
   return $(go.Panel, "Spot",
     { width: size, height: size },
 
-    // Fixed container for the image
+    // Imagen centrada en contenedor fijo
     $(go.Panel, "Auto",
       { width: size, height: size },
-
       $(go.Picture, {
         width: size,
         height: size,
@@ -54,7 +56,7 @@ function photoWithCircle(size) {
       }, new go.Binding("source", "image", proxyImage))
     ),
 
-    // Circular frame on top
+    // Marco circular encima
     $(go.Shape, "Circle", {
       width: size,
       height: size,
@@ -66,7 +68,7 @@ function photoWithCircle(size) {
 }
 
 /* ======================================================
-   PERSON CARD TEMPLATE
+   PERSON CARD
    ====================================================== */
 function personCard(borderColor, roleColor) {
   return $(go.Node, "Vertical",
@@ -90,7 +92,7 @@ function personCard(borderColor, roleColor) {
 
         photoWithCircle(64),
 
-        // NAME
+        // Nombre
         $(go.TextBlock, {
           margin: new go.Margin(10, 6, 2, 6),
           font: "bold 12px sans-serif",
@@ -99,7 +101,7 @@ function personCard(borderColor, roleColor) {
           maxLines: 3
         }, new go.Binding("text", "name")),
 
-        // ROLE
+        // Cargo
         $(go.TextBlock, {
           margin: new go.Margin(2, 6, 0, 6),
           font: "11px sans-serif",
@@ -130,7 +132,7 @@ diagram.nodeTemplateMap.add(
 diagram.nodeTemplate = personCard("#e5e7eb", "#475569");
 
 /* ======================================================
-   SUPERVISOR GROUP (CLICK TO EXPAND)
+   SUPERVISOR GROUP
    ====================================================== */
 diagram.groupTemplate =
   $(go.Group, "Vertical",
@@ -139,7 +141,7 @@ diagram.groupTemplate =
       selectionAdorned: false,
       cursor: "pointer",
 
-      // Workers layout: 2 columns, vertical growth
+      // Personal: 2 columnas, crecimiento vertical
       layout: $(go.GridLayout, {
         wrappingColumn: 2,
         spacing: new go.Size(20, 20)
@@ -147,15 +149,15 @@ diagram.groupTemplate =
 
       isSubGraphExpanded: false,
 
-      click: (e, group) => {
+      click: (e, g) => {
         diagram.startTransaction("toggle");
-        group.isSubGraphExpanded = !group.isSubGraphExpanded;
+        g.isSubGraphExpanded = !g.isSubGraphExpanded;
         diagram.commitTransaction("toggle");
       }
     },
     new go.Binding("isSubGraphExpanded").makeTwoWay(),
 
-    // Supervisor card
+    // Card del supervisor
     $(go.Panel, "Auto",
       { desiredSize: new go.Size(200, 250) },
 
@@ -189,7 +191,6 @@ diagram.groupTemplate =
       )
     ),
 
-    // Workers placeholder
     $(go.Placeholder, { padding: 18 })
   );
 
@@ -246,7 +247,7 @@ function buildModel(rows) {
 
   links.push({ from: "ROOT", to: leader.__id });
 
-  // SUPERVISORS + WORKERS
+  // SUPERVISORES + PERSONAL
   people.forEach(sup => {
     if (sup["SupervisorEmail (required)"] === leader["Email (required)"]) {
 
