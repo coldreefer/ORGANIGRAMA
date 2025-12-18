@@ -5,16 +5,21 @@ const $ = go.GraphObject.make;
    ====================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
+
   allowMove: false,
   allowCopy: false,
 
+  // 🔍 ZOOM
   allowZoom: true,
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.4,
-  maxScale: 1.6,
+  maxScale: 2,
 
+  // ✋ PAN
   allowHorizontalScroll: true,
   allowVerticalScroll: true,
+  "toolManager.panningTool.isEnabled": true,
+  "toolManager.mouseWheelBehavior": go.ToolManager.WheelZoom,
 
   "undoManager.isEnabled": false,
 
@@ -27,7 +32,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ======================================================
-   HELPERS
+   PROXY PARA IMÁGENES CCV (CORS)
    ====================================================== */
 function proxyImage(url) {
   if (!url) return "";
@@ -35,10 +40,16 @@ function proxyImage(url) {
 }
 
 /* ======================================================
-   FOTO CIRCULAR (CON PROXY CCV)
+   FOTO CIRCULAR REAL
    ====================================================== */
 function circularPhoto(size) {
   return $(go.Panel, "Spot",
+    {
+      width: size,
+      height: size,
+      clipping: true // 🔑 recorte circular real
+    },
+
     $(go.Shape, "Circle", {
       width: size,
       height: size,
@@ -46,6 +57,7 @@ function circularPhoto(size) {
       stroke: "#cbd5e1",
       strokeWidth: 2
     }),
+
     $(go.Picture, {
       width: size,
       height: size,
@@ -55,14 +67,18 @@ function circularPhoto(size) {
 }
 
 /* ======================================================
-   TARJETA PERSONA (TAMAÑO AJUSTADO)
+   TARJETA PERSONA (MISMO PORTE)
    ====================================================== */
 function personTemplate(borderColor, roleColor) {
   return $(go.Node, "Vertical",
-    { selectable: false, selectionAdorned: false, cursor: "pointer" },
+    {
+      selectable: false,
+      selectionAdorned: false,
+      cursor: "pointer"
+    },
 
     $(go.Panel, "Auto",
-      { desiredSize: new go.Size(185, 235) },
+      { desiredSize: new go.Size(190, 245) },
 
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
@@ -77,7 +93,7 @@ function personTemplate(borderColor, roleColor) {
 
         // NOMBRE
         $(go.TextBlock, {
-          margin: new go.Margin(8, 6, 2, 6),
+          margin: new go.Margin(10, 6, 2, 6),
           font: "bold 12px Inter, sans-serif",
           textAlign: "center",
           wrap: go.TextBlock.WrapFit,
@@ -103,12 +119,21 @@ function personTemplate(borderColor, roleColor) {
 /* ======================================================
    NODE TEMPLATES
    ====================================================== */
-diagram.nodeTemplateMap.add("Leader", personTemplate("#2563eb", "#2563eb"));
-diagram.nodeTemplateMap.add("Worker", personTemplate("#e5e7eb", "#475569"));
+diagram.nodeTemplateMap.add(
+  "Leader",
+  personTemplate("#2563eb", "#2563eb")
+);
+
+diagram.nodeTemplateMap.add(
+  "Worker",
+  personTemplate("#e5e7eb", "#475569")
+);
+
+// fallback
 diagram.nodeTemplate = personTemplate("#e5e7eb", "#475569");
 
 /* ======================================================
-   GROUP = SUPERVISOR
+   GROUP TEMPLATE = SUPERVISOR
    ====================================================== */
 diagram.groupTemplate =
   $(go.Group, "Vertical",
@@ -116,17 +141,24 @@ diagram.groupTemplate =
       selectable: false,
       selectionAdorned: false,
       cursor: "pointer",
+
       layout: $(go.GridLayout, {
-        wrappingColumn: 2,
+        wrappingColumn: 2,       // 2 personas por fila
         spacing: new go.Size(22, 22)
       }),
+
       isSubGraphExpanded: false,
-      click: (e, g) => g.isSubGraphExpanded = !g.isSubGraphExpanded
+
+      click: (e, g) => {
+        diagram.startTransaction("toggle");
+        g.isSubGraphExpanded = !g.isSubGraphExpanded;
+        diagram.commitTransaction("toggle");
+      }
     },
     new go.Binding("isSubGraphExpanded").makeTwoWay(),
 
     $(go.Panel, "Auto",
-      { desiredSize: new go.Size(195, 245) },
+      { desiredSize: new go.Size(200, 255) },
 
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
@@ -139,8 +171,9 @@ diagram.groupTemplate =
 
         circularPhoto(64),
 
+        // NOMBRE SUPERVISOR
         $(go.TextBlock, {
-          margin: new go.Margin(8, 6, 2, 6),
+          margin: new go.Margin(10, 6, 2, 6),
           font: "bold 13px Inter, sans-serif",
           textAlign: "center",
           wrap: go.TextBlock.WrapFit,
@@ -148,6 +181,7 @@ diagram.groupTemplate =
           overflow: go.TextBlock.Ellipsis
         }, new go.Binding("text", "name")),
 
+        // CARGO SUPERVISOR
         $(go.TextBlock, {
           margin: new go.Margin(2, 6, 0, 6),
           font: "11px Inter, sans-serif",
@@ -193,8 +227,16 @@ function buildModel(rows) {
   const nodes = [];
   const links = [];
 
-  nodes.push({ key: "ROOT", name: "EMR TEAM", role: "", image: "", category: "Leader" });
+  // ROOT
+  nodes.push({
+    key: "ROOT",
+    name: "EMR TEAM",
+    role: "",
+    image: "",
+    category: "Leader"
+  });
 
+  // TEAM LEADER
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
 
@@ -208,6 +250,7 @@ function buildModel(rows) {
 
   links.push({ from: "ROOT", to: leader.__id });
 
+  // SUPERVISORES + PERSONAL
   people.forEach(s => {
     if (s["SupervisorEmail (required)"] === leader["Email (required)"]) {
 
