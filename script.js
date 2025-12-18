@@ -39,7 +39,7 @@ function proxyImage(url) {
 }
 
 /* ======================================================
-   PHOTO + CIRCULAR FRAME (NO CLIPPING)
+   PHOTO + CIRCULAR FRAME (MARCO, NO RECORTE)
    ====================================================== */
 function photoWithCircle(size) {
   return $(go.Panel, "Spot",
@@ -132,7 +132,7 @@ diagram.nodeTemplateMap.add(
 diagram.nodeTemplate = personCard("#e5e7eb", "#475569");
 
 /* ======================================================
-   SUPERVISOR GROUP
+   SUPERVISOR GROUP (CLICK TO EXPAND)
    ====================================================== */
 diagram.groupTemplate =
   $(go.Group, "Vertical",
@@ -149,9 +149,9 @@ diagram.groupTemplate =
 
       isSubGraphExpanded: false,
 
-      click: (e, g) => {
+      click: (e, group) => {
         diagram.startTransaction("toggle");
-        g.isSubGraphExpanded = !g.isSubGraphExpanded;
+        group.isSubGraphExpanded = !group.isSubGraphExpanded;
         diagram.commitTransaction("toggle");
       }
     },
@@ -191,6 +191,7 @@ diagram.groupTemplate =
       )
     ),
 
+    // Workers placeholder
     $(go.Placeholder, { padding: 18 })
   );
 
@@ -214,7 +215,7 @@ Papa.parse("team.csv", {
 });
 
 /* ======================================================
-   BUILD MODEL
+   BUILD MODEL (LEADER ES ROOT)
    ====================================================== */
 function buildModel(rows) {
 
@@ -224,16 +225,7 @@ function buildModel(rows) {
   const nodes = [];
   const links = [];
 
-  // ROOT
-  nodes.push({
-    key: "ROOT",
-    category: "Leader",
-    name: "EMR TEAM",
-    role: "",
-    image: ""
-  });
-
-  // TEAM LEADER
+  // TEAM LEADER (ROOT REAL)
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
 
@@ -245,12 +237,11 @@ function buildModel(rows) {
     image: leader.ImageURL || ""
   });
 
-  links.push({ from: "ROOT", to: leader.__id });
-
   // SUPERVISORES + PERSONAL
   people.forEach(sup => {
     if (sup["SupervisorEmail (required)"] === leader["Email (required)"]) {
 
+      // Supervisor
       nodes.push({
         key: sup.__id,
         isGroup: true,
@@ -261,6 +252,7 @@ function buildModel(rows) {
 
       links.push({ from: leader.__id, to: sup.__id });
 
+      // Workers
       people.forEach(worker => {
         if (worker["SupervisorEmail (required)"] === sup["Email (required)"]) {
           nodes.push({
