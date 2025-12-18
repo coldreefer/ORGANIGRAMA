@@ -11,19 +11,19 @@ const chart = new d3.OrgChart()
   .childrenMargin(() => 120)
   .siblingsMargin(() => 80)
 
-  // 🔥 ELIMINAR FLECHAS INTERNAS
+  // ❌ eliminar botones/flechas internas
   .buttonContent(() => '')
 
-  // ======================
-  // TARJETA COMPLETA
-  // ======================
+  // =========================
+  // CONTENIDO DEL NODO
+  // =========================
   .nodeContent(d => {
     if (d.data._isRow) return '';
 
     const img = d.data.ImageURL || '';
 
     return `
-      <div class="org-node clickable">
+      <div class="org-node">
         <img src="${img}">
         <div class="name">
           ${d.data["First name (required)"]} ${d.data["Last name (required)"]}
@@ -33,9 +33,9 @@ const chart = new d3.OrgChart()
     `;
   })
 
-  // ======================
-  // CLICK EN LA IMAGEN / CARD
-  // ======================
+  // =========================
+  // CLICK EN TARJETA / IMAGEN
+  // =========================
   .onNodeClick(d => {
     if (d.data._isRow) return;
 
@@ -44,9 +44,9 @@ const chart = new d3.OrgChart()
   });
 
 
-// ======================
+// =========================
 // CARGA CSV
-// ======================
+// =========================
 Papa.parse("team.csv", {
   download: true,
   header: true,
@@ -76,7 +76,7 @@ Papa.parse("team.csv", {
       _expanded: true
     });
 
-    // Row invisible (para horizontalidad)
+    // Fila invisible (fuerza horizontal)
     data.push({
       id: ROW_ID,
       parentId: leader["Email (required)"],
