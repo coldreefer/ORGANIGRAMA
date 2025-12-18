@@ -1,24 +1,21 @@
 // ==============================
-// CONFIGURACIÓN DEL ORG CHART
+// ORG CHART CONFIG
 // ==============================
 const chart = new d3.OrgChart()
   .container('#chart')
 
-  // Canvas grande para evitar wrap
   .svgWidth(4000)
   .svgHeight(2200)
 
-  // Tamaño nodos
   .nodeWidth(() => 220)
   .nodeHeight(d => d.data._isRow ? 10 : 150)
 
-  // Layout
   .compact(false)
   .childrenMargin(() => 120)
   .siblingsMargin(() => 80)
 
   // ==============================
-  // CONTENIDO DEL NODO
+  // NODE CONTENT (TARJETA)
   // ==============================
   .nodeContent(d => {
     if (d.data._isRow) return '';
@@ -43,21 +40,19 @@ const chart = new d3.OrgChart()
   })
 
   // ==============================
-  // CLICK EN TARJETA (EXPAND / COLLAPSE)
+  // CLICK EN LA TARJETA / IMAGEN
   // ==============================
   .onNodeClick(d => {
     if (d.data._isRow) return;
 
-    const id = d.data.id;
-    const expanded = chart.getExpanded(id);
-
-    chart.setExpanded(id, !expanded);
-    chart.render(); // ⚠️ SIN fit() ni center()
+    // 🔑 ESTA ES LA FORMA CORRECTA
+    d.data.expanded = !d.data.expanded;
+    chart.render();
   });
 
 
 // ==============================
-// CARGA CSV
+// CSV LOAD
 // ==============================
 Papa.parse("team.csv", {
   download: true,
@@ -68,7 +63,7 @@ Papa.parse("team.csv", {
     const raw = res.data.filter(d => d["Email (required)"]);
 
     // ------------------------------
-    // Team Leader
+    // Detectar Team Leader
     // ------------------------------
     const leader = raw.find(d => !d["SupervisorEmail (required)"]);
     if (!leader) {
@@ -107,7 +102,7 @@ Papa.parse("team.csv", {
     });
 
     // ------------------------------
-    // Row invisible (fuerza supervisores horizontales)
+    // Row invisible (horizontalidad)
     // ------------------------------
     data.push({
       id: ROW_ID,
@@ -144,9 +139,6 @@ Papa.parse("team.csv", {
       }
     });
 
-    // ------------------------------
-    // Render
-    // ------------------------------
     chart.data(data).render();
   }
 });
