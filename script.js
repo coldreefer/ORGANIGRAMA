@@ -19,19 +19,21 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 // ===============================
-// TEMPLATE DE NODO (CLAVE)
+// TEMPLATE DE NODO
 // ===============================
 diagram.nodeTemplate =
   $(go.Node, "Vertical",
     {
       cursor: "pointer",
-      // 🔑 toggle REAL sobre el NODE
       click: (e, node) => {
-        node.isTreeExpanded = !node.isTreeExpanded;
+        // Toggle SOLO si tiene hijos
+        if (node.findTreeChildrenNodes().count > 0) {
+          node.isTreeExpanded = !node.isTreeExpanded;
+        }
       }
     },
 
-    // 🔴 BINDING OBLIGATORIO
+    // 🔑 binding obligatorio
     new go.Binding("isTreeExpanded").makeTwoWay(),
 
     $(go.Panel, "Auto",
@@ -85,7 +87,7 @@ Papa.parse("team.csv", {
 });
 
 // ===============================
-// CONSTRUIR MODELO (EXPANDIDO)
+// CONSTRUIR MODELO (REGLA FINAL)
 // ===============================
 function buildModel(rows) {
 
@@ -106,14 +108,14 @@ function buildModel(rows) {
 
   const nodes = [];
 
-  // ROOT
+  // ROOT → expandido
   nodes.push({
     key: "ROOT",
     name: "EMR TEAM",
     isTreeExpanded: true
   });
 
-  // LEADER
+  // TEAM LEADER → expandido (muestra supervisores)
   nodes.push({
     key: leader["Email (required)"],
     parent: "ROOT",
@@ -123,7 +125,7 @@ function buildModel(rows) {
     isTreeExpanded: true
   });
 
-  // SUPERVISORES (HORIZONTALES Y EXPANDIDOS)
+  // SUPERVISORES → COLAPSADOS (ocultan personal)
   (children[leader["Email (required)"]] || []).forEach(s => {
     nodes.push({
       key: s["Email (required)"],
@@ -131,10 +133,10 @@ function buildModel(rows) {
       name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
       role: s.Position || "",
       image: s.ImageURL || "",
-      isTreeExpanded: true
+      isTreeExpanded: false   // 🔴 CLAVE
     });
 
-    // PERSONAL
+    // PERSONAL (no tiene hijos)
     (children[s["Email (required)"]] || []).forEach(p => {
       nodes.push({
         key: p["Email (required)"],
