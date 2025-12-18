@@ -1,6 +1,5 @@
 const chart = new d3.OrgChart()
   .container('#chart')
-
   .svgWidth(4000)
   .svgHeight(2200)
 
@@ -11,20 +10,14 @@ const chart = new d3.OrgChart()
   .childrenMargin(() => 120)
   .siblingsMargin(() => 80)
 
-  // ❌ eliminar botones/flechas internas
+  // eliminar flechas internas
   .buttonContent(() => '')
 
-  // =========================
-  // CONTENIDO DEL NODO
-  // =========================
   .nodeContent(d => {
     if (d.data._isRow) return '';
-
-    const img = d.data.ImageURL || '';
-
     return `
       <div class="org-node">
-        <img src="${img}">
+        <img src="${d.data.ImageURL || ''}">
         <div class="name">
           ${d.data["First name (required)"]} ${d.data["Last name (required)"]}
         </div>
@@ -33,42 +26,28 @@ const chart = new d3.OrgChart()
     `;
   })
 
-  // =========================
-  // CLICK EN TARJETA / IMAGEN
-  // =========================
+  // 🔑 CLICK REAL
   .onNodeClick(d => {
     if (d.data._isRow) return;
-
     d.data._expanded = !d.data._expanded;
     chart.render();
   });
 
-
-// =========================
-// CARGA CSV
-// =========================
 Papa.parse("team.csv", {
   download: true,
   header: true,
   skipEmptyLines: true,
-  complete: function (res) {
+  complete: res => {
 
     const raw = res.data.filter(d => d["Email (required)"]);
-
     const leader = raw.find(d => !d["SupervisorEmail (required)"]);
-    if (!leader) {
-      alert("No se pudo detectar Team Leader");
-      return;
-    }
-
     const supervisors = raw.filter(
       d => d["SupervisorEmail (required)"] === leader["Email (required)"]
     );
 
-    const ROW_ID = "__SUPERVISOR_ROW__";
+    const ROW = "__ROW__";
     const data = [];
 
-    // Leader
     data.push({
       ...leader,
       id: leader["Email (required)"],
@@ -76,32 +55,29 @@ Papa.parse("team.csv", {
       _expanded: true
     });
 
-    // Fila invisible (fuerza horizontal)
     data.push({
-      id: ROW_ID,
+      id: ROW,
       parentId: leader["Email (required)"],
       _isRow: true,
       _expanded: true
     });
 
-    // Supervisores
     supervisors.forEach(s => {
       data.push({
         ...s,
         id: s["Email (required)"],
-        parentId: ROW_ID,
+        parentId: ROW,
         _expanded: false
       });
     });
 
-    // Personal
     raw.forEach(p => {
-      const parent = p["SupervisorEmail (required)"];
-      if (parent && parent !== leader["Email (required)"]) {
+      if (p["SupervisorEmail (required)"]
+        && p["SupervisorEmail (required)"] !== leader["Email (required)"]) {
         data.push({
           ...p,
           id: p["Email (required)"],
-          parentId: parent,
+          parentId: p["SupervisorEmail (required)"],
           _expanded: false
         });
       }
