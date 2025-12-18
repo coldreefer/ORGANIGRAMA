@@ -39,7 +39,7 @@
       const name = `${d[col.first] || ""} ${d[col.last] || ""}`.trim();
       return {
         id: `node-${i}`,
-        parentId: ROOT_ID,   // 🔴 todos cuelgan del root por defecto
+        parentId: ROOT_ID,
         name,
         role: d[col.role] || "",
         supervisorName: (d[col.supervisor] || "").trim(),
@@ -48,31 +48,48 @@
     });
 
     // 2️⃣ Resolver supervisores por nombre
+    const byName = new Map(nodes.map(n => [n.name.toLowerCase(), n]));
+
     nodes.forEach(n => {
-      const parent = nodes.find(
-        x => x.name.toLowerCase() === n.supervisorName.toLowerCase()
-      );
-      if (parent) {
+      const parent = byName.get(n.supervisorName.toLowerCase());
+      if (parent && parent.id !== n.id) {
         n.parentId = parent.id;
       }
     });
 
-    // 3️⃣ Insertar ROOT ÚNICO
+    // 3️⃣ Detectar y romper ciclos
+    const visited = new Set();
+    const stack = new Set();
+
+    function visit(node) {
+      if (stack.has(node.id)) {
+        // 🔴 ciclo detectado → romper
+        node.parentId = ROOT_ID;
+        return;
+      }
+      if (visited.has(node.id)) return;
+
+      visited.add(node.id);
+      stack.add(node.id);
+
+      const parent = nodes.find(n => n.id === node.parentId);
+      if (parent) visit(parent);
+
+      stack.delete(node.id);
+    }
+
+    nodes.forEach(n => visit(n));
+
+    // 4️⃣ Insertar ROOT ÚNICO
     nodes.push({
       id: ROOT_ID,
-      parentId: null,     // 🔴 EL ÚNICO NULL
+      parentId: null,
       name: "EMR TEAM",
       role: "",
       image: ""
     });
 
-    // 🔒 GARANTÍA ABSOLUTA
-    const roots = nodes.filter(n => n.parentId === null);
-    if (roots.length !== 1) {
-      throw new Error("Estructura inválida: debe existir un solo root");
-    }
-
-    // 4️⃣ Render
+    // 5️⃣ Render
     const chart = new OrgChart()
       .container("#chart-container")
       .data(nodes)
