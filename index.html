@@ -5,18 +5,34 @@
   <title>Organigrama EMR</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- D3 + d3-org-chart -->
+  <!-- ========================= -->
+  <!-- D3 (requerido)           -->
+  <!-- ========================= -->
   <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="https://unpkg.com/d3-org-chart@2.6.1/build/d3-org-chart.js"></script>
 
+  <!-- ========================= -->
+  <!-- d3-org-chart (UMD 2.x)   -->
+  <!-- ESTA ES LA CLAVE         -->
+  <!-- ========================= -->
+  <script src="https://unpkg.com/d3-org-chart@2.6.1/dist/d3-org-chart.js"></script>
+
+  <!-- ========================= -->
+  <!-- Estilos                  -->
+  <!-- ========================= -->
   <link rel="stylesheet" href="./styles.css" />
 </head>
+
 <body>
 
   <h1>Organigrama EMR</h1>
 
-  <div id="chart-container"></div>
+  <!-- Contenedor del organigrama -->
+  <div id="chart-container" style="width:100%; height: calc(100vh - 80px);"></div>
 
+  <!-- ========================= -->
+  <!-- Lógica del organigrama   -->
+  <!-- ========================= -->
   <script src="./script.js"></script>
+
 </body>
 </html>
