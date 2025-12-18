@@ -4,15 +4,209 @@
   <meta charset="UTF-8">
   <title>Organigrama EMR</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="styles.css">
+
+  <!-- GoJS (Community / Free) -->
+  <script src="https://unpkg.com/gojs/release/go.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont;
+      background: #f6f8fb;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    #myDiagramDiv {
+      width: 100%;
+      height: calc(100vh - 80px);
+      background: #f6f8fb;
+    }
+  </style>
 </head>
 
 <body>
-  <h1>Organigrama EMR</h1>
 
-  <div id="org-root"></div>
+<h1>Organigrama EMR</h1>
+<div id="myDiagramDiv"></div>
 
-  <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="orgchart.js"></script>
+<script>
+  const $ = go.GraphObject.make;
+
+  const diagram = $(go.Diagram, "myDiagramDiv", {
+    layout: $(go.TreeLayout, {
+      angle: 90,
+      arrangement: go.TreeLayout.ArrangementHorizontal,
+      nodeSpacing: 30,
+      layerSpacing: 40
+    }),
+    "undoManager.isEnabled": false
+  });
+
+  /* ============================
+     NODE TEMPLATE (CLON VISUAL)
+     ============================ */
+  diagram.nodeTemplate =
+    $(go.Node, "Vertical",
+      {
+        selectionObjectName: "BODY",
+        click: (e, node) => {
+          const data = node.data;
+          diagram.model.setDataProperty(
+            data,
+            "isTreeExpanded",
+            !node.isTreeExpanded
+          );
+        }
+      },
+      $(go.Panel, "Auto",
+        { name: "BODY" },
+        $(go.Shape, "RoundedRectangle",
+          {
+            fill: "white",
+            stroke: "#e5e7eb",
+            strokeWidth: 1,
+            spot1: go.Spot.TopLeft,
+            spot2: go.Spot.BottomRight
+          }
+        ),
+        $(go.Panel, "Vertical",
+          { margin: 10 },
+          $(go.Picture,
+            {
+              width: 48,
+              height: 48,
+              margin: new go.Margin(0, 0, 6, 0),
+              background: "#cbd5e1",
+              imageStretch: go.GraphObject.UniformToFill
+            },
+            new go.Binding("source", "image")
+          ),
+          $(go.TextBlock,
+            {
+              font: "bold 13px sans-serif",
+              stroke: "#0f172a",
+              textAlign: "center"
+            },
+            new go.Binding("text", "name")
+          ),
+          $(go.TextBlock,
+            {
+              font: "12px sans-serif",
+              stroke: "#475569",
+              textAlign: "center"
+            },
+            new go.Binding("text", "role")
+          )
+        )
+      ),
+      $(go.TextBlock,
+        {
+          margin: 4,
+          font: "11px sans-serif",
+          stroke: "#334155"
+        },
+        new go.Binding("text", "count", c => c ? `👤 ${c}` : "")
+      )
+    );
+
+  diagram.linkTemplate =
+    $(go.Link,
+      { routing: go.Link.Orthogonal, corner: 6 },
+      $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.5 })
+    );
+
+  /* ============================
+     CARGAR CSV Y CONSTRUIR MODELO
+     ============================ */
+  fetch("team.csv")
+    .then(r => r.text())
+    .then(text => buildModel(text));
+
+  function buildModel(csvText) {
+    const rows = csvText.trim().split("\n").map(r => r.split(","));
+    const headers = rows.shift().map(h => h.trim().toLowerCase());
+
+    const idx = {
+      name: find(headers, ["name", "nombre"]),
+      role: find(headers, ["role", "cargo", "title"]),
+      supervisor: find(headers, ["supervisor", "manager"]),
+      image: find(headers, ["image", "photo"])
+    };
+
+    const people = rows.map(r => ({
+      name: r[idx.name]?.trim(),
+      role: r[idx.role]?.trim() || "",
+      supervisor: r[idx.supervisor]?.trim() || "",
+      image: r[idx.image] || ""
+    })).filter(p => p.name);
+
+    /* === DETECTAR TEAM LEADER === */
+    let leader = people.find(p => !p.supervisor)
+      || people.find(p => /leader|jefe/i.test(p.role));
+
+    if (!leader) {
+      alert("No se pudo detectar Team Leader");
+      return;
+    }
+
+    /* === CREAR NODOS === */
+    const nodes = [];
+    nodes.push({
+      key: "ROOT",
+      name: "EMR TEAM",
+      role: "",
+      isTreeExpanded: false
+    });
+
+    nodes.push({
+      key: leader.name,
+      parent: "ROOT",
+      name: leader.name,
+      role: leader.role,
+      image: leader.image,
+      isTreeExpanded: false
+    });
+
+    const supervisors = people.filter(p => p.supervisor === leader.name);
+
+    supervisors.forEach(s => {
+      nodes.push({
+        key: s.name,
+        parent: leader.name,
+        name: s.name,
+        role: s.role,
+        image: s.image,
+        isTreeExpanded: false
+      });
+
+      const staff = people.filter(p => p.supervisor === s.name);
+      staff.forEach(p => {
+        nodes.push({
+          key: p.name,
+          parent: s.name,
+          name: p.name,
+          role: p.role,
+          image: p.image
+        });
+      });
+    });
+
+    /* === CONTADORES === */
+    nodes.forEach(n => {
+      n.count = nodes.filter(x => x.parent === n.key).length;
+    });
+
+    diagram.model = new go.TreeModel(nodes);
+  }
+
+  function find(arr, keys) {
+    return arr.findIndex(h => keys.some(k => h.includes(k)));
+  }
+</script>
+
 </body>
 </html>
