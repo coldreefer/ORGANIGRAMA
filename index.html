@@ -9,51 +9,93 @@
 
 <body>
 
-  <h1>Organigrama EMR</h1>
-  <div id="chart-container" style="width:100%; height: calc(100vh - 80px);"></div>
+<h1>Organigrama EMR</h1>
+<div id="chart-container" style="width:100%; height: calc(100vh - 80px);"></div>
 
-  <!-- ========================= -->
-  <!-- SCRIPT COMO ES MODULE     -->
-  <!-- ========================= -->
-  <script type="module">
+<script type="module">
+  import * as d3 from "https://esm.sh/d3@7";
+  import { OrgChart } from "https://esm.sh/d3-org-chart@3";
 
-    import * as d3 from "https://esm.sh/d3@7";
-    import { OrgChart } from "https://esm.sh/d3-org-chart@3";
+  fetch("./team.csv")
+    .then(r => r.text())
+    .then(text => d3.csvParse(text))
+    .then(data => initChart(data));
 
-    fetch("./team.csv")
-      .then(r => r.text())
-      .then(text => d3.csvParse(text))
-      .then(data => initChart(data));
+  function initChart(data) {
 
-    function initChart(data) {
+    // Detectar columnas por nombre
+    const headers = Object.keys(data[0]).map(h => h.toLowerCase());
+    const col = {
+      first: find(headers, ["first", "nombre"]),
+      last: find(headers, ["last", "apellido"]),
+      role: find(headers, ["position", "cargo", "role"]),
+      supervisor: find(headers, ["supervisor", "manager", "reports"]),
+      image: find(headers, ["image", "photo", "picture"])
+    };
 
-      // detección simple de columnas (ajustable)
-      const nodes = data.map((d, i) => ({
-        id: d.Email || `node-${i}`,
-        parentId: d.SupervisorEmail || null,
-        name: `${d["First name"] || ""} ${d["Last name"] || ""}`.trim(),
-        role: d.Position || "",
-        image: d.ImageURL || ""
-      }));
+    // Crear nodos base
+    const nodes = data.map((d, i) => {
+      const name = `${d[col.first] || ""} ${d[col.last] || ""}`.trim();
+      return {
+        id: `node-${i}`,
+        parentId: null,
+        name,
+        role: d[col.role] || "",
+        supervisorName: (d[col.supervisor] || "").trim(),
+        image: d[col.image] || ""
+      };
+    });
 
-      const chart = new OrgChart()
-        .container("#chart-container")
-        .data(nodes)
-        .nodeWidth(() => 190)
-        .nodeHeight(() => 120)
-        .childrenMargin(() => 40)
-        .nodeContent(d => `
-          <div class="org-card">
-            ${d.data.image ? `<img src="${d.data.image}" />` : ""}
-            <div class="org-name">${d.data.name}</div>
-            <div class="org-role">${d.data.role}</div>
-          </div>
-        `);
+    // Resolver parentId por nombre
+    nodes.forEach(n => {
+      const parent = nodes.find(
+        x => x.name.toLowerCase() === n.supervisorName.toLowerCase()
+      );
+      if (parent) n.parentId = parent.id;
+    });
 
-      chart.render();
+    // 🔴 ROOT ARTIFICIAL (SOLUCIÓN A multiple roots)
+    const ROOT_ID = "root-emr";
+
+    const roots = nodes.filter(n => !n.parentId);
+
+    if (roots.length > 1) {
+      nodes.push({
+        id: ROOT_ID,
+        parentId: null,
+        name: "EMR TEAM",
+        role: "",
+        image: ""
+      });
+
+      roots.forEach(r => r.parentId = ROOT_ID);
     }
 
-  </script>
+    // Crear organigrama
+    const chart = new OrgChart()
+      .container("#chart-container")
+      .data(nodes)
+      .nodeWidth(() => 190)
+      .nodeHeight(() => 120)
+      .childrenMargin(() => 40)
+      .nodeContent(d => `
+        <div class="org-card">
+          ${d.data.image
+            ? `<img src="${d.data.image}" />`
+            : `<div style="width:44px;height:44px;border-radius:50%;background:#cbd5e1;margin:0 auto 6px"></div>`
+          }
+          <div class="org-name">${d.data.name}</div>
+          <div class="org-role">${d.data.role}</div>
+        </div>
+      `);
+
+    chart.render();
+  }
+
+  function find(headers, keys) {
+    return headers.find(h => keys.some(k => h.includes(k))) || "";
+  }
+</script>
 
 </body>
 </html>
