@@ -28,6 +28,26 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ======================================================
+   FUNCIÓN FOTO CIRCULAR (FORMA CORRECTA)
+   ====================================================== */
+function circularPhoto(size, strokeColor) {
+  return $(go.Shape, "Circle",
+    {
+      width: size,
+      height: size,
+      stroke: strokeColor,
+      strokeWidth: 2,
+      fill: "#e5e7eb"
+    },
+    new go.Binding("fill", "image", img =>
+      img
+        ? $(go.Brush, "Image", { source: img })
+        : "#e5e7eb"
+    )
+  );
+}
+
+/* ======================================================
    FUNCIÓN TARJETA PERSONA (MISMO PORTE)
    ====================================================== */
 function personTemplate(strokeColor, roleColor) {
@@ -38,32 +58,19 @@ function personTemplate(strokeColor, roleColor) {
       cursor: "pointer"
     },
     $(go.Panel, "Auto",
-      { desiredSize: new go.Size(170, 200) },   // 🔒 MISMO TAMAÑO
+      { desiredSize: new go.Size(170, 200) },
+
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
         stroke: strokeColor,
         strokeWidth: 2
       }),
+
       $(go.Panel, "Vertical",
         { margin: 12 },
 
-        // FOTO CIRCULAR
-        $(go.Panel, "Spot",
-          $(go.Shape, "Circle", {
-            width: 64,
-            height: 64,
-            fill: "#e5e7eb",
-            stroke: "#cbd5e1"
-          }),
-          $(go.Picture, {
-            width: 64,
-            height: 64,
-            clip: true,
-            imageStretch: go.GraphObject.UniformToFill
-          }, new go.Binding("source", "image"))
-        ),
+        circularPhoto(64, strokeColor),
 
-        // NOMBRE
         $(go.TextBlock, {
           margin: new go.Margin(8, 6, 0, 6),
           font: "bold 13px Inter, sans-serif",
@@ -73,7 +80,6 @@ function personTemplate(strokeColor, roleColor) {
           overflow: go.TextBlock.Ellipsis
         }, new go.Binding("text", "name")),
 
-        // ROL
         $(go.TextBlock, {
           margin: new go.Margin(4, 6, 0, 6),
           font: "12px Inter, sans-serif",
@@ -89,7 +95,7 @@ function personTemplate(strokeColor, roleColor) {
 }
 
 /* ======================================================
-   TEMPLATES
+   NODE TEMPLATES
    ====================================================== */
 diagram.nodeTemplateMap.add("Leader",
   personTemplate("#2563eb", "#2563eb")
@@ -125,29 +131,17 @@ diagram.groupTemplate =
 
     $(go.Panel, "Auto",
       { desiredSize: new go.Size(180, 210) },
+
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
         stroke: "#14b8a6",
         strokeWidth: 2
       }),
+
       $(go.Panel, "Vertical",
         { margin: 12 },
 
-        // FOTO CIRCULAR
-        $(go.Panel, "Spot",
-          $(go.Shape, "Circle", {
-            width: 64,
-            height: 64,
-            fill: "#e5e7eb",
-            stroke: "#99f6e4"
-          }),
-          $(go.Picture, {
-            width: 64,
-            height: 64,
-            clip: true,
-            imageStretch: go.GraphObject.UniformToFill
-          }, new go.Binding("source", "image"))
-        ),
+        circularPhoto(64, "#14b8a6"),
 
         $(go.TextBlock, {
           margin: new go.Margin(8, 6, 0, 6),
@@ -201,7 +195,13 @@ function buildModel(rows) {
   const nodes = [];
   const links = [];
 
-  nodes.push({ key: "ROOT", name: "EMR TEAM", role: "", image: "", category: "Leader" });
+  nodes.push({
+    key: "ROOT",
+    name: "EMR TEAM",
+    role: "",
+    image: "",
+    category: "Leader"
+  });
 
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
