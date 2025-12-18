@@ -1,114 +1,153 @@
-// ============================
-// CREAR ORG CHART
-// ============================
-const chart = new OrgChart()
-  .container('#chart')
-  .svgWidth(4000)
-  .svgHeight(2200)
+const $ = go.GraphObject.make;
 
-  .nodeWidth(() => 220)
-  .nodeHeight(d => d.data._isRow ? 10 : 150)
+// ===============================
+// DIAGRAMA
+// ===============================
+const diagram = $(go.Diagram, "diagramDiv", {
+  initialContentAlignment: go.Spot.Center,
+  allowMove: false,
+  allowCopy: false,
+  allowZoom: true,
+  "undoManager.isEnabled": false,
 
-  .compact(false)
-  .childrenMargin(() => 120)
-  .siblingsMargin(() => 80)
-
-  // ❌ eliminar flechas internas
-  .buttonContent(() => '')
-
-  // ============================
-  // CONTENIDO DEL NODO
-  // ============================
-  .nodeContent(d => {
-    if (d.data._isRow) return '';
-
-    return `
-      <div class="org-node">
-        <img src="${d.data.ImageURL || ''}">
-        <div class="name">
-          ${d.data["First name (required)"]} ${d.data["Last name (required)"]}
-        </div>
-        <div class="role">
-          ${d.data.Position || ''}
-        </div>
-      </div>
-    `;
+  // TreeLayout con hijos HORIZONTALES
+  layout: $(go.TreeLayout, {
+    angle: 90,
+    arrangement: go.TreeLayout.ArrangementHorizontal,
+    nodeSpacing: 30,
+    layerSpacing: 40
   })
+});
 
-  // ============================
-  // CLICK EN TARJETA / IMAGEN
-  // ============================
-  .onNodeClick(d => {
-    if (d.data._isRow) return;
+// ===============================
+// TEMPLATE DE NODO (CLICK EN TODO)
+// ===============================
+diagram.nodeTemplate =
+  $(go.Node, "Vertical",
+    {
+      cursor: "pointer",
+      click: (e, node) => {
+        // 🔑 expandir / colapsar al click en tarjeta o imagen
+        diagram.model.setDataProperty(
+          node.data,
+          "isTreeExpanded",
+          !node.isTreeExpanded
+        );
+      }
+    },
+    $(go.Panel, "Auto",
+      $(go.Shape, "RoundedRectangle", {
+        fill: "white",
+        stroke: "#e5e7eb",
+        strokeWidth: 1
+      }),
+      $(go.Panel, "Vertical",
+        { margin: 10 },
 
-    d.data._expanded = !d.data._expanded;
-    chart.render();
-  });
+        // IMAGEN (click pasa correctamente)
+        $(go.Picture, {
+          width: 52,
+          height: 52,
+          margin: new go.Margin(0, 0, 6, 0),
+          background: "#cbd5e1"
+        }, new go.Binding("source", "image")),
 
+        $(go.TextBlock, {
+          font: "bold 13px sans-serif",
+          stroke: "#0f172a",
+          textAlign: "center"
+        }, new go.Binding("text", "name")),
 
-// ============================
-// CARGA CSV
-// ============================
+        $(go.TextBlock, {
+          font: "12px sans-serif",
+          stroke: "#475569",
+          textAlign: "center"
+        }, new go.Binding("text", "role"))
+      )
+    )
+  );
+
+// ===============================
+// LINKS
+// ===============================
+diagram.linkTemplate =
+  $(go.Link,
+    { routing: go.Link.Orthogonal, corner: 6 },
+    $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.5 })
+  );
+
+// ===============================
+// CARGAR CSV
+// ===============================
 Papa.parse("team.csv", {
   download: true,
   header: true,
   skipEmptyLines: true,
-  complete: res => {
+  complete: res => buildModel(res.data)
+});
 
-    const raw = res.data.filter(d => d["Email (required)"]);
+// ===============================
+// CONSTRUIR MODELO
+// ===============================
+function buildModel(rows) {
 
-    const leader = raw.find(d => !d["SupervisorEmail (required)"]);
-    if (!leader) {
-      alert("No se pudo detectar Team Leader");
-      return;
-    }
+  const people = rows.filter(r => r["Email (required)"]);
 
-    const supervisors = raw.filter(
-      d => d["SupervisorEmail (required)"] === leader["Email (required)"]
-    );
+  const children = {};
+  people.forEach(p => {
+    const sup = (p["SupervisorEmail (required)"] || "").trim();
+    if (!children[sup]) children[sup] = [];
+    children[sup].push(p);
+  });
 
-    const ROW_ID = "__SUP_ROW__";
-    const data = [];
+  // detectar leader (sin supervisor)
+  const leader = people.find(p => !p["SupervisorEmail (required)"]);
+  if (!leader) {
+    alert("No se pudo detectar Team Leader");
+    return;
+  }
 
-    // Team Leader
-    data.push({
-      ...leader,
-      id: leader["Email (required)"],
-      parentId: null,
-      _expanded: true
+  const nodes = [];
+
+  // ROOT
+  nodes.push({
+    key: "ROOT",
+    name: "EMR TEAM",
+    isTreeExpanded: true
+  });
+
+  // LEADER
+  nodes.push({
+    key: leader["Email (required)"],
+    parent: "ROOT",
+    name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
+    role: leader.Position || "",
+    image: leader.ImageURL || "",
+    isTreeExpanded: true
+  });
+
+  // SUPERVISORES (horizontales)
+  (children[leader["Email (required)"]] || []).forEach(s => {
+    nodes.push({
+      key: s["Email (required)"],
+      parent: leader["Email (required)"],
+      name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
+      role: s.Position || "",
+      image: s.ImageURL || "",
+      isTreeExpanded: false
     });
 
-    // Fila invisible (para supervisores horizontales)
-    data.push({
-      id: ROW_ID,
-      parentId: leader["Email (required)"],
-      _isRow: true,
-      _expanded: true
-    });
-
-    // Supervisores
-    supervisors.forEach(s => {
-      data.push({
-        ...s,
-        id: s["Email (required)"],
-        parentId: ROW_ID,
-        _expanded: false
+    // PERSONAL
+    (children[s["Email (required)"]] || []).forEach(p => {
+      nodes.push({
+        key: p["Email (required)"],
+        parent: s["Email (required)"],
+        name: `${p["First name (required)"]} ${p["Last name (required)"]}`,
+        role: p.Position || "",
+        image: p.ImageURL || ""
       });
     });
+  });
 
-    // Resto del personal
-    raw.forEach(p => {
-      const parent = p["SupervisorEmail (required)"];
-      if (parent && parent !== leader["Email (required)"]) {
-        data.push({
-          ...p,
-          id: p["Email (required)"],
-          parentId: parent,
-          _expanded: false
-        });
-      }
-    });
-
-    chart.data(data).render();
-  }
-});
+  diagram.model = new go.TreeModel(nodes);
+}
