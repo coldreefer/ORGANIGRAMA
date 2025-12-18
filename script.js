@@ -8,19 +8,19 @@ const diagram = $(go.Diagram, "diagramDiv", {
 
   allowMove: false,
   allowCopy: false,
+
   allowZoom: true,
+  mouseWheelBehavior: go.Diagram.Zoom,
+  minScale: 0.4,
+  maxScale: 1.5,
+  initialScale: 1,
+
   allowHorizontalScroll: true,
   allowVerticalScroll: true,
 
-  autoScale: go.Diagram.None,
-  initialScale: 1,
-  minScale: 0.4,
-  maxScale: 1.5,
-  mouseWheelBehavior: go.Diagram.Zoom,
-
   "undoManager.isEnabled": false,
 
-  // Árbol SOLO para Leader → Supervisores
+  // Árbol SOLO para ROOT → Leader → Supervisores
   layout: $(go.TreeLayout, {
     angle: 90,
     arrangement: go.TreeLayout.ArrangementHorizontal,
@@ -30,12 +30,13 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ======================================================
-   TEMPLATE PERSONA (NODO NORMAL)
+   TEMPLATE BASE PERSONA
    ====================================================== */
-diagram.nodeTemplate =
+const baseNodeTemplate =
   $(go.Node, "Vertical",
     {
-      selectable: false
+      selectable: false,
+      cursor: "pointer"
     },
     $(go.Panel, "Auto",
       $(go.Shape, "RoundedRectangle", {
@@ -69,7 +70,24 @@ diagram.nodeTemplate =
   );
 
 /* ======================================================
-   TEMPLATE SUPERVISOR = GROUP
+   NODE TEMPLATES
+   ====================================================== */
+diagram.nodeTemplate = baseNodeTemplate;
+
+diagram.nodeTemplateMap.add("Leader",
+  baseNodeTemplate.copy().add(
+    new go.Binding("cssClass", "", () => "go-node go-leader")
+  )
+);
+
+diagram.nodeTemplateMap.add("Worker",
+  baseNodeTemplate.copy().add(
+    new go.Binding("cssClass", "", () => "go-node go-worker")
+  )
+);
+
+/* ======================================================
+   GROUP TEMPLATE = SUPERVISOR
    ====================================================== */
 diagram.groupTemplate =
   $(go.Group, "Vertical",
@@ -77,9 +95,8 @@ diagram.groupTemplate =
       cursor: "pointer",
       ungroupable: false,
 
-      // 🔑 Grid para trabajadores
       layout: $(go.GridLayout, {
-        wrappingColumn: 2,                 // 👈 2 personas por fila
+        wrappingColumn: 2,        // 2 personas por fila
         spacing: new go.Size(20, 20),
         alignment: go.GridLayout.Position
       }),
@@ -91,6 +108,7 @@ diagram.groupTemplate =
       }
     },
     new go.Binding("isSubGraphExpanded").makeTwoWay(),
+    new go.Binding("cssClass", "", () => "go-node go-supervisor"),
 
     $(go.Panel, "Auto",
       $(go.Shape, "RoundedRectangle", {
@@ -122,12 +140,11 @@ diagram.groupTemplate =
       )
     ),
 
-    // Aquí se dibujan los trabajadores al expandir
     $(go.Placeholder, { padding: 12 })
   );
 
 /* ======================================================
-   LINKS (Leader → Supervisores)
+   LINKS
    ====================================================== */
 diagram.linkTemplate =
   $(go.Link,
@@ -146,13 +163,13 @@ Papa.parse("team.csv", {
 });
 
 /* ======================================================
-   MODELO DESDE CSV
+   CONSTRUCCIÓN DEL MODELO
    ====================================================== */
 function buildModel(rows) {
 
   const people = rows.filter(r => r["Email (required)"]);
 
-  // Mapa supervisor → personal
+  // SupervisorEmail → hijos
   const children = {};
   people.forEach(p => {
     const sup = (p["SupervisorEmail (required)"] || "").trim();
@@ -176,6 +193,7 @@ function buildModel(rows) {
     name: "EMR TEAM",
     role: "",
     image: "",
+    category: "Leader"
   });
 
   // TEAM LEADER
@@ -183,11 +201,13 @@ function buildModel(rows) {
     key: leader["Email (required)"],
     name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
     role: leader.Position || "",
-    image: leader.ImageURL || ""
+    image: leader.ImageURL || "",
+    category: "Leader"
   });
+
   links.push({ from: "ROOT", to: leader["Email (required)"] });
 
-  // SUPERVISORES = GROUPS (HORIZONTALES)
+  // SUPERVISORES (GROUPS)
   (children[leader["Email (required)"]] || []).forEach(s => {
 
     nodes.push({
@@ -203,14 +223,15 @@ function buildModel(rows) {
       to: s["Email (required)"]
     });
 
-    // TRABAJADORES (DENTRO DEL GROUP)
+    // TRABAJADORES (DENTRO DEL SUPERVISOR)
     (children[s["Email (required)"]] || []).forEach(p => {
       nodes.push({
         key: p["Email (required)"],
         group: s["Email (required)"],
         name: `${p["First name (required)"]} ${p["Last name (required)"]}`,
         role: p.Position || "",
-        image: p.ImageURL || ""
+        image: p.ImageURL || "",
+        category: "Worker"
       });
     });
   });
