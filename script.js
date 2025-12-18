@@ -32,26 +32,16 @@ const chart = new d3.OrgChart()
   })
 
   // ======================
-  // CLICK EN LA IMAGEN
+  // CLICK EN CARD / IMAGEN
   // ======================
   .onNodeClick(d => {
     if (d.data._isRow) return;
 
-    // 🔑 guardar posición de cámara
-    const transform = chart.getTransform();
-
-    // 🔑 expand / collapse REAL
+    // 🔑 ÚNICA forma soportada
     d.data._expanded = !d.data._expanded;
     chart.render();
-
-    // 🔑 restaurar cámara
-    chart.setTransform(transform);
   });
 
-
-// ======================
-// CARGA CSV
-// ======================
 Papa.parse("team.csv", {
   download: true,
   header: true,
