@@ -10,12 +10,11 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowCopy: false,
 
   // 🔍 ZOOM
-  allowZoom: true,
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.4,
   maxScale: 2,
 
-  // ✋ PAN (por defecto en GoJS moderno)
+  // ✋ PAN (activo por defecto en GoJS)
   allowHorizontalScroll: true,
   allowVerticalScroll: true,
 
@@ -30,7 +29,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ======================================================
-   PROXY PARA IMÁGENES CCV (CORS)
+   PROXY IMÁGENES (CCV / CORS)
    ====================================================== */
 function proxyImage(url) {
   if (!url) return "";
@@ -45,7 +44,7 @@ function circularPhoto(size) {
     {
       width: size,
       height: size,
-      clipping: true   // 👈 CLAVE para círculo real
+      clipping: true
     },
 
     $(go.Shape, "Circle", {
@@ -65,9 +64,9 @@ function circularPhoto(size) {
 }
 
 /* ======================================================
-   TARJETA PERSONA
+   PERSONA
    ====================================================== */
-function personTemplate(borderColor, roleColor) {
+function personTemplate(border, roleColor) {
   return $(go.Node, "Vertical",
     {
       selectable: false,
@@ -80,7 +79,7 @@ function personTemplate(borderColor, roleColor) {
 
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
-        stroke: borderColor,
+        stroke: border,
         strokeWidth: 2
       }),
 
@@ -89,25 +88,21 @@ function personTemplate(borderColor, roleColor) {
 
         circularPhoto(64),
 
-        // NOMBRE
         $(go.TextBlock, {
           margin: new go.Margin(10, 6, 2, 6),
-          font: "bold 12px Inter, sans-serif",
+          font: "bold 12px sans-serif",
           textAlign: "center",
           wrap: go.TextBlock.WrapFit,
-          maxLines: 3,
-          overflow: go.TextBlock.Ellipsis
+          maxLines: 3
         }, new go.Binding("text", "name")),
 
-        // CARGO
         $(go.TextBlock, {
           margin: new go.Margin(2, 6, 0, 6),
-          font: "11px Inter, sans-serif",
+          font: "11px sans-serif",
           stroke: roleColor,
           textAlign: "center",
           wrap: go.TextBlock.WrapFit,
-          maxLines: 2,
-          overflow: go.TextBlock.Ellipsis
+          maxLines: 2
         }, new go.Binding("text", "role"))
       )
     )
@@ -115,7 +110,7 @@ function personTemplate(borderColor, roleColor) {
 }
 
 /* ======================================================
-   NODE TEMPLATES
+   TEMPLATES
    ====================================================== */
 diagram.nodeTemplateMap.add(
   "Leader",
@@ -127,11 +122,10 @@ diagram.nodeTemplateMap.add(
   personTemplate("#e5e7eb", "#475569")
 );
 
-// fallback
 diagram.nodeTemplate = personTemplate("#e5e7eb", "#475569");
 
 /* ======================================================
-   GROUP TEMPLATE = SUPERVISOR
+   SUPERVISOR (GROUP)
    ====================================================== */
 diagram.groupTemplate =
   $(go.Group, "Vertical",
@@ -171,21 +165,19 @@ diagram.groupTemplate =
 
         $(go.TextBlock, {
           margin: new go.Margin(10, 6, 2, 6),
-          font: "bold 13px Inter, sans-serif",
+          font: "bold 13px sans-serif",
           textAlign: "center",
           wrap: go.TextBlock.WrapFit,
-          maxLines: 3,
-          overflow: go.TextBlock.Ellipsis
+          maxLines: 3
         }, new go.Binding("text", "name")),
 
         $(go.TextBlock, {
           margin: new go.Margin(2, 6, 0, 6),
-          font: "11px Inter, sans-serif",
+          font: "11px sans-serif",
           stroke: "#0f766e",
           textAlign: "center",
           wrap: go.TextBlock.WrapFit,
-          maxLines: 2,
-          overflow: go.TextBlock.Ellipsis
+          maxLines: 2
         }, new go.Binding("text", "role"))
       )
     ),
@@ -209,7 +201,7 @@ Papa.parse("team.csv", {
   download: true,
   header: true,
   skipEmptyLines: true,
-  complete: res => buildModel(res.data)
+  complete: r => buildModel(r.data)
 });
 
 /* ======================================================
@@ -223,16 +215,8 @@ function buildModel(rows) {
   const nodes = [];
   const links = [];
 
-  // ROOT
-  nodes.push({
-    key: "ROOT",
-    name: "EMR TEAM",
-    role: "",
-    image: "",
-    category: "Leader"
-  });
+  nodes.push({ key: "ROOT", name: "EMR TEAM", category: "Leader" });
 
-  // TEAM LEADER
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
 
@@ -246,7 +230,6 @@ function buildModel(rows) {
 
   links.push({ from: "ROOT", to: leader.__id });
 
-  // SUPERVISORES + PERSONAL
   people.forEach(s => {
     if (s["SupervisorEmail (required)"] === leader["Email (required)"]) {
 
