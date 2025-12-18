@@ -5,10 +5,10 @@
   <title>Organigrama EMR</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- GoJS -->
+  <!-- GoJS (Community / Evaluation) -->
   <script src="https://unpkg.com/gojs/release/go.js"></script>
 
-  <!-- PapaParse (CSV real) -->
+  <!-- PapaParse para CSV real (Sheets / Excel / URLs / comillas) -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 
   <style>
@@ -17,14 +17,17 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont;
       background: #f6f8fb;
     }
+
     h1 {
       text-align: center;
       margin: 20px 0;
       color: #0f172a;
     }
+
     #myDiagramDiv {
       width: 100%;
       height: calc(100vh - 80px);
+      background: #f6f8fb;
     }
   </style>
 </head>
@@ -37,16 +40,25 @@
 <script>
   const $ = go.GraphObject.make;
 
+  /* =========================
+     1. DIAGRAMA
+     ========================= */
   const diagram = $(go.Diagram, "myDiagramDiv", {
     initialContentAlignment: go.Spot.Center,
+    allowMove: false,
+    allowCopy: false,
     layout: $(go.TreeLayout, {
       angle: 90,
       arrangement: go.TreeLayout.ArrangementHorizontal,
       nodeSpacing: 30,
       layerSpacing: 40
-    })
+    }),
+    "undoManager.isEnabled": false
   });
 
+  /* =========================
+     2. NODO (CLON ORG CHART)
+     ========================= */
   diagram.nodeTemplate =
     $(go.Node, "Vertical",
       {
@@ -60,7 +72,11 @@
       },
       $(go.Panel, "Auto",
         $(go.Shape, "RoundedRectangle",
-          { fill: "white", stroke: "#e5e7eb" }
+          {
+            fill: "white",
+            stroke: "#e5e7eb",
+            strokeWidth: 1
+          }
         ),
         $(go.Panel, "Vertical",
           { margin: 10 },
@@ -68,17 +84,25 @@
             {
               width: 48,
               height: 48,
-              margin: 6,
+              margin: new go.Margin(0, 0, 6, 0),
               background: "#cbd5e1"
             },
             new go.Binding("source", "image")
           ),
           $(go.TextBlock,
-            { font: "bold 13px sans-serif" },
+            {
+              font: "bold 13px sans-serif",
+              stroke: "#0f172a",
+              textAlign: "center"
+            },
             new go.Binding("text", "name")
           ),
           $(go.TextBlock,
-            { font: "12px sans-serif", stroke: "#475569" },
+            {
+              font: "12px sans-serif",
+              stroke: "#475569",
+              textAlign: "center"
+            },
             new go.Binding("text", "role")
           )
         )
@@ -88,10 +112,12 @@
   diagram.linkTemplate =
     $(go.Link,
       { routing: go.Link.Orthogonal, corner: 6 },
-      $(go.Shape, { stroke: "#cbd5e1" })
+      $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.5 })
     );
 
-  // === CARGA CSV REAL ===
+  /* =========================
+     3. CARGA CSV REAL
+     ========================= */
   Papa.parse("team.csv", {
     download: true,
     header: true,
@@ -101,61 +127,85 @@
     }
   });
 
+  /* =========================
+     4. CONSTRUIR MODELO
+     ========================= */
   function buildModel(people) {
 
-    // normalizar
-    people = people.filter(p => p.Name);
+    // Normalizar filas válidas
+    people = people.filter(p => p.Name && p.Name.trim() !== "");
 
+    // Mapa supervisor → hijos
     const children = {};
     people.forEach(p => {
-      const sup = p.Supervisor || "";
+      const sup = (p.Supervisor || "").trim();
       if (!children[sup]) children[sup] = [];
-      children[sup].push(p.Name);
+      children[sup].push(p.Name.trim());
     });
 
-    // detectar Team Leader real (tiene supervisores con gente)
-    const leader = people.find(p =>
-      (children[p.Name] || []).some(
-        c => (children[c] || []).length > 0
-      )
-    );
+    /* =========================
+       5. DETECTAR TEAM LEADER
+       (quien tiene más reportes)
+       ========================= */
+    let leader = null;
+    let max = 0;
 
-    if (!leader) {
+    people.forEach(p => {
+      const count = (children[p.Name] || []).length;
+      if (count > max) {
+        max = count;
+        leader = p;
+      }
+    });
+
+    if (!leader || max === 0) {
       alert("No se pudo detectar Team Leader");
       return;
     }
 
+    /* =========================
+       6. CREAR NODOS
+       ========================= */
     const nodes = [];
-    nodes.push({ key: "ROOT", name: "EMR TEAM", isTreeExpanded: false });
 
+    // ROOT
+    nodes.push({
+      key: "ROOT",
+      name: "EMR TEAM",
+      isTreeExpanded: false
+    });
+
+    // TEAM LEADER
     nodes.push({
       key: leader.Name,
       parent: "ROOT",
       name: leader.Name,
-      role: leader.Role,
-      image: leader.Image,
+      role: leader.Role || "",
+      image: leader.Image || "",
       isTreeExpanded: false
     });
 
-    (children[leader.Name] || []).forEach(sup => {
-      const s = people.find(p => p.Name === sup);
+    // SUPERVISORES
+    (children[leader.Name] || []).forEach(supName => {
+      const sup = people.find(p => p.Name === supName);
       nodes.push({
-        key: sup,
+        key: supName,
         parent: leader.Name,
-        name: sup,
-        role: s.Role,
-        image: s.Image,
+        name: supName,
+        role: sup?.Role || "",
+        image: sup?.Image || "",
         isTreeExpanded: false
       });
 
-      (children[sup] || []).forEach(emp => {
-        const e = people.find(p => p.Name === emp);
+      // PERSONAL
+      (children[supName] || []).forEach(empName => {
+        const emp = people.find(p => p.Name === empName);
         nodes.push({
-          key: emp,
-          parent: sup,
-          name: emp,
-          role: e.Role,
-          image: e.Image
+          key: empName,
+          parent: supName,
+          name: empName,
+          role: emp?.Role || "",
+          image: emp?.Image || ""
         });
       });
     });
