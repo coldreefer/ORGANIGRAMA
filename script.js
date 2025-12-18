@@ -1,7 +1,7 @@
 const $ = go.GraphObject.make;
 
 /* ======================================================
-   DIAGRAMA — UX ESTABLE + ZOOM CONTROLADO
+   DIAGRAMA
    ====================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
@@ -20,34 +20,29 @@ const diagram = $(go.Diagram, "diagramDiv", {
 
   "undoManager.isEnabled": false,
 
-  // 🔑 LAYOUT CLAVE
+  // 🔑 LAYOUT FINAL CORRECTO
   layout: $(go.TreeLayout, {
-    angle: 90, // vertical base
-    arrangement: go.TreeLayout.ArrangementHorizontal,
+    angle: 90, // árbol hacia abajo
+    arrangement: go.TreeLayout.ArrangementHorizontal, // SUPERVISORES HORIZONTALES
+    treeStyle: go.TreeLayout.StyleLastParents, // TRABAJADORES VERTICALES
     nodeSpacing: 30,
-    layerSpacing: 40,
-
-    // 🔥 CLAVE: últimos padres (supervisores) en vertical
-    treeStyle: go.TreeLayout.StyleLastParents
+    layerSpacing: 40
   })
 });
 
 /* ======================================================
-   TEMPLATE DE NODO — CLICK EN IMAGEN O TARJETA
+   TEMPLATE DE NODO
    ====================================================== */
 diagram.nodeTemplate =
   $(go.Node, "Vertical",
     {
       cursor: "pointer",
       click: (e, node) => {
-        // Solo toggle si tiene hijos
         if (node.findTreeChildrenNodes().count > 0) {
           node.isTreeExpanded = !node.isTreeExpanded;
         }
       }
     },
-
-    // 🔑 binding real
     new go.Binding("isTreeExpanded").makeTwoWay(),
 
     $(go.Panel, "Auto",
@@ -91,7 +86,7 @@ diagram.linkTemplate =
   );
 
 /* ======================================================
-   CARGA CSV
+   CSV
    ====================================================== */
 Papa.parse("team.csv", {
   download: true,
@@ -101,13 +96,12 @@ Papa.parse("team.csv", {
 });
 
 /* ======================================================
-   MODELO — REGLA DE NEGOCIO EXACTA
+   MODELO
    ====================================================== */
 function buildModel(rows) {
 
   const people = rows.filter(r => r["Email (required)"]);
 
-  // Mapa supervisor → personal
   const children = {};
   people.forEach(p => {
     const sup = (p["SupervisorEmail (required)"] || "").trim();
@@ -115,7 +109,6 @@ function buildModel(rows) {
     children[sup].push(p);
   });
 
-  // Team Leader = sin supervisor
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) {
     alert("No se pudo detectar Team Leader");
@@ -131,7 +124,7 @@ function buildModel(rows) {
     isTreeExpanded: true
   });
 
-  // TEAM LEADER (muestra supervisores)
+  // TEAM LEADER → EXPANDIDO
   nodes.push({
     key: leader["Email (required)"],
     parent: "ROOT",
@@ -141,7 +134,7 @@ function buildModel(rows) {
     isTreeExpanded: true
   });
 
-  // SUPERVISORES → visibles, pero PERSONAL oculto
+  // SUPERVISORES → VISIBLES, PERSONAL OCULTO
   (children[leader["Email (required)"]] || []).forEach(s => {
 
     nodes.push({
@@ -150,7 +143,7 @@ function buildModel(rows) {
       name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
       role: s.Position || "",
       image: s.ImageURL || "",
-      isTreeExpanded: false   // 🔴 personal oculto
+      isTreeExpanded: false
     });
 
     // PERSONAL (vertical bajo cada supervisor)
