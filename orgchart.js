@@ -5,7 +5,9 @@ fetch("team.csv")
 
 function buildOrg(data) {
 
-  // === detectar columnas ===
+  /* =============================
+     1. Detectar columnas reales
+     ============================= */
   const headers = Object.keys(data[0]);
   const col = {
     name: pick(headers, ["name", "nombre"]),
@@ -14,30 +16,59 @@ function buildOrg(data) {
     image: pick(headers, ["image", "photo"])
   };
 
-  // === nodos base ===
+  /* =============================
+     2. Normalizar personas
+     ============================= */
   const people = data.map(d => ({
-    name: d[col.name].trim(),
-    role: d[col.role] || "",
+    name: (d[col.name] || "").trim(),
+    role: (d[col.role] || "").trim(),
     supervisor: (d[col.supervisor] || "").trim(),
     image: d[col.image] || ""
-  }));
+  })).filter(p => p.name);
 
-  // === TEAM LEADER ===
-  const leader = people.find(p =>
-    /team leader|leader/i.test(p.role)
-  );
+  /* =============================
+     3. Detectar TEAM LEADER (ROBUSTO)
+     ============================= */
+
+  // Regla 1: sin supervisor
+  let leader = people.find(p => !p.supervisor);
+
+  // Regla 2: por cargo
+  if (!leader) {
+    leader = people.find(p =>
+      /team\s*leader|leader|jefe/i.test(p.role)
+    );
+  }
+
+  // Regla 3: el que tiene más gente a cargo
+  if (!leader) {
+    const count = {};
+    people.forEach(p => {
+      if (p.supervisor) {
+        count[p.supervisor] = (count[p.supervisor] || 0) + 1;
+      }
+    });
+    const max = Object.entries(count).sort((a,b) => b[1]-a[1])[0];
+    if (max) {
+      leader = people.find(p => p.name === max[0]);
+    }
+  }
 
   if (!leader) {
-    alert("No se encontró Team Leader");
+    alert("No se pudo detectar Team Leader desde el CSV");
     return;
   }
 
-  // === supervisores ===
+  /* =============================
+     4. Supervisores directos
+     ============================= */
   const supervisors = people.filter(p =>
     p.supervisor === leader.name
   );
 
-  // === personal por supervisor ===
+  /* =============================
+     5. Personal por supervisor
+     ============================= */
   const staffBySupervisor = {};
   supervisors.forEach(s => {
     staffBySupervisor[s.name] = people.filter(p =>
@@ -45,12 +76,14 @@ function buildOrg(data) {
     );
   });
 
-  // === render ===
-  const root = d3.select("#org-root");
+  /* =============================
+     6. Render visual
+     ============================= */
+  const root = d3.select("#org-root").html("");
 
   // NIVEL 0 — EMR TEAM
   const lvl0 = root.append("div").classed("column", true);
-  const emr = createNode(lvl0, {
+  const emrNode = createNode(lvl0, {
     name: "EMR TEAM",
     role: ""
   });
@@ -59,34 +92,39 @@ function buildOrg(data) {
   const lvl1 = root.append("div").classed("level", true);
   const leaderNode = createNode(lvl1, leader);
 
-  // NIVEL 2 — SUPERVISORES
+  // NIVEL 2 — SUPERVISORES (HORIZONTAL)
   const lvl2 = root.append("div").classed("level", true);
-  const supNodes = lvl2.selectAll(".column")
+  const supCols = lvl2.selectAll(".column")
     .data(supervisors)
     .enter()
     .append("div")
     .classed("column", true);
 
-  supNodes.each(function (d) {
+  supCols.each(function (sup) {
     const col = d3.select(this);
-    const supNode = createNode(col, d);
+    const supNode = createNode(col, sup);
 
-    // NIVEL 3 — PERSONAL (por supervisor)
+    // NIVEL 3 — PERSONAL (POR SUPERVISOR)
     const lvl3 = col.append("div").classed("level", true);
-
-    createNodes(lvl3, staffBySupervisor[d.name]);
+    (staffBySupervisor[sup.name] || []).forEach(p =>
+      createNode(lvl3, p)
+    );
 
     supNode.on("click", () => {
       lvl3.classed("show", !lvl3.classed("show"));
     });
   });
 
-  // === interacciones ===
-  emr.on("click", () => lvl1.classed("show", true));
+  /* =============================
+     7. Interacciones
+     ============================= */
+  emrNode.on("click", () => lvl1.classed("show", true));
   leaderNode.on("click", () => lvl2.classed("show", true));
 }
 
-/* ===== helpers ===== */
+/* =============================
+   Helpers
+   ============================= */
 
 function createNode(parent, d) {
   const node = parent.append("div").classed("node", true);
@@ -99,11 +137,6 @@ function createNode(parent, d) {
   node.append("div").classed("role", true).text(d.role);
 
   return node;
-}
-
-function createNodes(parent, list) {
-  if (!list) return;
-  list.forEach(d => createNode(parent, d));
 }
 
 function pick(headers, keys) {
