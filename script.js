@@ -3,15 +3,18 @@ const chart = new d3.OrgChart()
   .svgWidth(4000)
   .svgHeight(2200)
   .nodeWidth(() => 220)
-  .nodeHeight(d => d.data._isRow ? 10 : 130)
+  .nodeHeight(d => d.data._isRow ? 10 : 140)
   .compact(false)
   .childrenMargin(() => 120)
   .siblingsMargin(() => 80)
 
+  // Contenido del nodo
   .nodeContent(d => {
     if (d.data._isRow) return '';
 
     const img = d.data.ImageURL || '';
+    const count = d.data._childrenCount || 0;
+
     return `
       <div class="org-node">
         <img src="${img}">
@@ -19,15 +22,24 @@ const chart = new d3.OrgChart()
           ${d.data["First name (required)"]} ${d.data["Last name (required)"]}
         </div>
         <div class="role">${d.data.Position || ''}</div>
+
+        ${
+          count > 0
+            ? `<div class="count">⌄ ${count}</div>`
+            : ''
+        }
       </div>
     `;
   })
 
-  // 🔴 AQUÍ NO EXISTE toggleNode
+  // ✅ CLICK CORRECTO
   .onNodeClick(d => {
     if (d.data._isRow) return;
 
-    d.expanded = !d.expanded;
+    const id = d.data.id;
+    const isExpanded = chart.getExpanded(id);
+
+    chart.setExpanded(id, !isExpanded);
     chart.render();
   });
 
@@ -47,13 +59,26 @@ Papa.parse("team.csv", {
     const ROW_ID = "__SUPERVISOR_ROW__";
     const data = [];
 
+    // Función para contar descendientes
+    function countChildren(id) {
+      const direct = raw.filter(p => p["SupervisorEmail (required)"] === id);
+      let total = direct.length;
+      direct.forEach(c => {
+        total += countChildren(c["Email (required)"]);
+      });
+      return total;
+    }
+
+    // Leader
     data.push({
       ...leader,
       id: leader["Email (required)"],
       parentId: null,
-      expanded: true
+      expanded: true,
+      _childrenCount: supervisors.length
     });
 
+    // Row invisible
     data.push({
       id: ROW_ID,
       parentId: leader["Email (required)"],
@@ -61,20 +86,23 @@ Papa.parse("team.csv", {
       expanded: true
     });
 
+    // Supervisores
     supervisors.forEach(s => {
+      const count = countChildren(s["Email (required)"]);
       data.push({
         ...s,
         id: s["Email (required)"],
         parentId: ROW_ID,
-        expanded: false
+        expanded: false,
+        _childrenCount: count
       });
     });
 
+    // Resto del personal
     raw.forEach(p => {
       if (
         p["SupervisorEmail (required)"] &&
-        !supervisors.find(s => s["Email (required)"] === p["SupervisorEmail (required)"]) &&
-        p["Email (required)"] !== leader["Email (required)"]
+        p["SupervisorEmail (required)"] !== leader["Email (required)"]
       ) {
         data.push({
           ...p,
