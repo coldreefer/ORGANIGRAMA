@@ -8,7 +8,6 @@ const chart = new d3.OrgChart()
   .childrenMargin(() => 120)
   .siblingsMargin(() => 80)
 
-  // Contenido del nodo
   .nodeContent(d => {
     if (d.data._isRow) return '';
 
@@ -24,7 +23,7 @@ const chart = new d3.OrgChart()
     `;
   })
 
-  // ✅ CLICK CORREGIDO
+  // 🔴 AQUÍ NO EXISTE toggleNode
   .onNodeClick(d => {
     if (d.data._isRow) return;
 
@@ -40,10 +39,7 @@ Papa.parse("team.csv", {
 
     const raw = res.data.filter(d => d["Email (required)"]);
 
-    // Leader (sin supervisor)
     const leader = raw.find(d => !d["SupervisorEmail (required)"]);
-
-    // Supervisores directos
     const supervisors = raw.filter(
       d => d["SupervisorEmail (required)"] === leader["Email (required)"]
     );
@@ -51,7 +47,6 @@ Papa.parse("team.csv", {
     const ROW_ID = "__SUPERVISOR_ROW__";
     const data = [];
 
-    // Leader
     data.push({
       ...leader,
       id: leader["Email (required)"],
@@ -59,7 +54,6 @@ Papa.parse("team.csv", {
       expanded: true
     });
 
-    // Row invisible
     data.push({
       id: ROW_ID,
       parentId: leader["Email (required)"],
@@ -67,7 +61,6 @@ Papa.parse("team.csv", {
       expanded: true
     });
 
-    // Supervisores (horizontal)
     supervisors.forEach(s => {
       data.push({
         ...s,
@@ -77,7 +70,6 @@ Papa.parse("team.csv", {
       });
     });
 
-    // Resto del personal
     raw.forEach(p => {
       if (
         p["SupervisorEmail (required)"] &&
