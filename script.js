@@ -1,18 +1,22 @@
 const chart = new d3.OrgChart()
   .container('#chart')
 
-  // Tamaños fijos (importante para alineación)
+  // 🔑 FORZAR ANCHO GRANDE (clave)
+  .svgWidth(4000)
+  .svgHeight(2000)
+
+  // Tamaño nodo
   .nodeWidth(() => 220)
   .nodeHeight(() => 130)
 
-  // 🔴 CLAVE: DESACTIVAR COMPACT
+  // NO compactar
   .compact(false)
 
-  // Espaciados horizontales reales
-  .childrenMargin(() => 80)
-  .siblingsMargin(() => 60)
+  // Espacios
+  .childrenMargin(() => 120)
+  .siblingsMargin(() => 80)
 
-  // Contenido del nodo
+  // Contenido
   .nodeContent(d => {
     const img = d.data.ImageURL || '';
     return `
@@ -26,12 +30,10 @@ const chart = new d3.OrgChart()
     `;
   })
 
-  // Expandir / colapsar
   .onNodeClick(d => {
     chart.toggleNode(d.data.id).render();
   });
 
-// Cargar CSV
 Papa.parse("team.csv", {
   download: true,
   header: true,
