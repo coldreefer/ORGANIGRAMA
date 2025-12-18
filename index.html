@@ -23,7 +23,6 @@
 
   function initChart(data) {
 
-    // Detectar columnas por nombre
     const headers = Object.keys(data[0]).map(h => h.toLowerCase());
     const col = {
       first: find(headers, ["first", "nombre"]),
@@ -33,12 +32,14 @@
       image: find(headers, ["image", "photo", "picture"])
     };
 
-    // Crear nodos base
+    const ROOT_ID = "__ROOT__";
+
+    // 1️⃣ Crear nodos base
     const nodes = data.map((d, i) => {
       const name = `${d[col.first] || ""} ${d[col.last] || ""}`.trim();
       return {
         id: `node-${i}`,
-        parentId: null,
+        parentId: ROOT_ID,   // 🔴 todos cuelgan del root por defecto
         name,
         role: d[col.role] || "",
         supervisorName: (d[col.supervisor] || "").trim(),
@@ -46,32 +47,32 @@
       };
     });
 
-    // Resolver parentId por nombre
+    // 2️⃣ Resolver supervisores por nombre
     nodes.forEach(n => {
       const parent = nodes.find(
         x => x.name.toLowerCase() === n.supervisorName.toLowerCase()
       );
-      if (parent) n.parentId = parent.id;
+      if (parent) {
+        n.parentId = parent.id;
+      }
     });
 
-    // 🔴 ROOT ARTIFICIAL (SOLUCIÓN A multiple roots)
-    const ROOT_ID = "root-emr";
+    // 3️⃣ Insertar ROOT ÚNICO
+    nodes.push({
+      id: ROOT_ID,
+      parentId: null,     // 🔴 EL ÚNICO NULL
+      name: "EMR TEAM",
+      role: "",
+      image: ""
+    });
 
-    const roots = nodes.filter(n => !n.parentId);
-
-    if (roots.length > 1) {
-      nodes.push({
-        id: ROOT_ID,
-        parentId: null,
-        name: "EMR TEAM",
-        role: "",
-        image: ""
-      });
-
-      roots.forEach(r => r.parentId = ROOT_ID);
+    // 🔒 GARANTÍA ABSOLUTA
+    const roots = nodes.filter(n => n.parentId === null);
+    if (roots.length !== 1) {
+      throw new Error("Estructura inválida: debe existir un solo root");
     }
 
-    // Crear organigrama
+    // 4️⃣ Render
     const chart = new OrgChart()
       .container("#chart-container")
       .data(nodes)
