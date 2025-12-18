@@ -23,6 +23,9 @@
 
   function initChart(data) {
 
+    /* ======================================================
+       1. Detectar columnas reales del CSV
+       ====================================================== */
     const headers = Object.keys(data[0]).map(h => h.toLowerCase());
     const col = {
       first: find(headers, ["first", "nombre"]),
@@ -34,12 +37,14 @@
 
     const ROOT_ID = "__ROOT__";
 
-    // 1️⃣ Crear nodos base
+    /* ======================================================
+       2. Crear nodos base (sin jerarquía aún)
+       ====================================================== */
     const nodes = data.map((d, i) => {
       const name = `${d[col.first] || ""} ${d[col.last] || ""}`.trim();
       return {
         id: `node-${i}`,
-        parentId: ROOT_ID,
+        parentId: null,
         name,
         role: d[col.role] || "",
         supervisorName: (d[col.supervisor] || "").trim(),
@@ -47,40 +52,32 @@
       };
     });
 
-    // 2️⃣ Resolver supervisores por nombre
     const byName = new Map(nodes.map(n => [n.name.toLowerCase(), n]));
 
+    /* ======================================================
+       3. Resolver supervisor directo (personal → supervisor)
+       ====================================================== */
     nodes.forEach(n => {
-      const parent = byName.get(n.supervisorName.toLowerCase());
-      if (parent && parent.id !== n.id) {
-        n.parentId = parent.id;
+      if (!n.supervisorName) return;
+      const sup = byName.get(n.supervisorName.toLowerCase());
+      if (sup && sup.id !== n.id) {
+        n.parentId = sup.id;
       }
     });
 
-    // 3️⃣ Detectar y romper ciclos
-    const visited = new Set();
-    const stack = new Set();
+    /* ======================================================
+       4. Detectar JEFE real
+          - no tiene supervisor
+          - pero sí tiene gente a cargo
+       ====================================================== */
+    const jefe = nodes.find(n =>
+      !n.supervisorName &&
+      nodes.some(x => x.parentId === n.id)
+    );
 
-    function visit(node) {
-      if (stack.has(node.id)) {
-        // 🔴 ciclo detectado → romper
-        node.parentId = ROOT_ID;
-        return;
-      }
-      if (visited.has(node.id)) return;
-
-      visited.add(node.id);
-      stack.add(node.id);
-
-      const parent = nodes.find(n => n.id === node.parentId);
-      if (parent) visit(parent);
-
-      stack.delete(node.id);
-    }
-
-    nodes.forEach(n => visit(n));
-
-    // 4️⃣ Insertar ROOT ÚNICO
+    /* ======================================================
+       5. ROOT ARTIFICIAL → JEFE
+       ====================================================== */
     nodes.push({
       id: ROOT_ID,
       parentId: null,
@@ -89,7 +86,23 @@
       image: ""
     });
 
-    // 5️⃣ Render
+    if (jefe) {
+      jefe.parentId = ROOT_ID;
+    }
+
+    /* ======================================================
+       6. Cualquier nodo sin parentId cuelga del JEFE
+          (evita no-root y cycles)
+       ====================================================== */
+    nodes.forEach(n => {
+      if (!n.parentId && n.id !== ROOT_ID && jefe) {
+        n.parentId = jefe.id;
+      }
+    });
+
+    /* ======================================================
+       7. Render OrgChart
+       ====================================================== */
     const chart = new OrgChart()
       .container("#chart-container")
       .data(nodes)
@@ -98,16 +111,23 @@
       .childrenMargin(() => 40)
       .nodeContent(d => `
         <div class="org-card">
-          ${d.data.image
-            ? `<img src="${d.data.image}" />`
-            : `<div style="width:44px;height:44px;border-radius:50%;background:#cbd5e1;margin:0 auto 6px"></div>`
+          ${
+            d.data.image
+              ? `<img src="${d.data.image}" />`
+              : `<div style="width:44px;height:44px;border-radius:50%;background:#cbd5e1;margin:0 auto 6px"></div>`
           }
           <div class="org-name">${d.data.name}</div>
           <div class="org-role">${d.data.role}</div>
         </div>
       `);
 
+    /* ======================================================
+       8. Estado inicial EXACTO como OrgChart
+          - solo EMR TEAM visible
+       ====================================================== */
     chart.render();
+    chart.collapseAll();
+    chart.expand(ROOT_ID);
   }
 
   function find(headers, keys) {
