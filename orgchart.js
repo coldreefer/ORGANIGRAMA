@@ -6,7 +6,7 @@ fetch("team.csv")
 function buildOrg(data) {
 
   /* =============================
-     1. Detectar columnas reales
+     1. Detectar columnas
      ============================= */
   const headers = Object.keys(data[0]);
   const col = {
@@ -27,35 +27,18 @@ function buildOrg(data) {
   })).filter(p => p.name);
 
   /* =============================
-     3. Detectar TEAM LEADER (ROBUSTO)
+     3. Detectar JEFE (Team Leader)
      ============================= */
-
-  // Regla 1: sin supervisor
   let leader = people.find(p => !p.supervisor);
 
-  // Regla 2: por cargo
   if (!leader) {
     leader = people.find(p =>
       /team\s*leader|leader|jefe/i.test(p.role)
     );
   }
 
-  // Regla 3: el que tiene más gente a cargo
   if (!leader) {
-    const count = {};
-    people.forEach(p => {
-      if (p.supervisor) {
-        count[p.supervisor] = (count[p.supervisor] || 0) + 1;
-      }
-    });
-    const max = Object.entries(count).sort((a,b) => b[1]-a[1])[0];
-    if (max) {
-      leader = people.find(p => p.name === max[0]);
-    }
-  }
-
-  if (!leader) {
-    alert("No se pudo detectar Team Leader desde el CSV");
+    alert("No se pudo detectar el jefe");
     return;
   }
 
@@ -77,7 +60,7 @@ function buildOrg(data) {
   });
 
   /* =============================
-     6. Render visual
+     6. Render DOM
      ============================= */
   const root = d3.select("#org-root").html("");
 
@@ -88,12 +71,13 @@ function buildOrg(data) {
     role: ""
   });
 
-  // NIVEL 1 — TEAM LEADER
+  // NIVEL 1 — JEFE
   const lvl1 = root.append("div").classed("level", true);
   const leaderNode = createNode(lvl1, leader);
 
-  // NIVEL 2 — SUPERVISORES (HORIZONTAL)
+  // NIVEL 2 — SUPERVISORES
   const lvl2 = root.append("div").classed("level", true);
+
   const supCols = lvl2.selectAll(".column")
     .data(supervisors)
     .enter()
@@ -104,22 +88,30 @@ function buildOrg(data) {
     const col = d3.select(this);
     const supNode = createNode(col, sup);
 
-    // NIVEL 3 — PERSONAL (POR SUPERVISOR)
+    // NIVEL 3 — PERSONAL
     const lvl3 = col.append("div").classed("level", true);
+
     (staffBySupervisor[sup.name] || []).forEach(p =>
       createNode(lvl3, p)
     );
 
+    // TOGGLE PERSONAL
     supNode.on("click", () => {
       lvl3.classed("show", !lvl3.classed("show"));
     });
   });
 
   /* =============================
-     7. Interacciones
+     7. TOGGLES REALES
      ============================= */
-  emrNode.on("click", () => lvl1.classed("show", true));
-  leaderNode.on("click", () => lvl2.classed("show", true));
+  emrNode.on("click", () => {
+    lvl1.classed("show", !lvl1.classed("show"));
+    lvl2.classed("show", false);
+  });
+
+  leaderNode.on("click", () => {
+    lvl2.classed("show", !lvl2.classed("show"));
+  });
 }
 
 /* =============================
