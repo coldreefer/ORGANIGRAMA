@@ -13,8 +13,9 @@
 <div id="chart-container" style="width:100%; height: calc(100vh - 80px);"></div>
 
 <script type="module">
-  import * as d3 from "https://esm.sh/d3@7";
-  import { OrgChart } from "https://esm.sh/d3-org-chart@3";
+  // 🔒 Forzamos compatibilidad ES2019
+  import * as d3 from "https://esm.sh/d3@7?target=es2019";
+  import { OrgChart } from "https://esm.sh/d3-org-chart@3?target=es2019";
 
   fetch("./team.csv")
     .then(r => r.text())
@@ -71,7 +72,6 @@
       image: ""
     });
 
-    // ROOT → TEAM LEADER
     teamLeader.parentId = ROOT_ID;
 
     const byName = new Map(nodes.map(n => [n.name.toLowerCase(), n]));
@@ -82,7 +82,6 @@
     nodes.forEach(n => {
       if (n.id === teamLeader.id || n.id === ROOT_ID) return;
 
-      // Si su supervisor es el Team Leader → supervisor directo
       if (
         n.supervisorName &&
         n.supervisorName.toLowerCase() === teamLeader.name.toLowerCase()
@@ -91,7 +90,6 @@
         return;
       }
 
-      // Si tiene supervisor distinto → cuelga del supervisor
       if (n.supervisorName) {
         const sup = byName.get(n.supervisorName.toLowerCase());
         if (sup) {
@@ -100,19 +98,21 @@
         }
       }
 
-      // Fallback: todo cuelga del Team Leader
       n.parentId = teamLeader.id;
     });
 
     /* ============================
-       6. Render OrgChart
+       6. OrgChart COMPACTO
        ============================ */
     const chart = new OrgChart()
       .container("#chart-container")
       .data(nodes)
+      .compact(true)
       .nodeWidth(() => 190)
       .nodeHeight(() => 120)
-      .childrenMargin(() => 40)
+      .childrenMargin(() => 60)
+      .compactMarginBetween(() => 40)
+      .compactMarginPair(() => 80)
       .nodeContent(d => `
         <div class="org-card">
           ${
@@ -131,8 +131,8 @@
        7. Estado inicial EXACTO
        ============================ */
     chart.collapseAll();
-    chart.expand(ROOT_ID);          // muestra EMR TEAM
-    chart.expand(teamLeader.id);    // muestra SOLO el jefe
+    chart.expand(ROOT_ID);
+    chart.expand(teamLeader.id);
   }
 
   function pick(headers, keys) {
