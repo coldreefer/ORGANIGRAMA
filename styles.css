@@ -1,4 +1,6 @@
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 html, body {
   margin: 0;
@@ -10,6 +12,7 @@ html, body {
 h1 {
   text-align: center;
   margin: 20px 0;
+  color: #0f172a;
 }
 
 #chart {
@@ -17,7 +20,7 @@ h1 {
   overflow: auto;
 }
 
-/* 🔴 CLAVE PARA d3-org-chart */
+/* 🔴 CLAVE ABSOLUTA PARA d3-org-chart */
 foreignObject {
   pointer-events: none;
 }
@@ -25,14 +28,14 @@ foreignObject {
 /* Tarjeta */
 .org-node {
   width: 200px;
-  background: #fff;
+  background: #ffffff;
   border-radius: 14px;
   border: 1px solid #e5e7eb;
   padding: 12px;
   text-align: center;
 
-  box-shadow: 0 2px 6px rgba(0,0,0,.06);
-  transition: transform .15s ease, box-shadow .15s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 
   pointer-events: auto;
   cursor: pointer;
@@ -40,9 +43,10 @@ foreignObject {
 
 .org-node:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0,0,0,.12);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.12);
 }
 
+/* Imagen NO debe capturar el click */
 .org-node img {
   width: 52px;
   height: 52px;
@@ -56,6 +60,7 @@ foreignObject {
 .org-node .name {
   font-size: 13px;
   font-weight: 600;
+  color: #0f172a;
 }
 
 .org-node .role {
