@@ -1,31 +1,28 @@
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 html, body {
   margin: 0;
-  padding: 0;
   height: 100%;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont;
+  font-family: system-ui, -apple-system;
   background: #f6f8fb;
 }
 
 h1 {
   text-align: center;
   margin: 20px 0;
-  font-size: 22px;
-  color: #0f172a;
 }
 
 #chart {
-  width: 100%;
   height: calc(100vh - 80px);
   overflow: auto;
 }
 
-/* =========================
-   TARJETA PERSONA
-   ========================= */
+/* 🔴 CLAVE PARA d3-org-chart */
+foreignObject {
+  pointer-events: none;
+}
+
+/* Tarjeta */
 .org-node {
   width: 200px;
   background: #fff;
@@ -34,24 +31,18 @@ h1 {
   padding: 12px;
   text-align: center;
 
-  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-
-  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,.06);
   transition: transform .15s ease, box-shadow .15s ease;
+
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .org-node:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+  box-shadow: 0 6px 14px rgba(0,0,0,.12);
 }
 
-/* =========================
-   IMAGEN (CLAVE)
-   ========================= */
 .org-node img {
   width: 52px;
   height: 52px;
@@ -59,18 +50,12 @@ h1 {
   object-fit: cover;
   margin-bottom: 8px;
 
-  /* 🔥 CLAVE PARA QUE EL CLICK FUNCIONE */
   pointer-events: none;
 }
 
-/* =========================
-   TEXTO
-   ========================= */
 .org-node .name {
   font-size: 13px;
   font-weight: 600;
-  color: #0f172a;
-  margin-bottom: 4px;
 }
 
 .org-node .role {
