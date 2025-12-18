@@ -10,7 +10,6 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowZoom: true,
   "undoManager.isEnabled": false,
 
-  // TreeLayout con hijos HORIZONTALES
   layout: $(go.TreeLayout, {
     angle: 90,
     arrangement: go.TreeLayout.ArrangementHorizontal,
@@ -20,18 +19,19 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 // ===============================
-// TEMPLATE DE NODO (CLICK EN TODO)
+// TEMPLATE DE NODO
+// CLICK EN TODA LA TARJETA / IMAGEN
 // ===============================
 diagram.nodeTemplate =
   $(go.Node, "Vertical",
     {
       cursor: "pointer",
       click: (e, node) => {
-        // 🔑 expandir / colapsar al click en tarjeta o imagen
+        // 🔑 TOGGLE REAL
         diagram.model.setDataProperty(
           node.data,
           "isTreeExpanded",
-          !node.isTreeExpanded
+          !node.data.isTreeExpanded
         );
       }
     },
@@ -44,7 +44,6 @@ diagram.nodeTemplate =
       $(go.Panel, "Vertical",
         { margin: 10 },
 
-        // IMAGEN (click pasa correctamente)
         $(go.Picture, {
           width: 52,
           height: 52,
@@ -87,7 +86,7 @@ Papa.parse("team.csv", {
 });
 
 // ===============================
-// CONSTRUIR MODELO
+// CONSTRUIR MODELO (EXPANDIDO)
 // ===============================
 function buildModel(rows) {
 
@@ -109,14 +108,14 @@ function buildModel(rows) {
 
   const nodes = [];
 
-  // ROOT
+  // ROOT (EXPANDIDO)
   nodes.push({
     key: "ROOT",
     name: "EMR TEAM",
     isTreeExpanded: true
   });
 
-  // LEADER
+  // LEADER (EXPANDIDO)
   nodes.push({
     key: leader["Email (required)"],
     parent: "ROOT",
@@ -126,7 +125,7 @@ function buildModel(rows) {
     isTreeExpanded: true
   });
 
-  // SUPERVISORES (horizontales)
+  // SUPERVISORES (EXPANDIDOS)
   (children[leader["Email (required)"]] || []).forEach(s => {
     nodes.push({
       key: s["Email (required)"],
@@ -134,10 +133,10 @@ function buildModel(rows) {
       name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
       role: s.Position || "",
       image: s.ImageURL || "",
-      isTreeExpanded: false
+      isTreeExpanded: true
     });
 
-    // PERSONAL
+    // PERSONAL (NO TIENE HIJOS, NO IMPORTA)
     (children[s["Email (required)"]] || []).forEach(p => {
       nodes.push({
         key: p["Email (required)"],
