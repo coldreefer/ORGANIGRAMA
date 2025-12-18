@@ -29,14 +29,15 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ======================================================
-   TEMPLATE BASE PERSONA
+   TEMPLATE BASE
    ====================================================== */
 const baseNodeTemplate =
   $(go.Node, "Vertical",
     {
       selectable: false,
       selectionAdorned: false,
-      cursor: "pointer"
+      cursor: "pointer",
+      cssClass: "go-node"
     },
     $(go.Panel, "Auto",
       $(go.Shape, "RoundedRectangle", {
@@ -45,23 +46,22 @@ const baseNodeTemplate =
         strokeWidth: 1
       }),
       $(go.Panel, "Vertical",
-        { margin: 10 },
+        { margin: 12 },
 
         $(go.Picture, {
-          width: 52,
-          height: 52,
-          margin: new go.Margin(0, 0, 6, 0),
-          background: "#cbd5e1"
+          width: 56,
+          height: 56
         }, new go.Binding("source", "image")),
 
         $(go.TextBlock, {
-          font: "bold 12px sans-serif",
+          font: "bold 13px Inter, sans-serif",
           stroke: "#0f172a",
-          textAlign: "center"
+          textAlign: "center",
+          margin: new go.Margin(6, 0, 0, 0)
         }, new go.Binding("text", "name")),
 
         $(go.TextBlock, {
-          font: "11px sans-serif",
+          font: "12px Inter, sans-serif",
           stroke: "#475569",
           textAlign: "center"
         }, new go.Binding("text", "role"))
@@ -72,7 +72,7 @@ const baseNodeTemplate =
 diagram.nodeTemplate = baseNodeTemplate;
 
 /* ======================================================
-   GROUP TEMPLATE = SUPERVISOR
+   GROUP = SUPERVISOR
    ====================================================== */
 diagram.groupTemplate =
   $(go.Group, "Vertical",
@@ -81,10 +81,11 @@ diagram.groupTemplate =
       selectionAdorned: false,
       cursor: "pointer",
       ungroupable: false,
+      cssClass: "go-node go-supervisor",
 
       layout: $(go.GridLayout, {
         wrappingColumn: 2,
-        spacing: new go.Size(20, 20)
+        spacing: new go.Size(22, 22)
       }),
 
       isSubGraphExpanded: false,
@@ -98,34 +99,31 @@ diagram.groupTemplate =
     $(go.Panel, "Auto",
       $(go.Shape, "RoundedRectangle", {
         fill: "#ffffff",
-        stroke: "#94a3b8",
-        strokeWidth: 1.2
+        stroke: "#14b8a6",
+        strokeWidth: 2
       }),
       $(go.Panel, "Vertical",
-        { margin: 10 },
+        { margin: 12 },
 
         $(go.Picture, {
-          width: 52,
-          height: 52,
-          margin: new go.Margin(0, 0, 6, 0),
-          background: "#cbd5e1"
+          width: 56,
+          height: 56
         }, new go.Binding("source", "image")),
 
         $(go.TextBlock, {
-          font: "bold 13px sans-serif",
-          stroke: "#0f172a",
+          font: "bold 13px Inter, sans-serif",
           textAlign: "center"
         }, new go.Binding("text", "name")),
 
         $(go.TextBlock, {
-          font: "12px sans-serif",
-          stroke: "#475569",
+          font: "12px Inter, sans-serif",
+          stroke: "#0f766e",
           textAlign: "center"
         }, new go.Binding("text", "role"))
       )
     ),
 
-    $(go.Placeholder, { padding: 12 })
+    $(go.Placeholder, { padding: 14 })
   );
 
 /* ======================================================
@@ -138,7 +136,7 @@ diagram.linkTemplate =
   );
 
 /* ======================================================
-   CARGA CSV
+   CSV
    ====================================================== */
 Papa.parse("team.csv", {
   download: true,
@@ -148,7 +146,7 @@ Papa.parse("team.csv", {
 });
 
 /* ======================================================
-   CONSTRUCCIÓN DEL MODELO (ROBUSTA)
+   MODELO ROBUSTO
    ====================================================== */
 function buildModel(rows) {
 
@@ -157,39 +155,23 @@ function buildModel(rows) {
   const nodes = [];
   const links = [];
 
-  const idByEmail = {};
-  people.forEach((p, i) => {
-    p.__id = "P_" + i;
-    if (p["Email (required)"]) {
-      idByEmail[p["Email (required)"]] = p.__id;
-    }
-  });
+  people.forEach((p, i) => p.__id = "P_" + i);
 
-  // ROOT
-  nodes.push({
-    key: "ROOT",
-    name: "EMR TEAM",
-    role: "",
-    image: ""
-  });
+  nodes.push({ key: "ROOT", name: "EMR TEAM", role: "", image: "" });
 
-  // Team Leader = sin supervisor
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
-  if (!leader) {
-    alert("No se pudo detectar Team Leader");
-    return;
-  }
+  if (!leader) return;
 
   nodes.push({
     key: leader.__id,
     name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
     role: leader.Position || "",
-    image: leader.ImageURL || ""
+    image: leader.ImageURL || "",
+    cssClass: "go-node go-leader"
   });
 
   links.push({ from: "ROOT", to: leader.__id });
 
-  // Supervisores
   people.forEach(p => {
     if (p["SupervisorEmail (required)"] === leader["Email (required)"]) {
 
@@ -203,7 +185,6 @@ function buildModel(rows) {
 
       links.push({ from: leader.__id, to: p.__id });
 
-      // Trabajadores
       people.forEach(w => {
         if (w["SupervisorEmail (required)"] === p["Email (required)"]) {
           nodes.push({
@@ -211,7 +192,8 @@ function buildModel(rows) {
             group: p.__id,
             name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
             role: w.Position || "",
-            image: w.ImageURL || ""
+            image: w.ImageURL || "",
+            cssClass: "go-node go-worker"
           });
         }
       });
