@@ -1,77 +1,112 @@
-const width = 2200;
-const dx = 120;
-const dy = 260;
+const WIDTH = 2200;
+const DX = 120;
+const DY = 260;
 
-const tree = d3.tree().nodeSize([dx, dy]);
-const diagonal = d3.linkVertical().x(d => d.x).y(d => d.y);
+const treeLayout = d3.tree().nodeSize([DX, DY]);
+const diagonal = d3.linkVertical()
+  .x(d => d.x)
+  .y(d => d.y);
 
-fetch("team.csv")
-  .then(r => r.text())
-  .then(parseCSV)
-  .then(buildChart);
-
-function parseCSV(text) {
-  return d3.csvParse(text);
-}
+fetch("./team.csv")
+  .then(res => {
+    if (!res.ok) throw new Error("No se pudo cargar team.csv");
+    return res.text();
+  })
+  .then(text => {
+    // eliminar BOM si existe
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    return d3.csvParse(text);
+  })
+  .then(buildChart)
+  .catch(err => {
+    console.error(err);
+    document.getElementById("chart").innerHTML =
+      "<p style='color:red'>Error cargando organigrama</p>";
+  });
 
 function buildChart(data) {
-  const map = new Map();
-  data.forEach(d => map.set(d.Email, { ...d, children: [] }));
+  if (!data || data.length === 0) {
+    throw new Error("CSV vacío");
+  }
 
-  let rootData = null;
+  // Normalizar datos
+  data.forEach(d => {
+    d.Email = d.Email?.trim();
+    d.SupervisorEmail = d.SupervisorEmail?.trim();
+  });
+
+  // Mapas
+  const map = new Map();
+  const supervisors = new Set();
 
   data.forEach(d => {
-    if (d.SupervisorEmail) {
-      map.get(d.SupervisorEmail)?.children.push(map.get(d.Email));
-    } else {
-      rootData = map.get(d.Email);
+    map.set(d.Email, { ...d, children: [] });
+    if (d.SupervisorEmail) supervisors.add(d.SupervisorEmail);
+  });
+
+  // Detectar raíz REAL
+  const rootCandidates = [...map.keys()].filter(
+    email => !supervisors.has(email)
+  );
+
+  if (rootCandidates.length === 0) {
+    throw new Error("No se encontró raíz (estructura cíclica o datos inválidos)");
+  }
+
+  const rootEmail = rootCandidates[0];
+  const rootData = map.get(rootEmail);
+
+  // Construir jerarquía
+  map.forEach(p => {
+    if (p.SupervisorEmail && map.has(p.SupervisorEmail)) {
+      map.get(p.SupervisorEmail).children.push(p);
     }
   });
 
-  const root = d3.hierarchy(rootData, d => d.children);
+  const root = d3.hierarchy(rootData);
   root.x0 = 0;
   root.y0 = 0;
 
   const svg = d3.select("#chart")
     .append("svg")
-    .attr("viewBox", [-width / 2, -50, width, 1000]);
+    .attr("viewBox", [-WIDTH / 2, -50, WIDTH, 1200]);
 
   const g = svg.append("g");
 
   update(root);
 
   function update(source) {
+    treeLayout(root);
+
     const nodes = root.descendants();
     const links = root.links();
 
-    tree(root);
+    const t = svg.transition().duration(400);
 
-    const transition = svg.transition().duration(400);
-
-    /** LINKS **/
+    // LINKS
     g.selectAll(".link")
       .data(links, d => d.target.data.Email)
       .join(
         enter => enter.append("path")
           .attr("class", "link")
-          .attr("d", d => {
+          .attr("d", () => {
             const o = { x: source.x0, y: source.y0 };
             return diagonal({ source: o, target: o });
           })
-          .transition(transition)
+          .transition(t)
           .attr("d", diagonal),
-        update => update.transition(transition).attr("d", diagonal),
-        exit => exit.transition(transition).remove()
+        update => update.transition(t).attr("d", diagonal),
+        exit => exit.transition(t).remove()
       );
 
-    /** NODES **/
+    // NODES
     const node = g.selectAll(".node")
       .data(nodes, d => d.data.Email);
 
     const nodeEnter = node.enter()
       .append("g")
       .attr("class", "node")
-      .attr("transform", d => `translate(${source.x0},${source.y0})`)
+      .attr("transform", `translate(${source.x0},${source.y0})`)
       .on("click", (e, d) => toggle(d));
 
     nodeEnter.append("rect")
@@ -100,15 +135,13 @@ function buildChart(data) {
     nodeEnter.append("text")
       .attr("class", "count")
       .attr("y", 55)
-      .text(d => d.children || d._children ? `👤 ${count(d)}` : "");
+      .text(d => (d.children || d._children) ? `👤 ${count(d)}` : "");
 
     node.merge(nodeEnter)
-      .transition(transition)
+      .transition(t)
       .attr("transform", d => `translate(${d.x},${d.y})`);
 
-    node.exit()
-      .transition(transition)
-      .remove();
+    node.exit().transition(t).remove();
 
     nodes.forEach(d => {
       d.x0 = d.x;
@@ -129,7 +162,7 @@ function buildChart(data) {
 
   function count(d) {
     let n = 0;
-    d.each(c => n++);
+    d.each(() => n++);
     return n - 1;
   }
 }
