@@ -1,8 +1,8 @@
 const $ = go.GraphObject.make;
 
-// ===============================
-// DIAGRAMA (UX CORREGIDA)
-// ===============================
+/* ======================================================
+   DIAGRAMA — UX ESTABLE + ZOOM CONTROLADO
+   ====================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
 
@@ -12,7 +12,6 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowHorizontalScroll: true,
   allowVerticalScroll: true,
 
-  // 🔑 UX DE CÁMARA
   autoScale: go.Diagram.None,
   initialScale: 1,
   minScale: 0.4,
@@ -21,17 +20,21 @@ const diagram = $(go.Diagram, "diagramDiv", {
 
   "undoManager.isEnabled": false,
 
+  // 🔑 LAYOUT CLAVE
   layout: $(go.TreeLayout, {
-    angle: 90,
+    angle: 90, // vertical base
     arrangement: go.TreeLayout.ArrangementHorizontal,
     nodeSpacing: 30,
-    layerSpacing: 40
+    layerSpacing: 40,
+
+    // 🔥 CLAVE: últimos padres (supervisores) en vertical
+    treeStyle: go.TreeLayout.StyleLastParents
   })
 });
 
-// ===============================
-// TEMPLATE DE NODO
-// ===============================
+/* ======================================================
+   TEMPLATE DE NODO — CLICK EN IMAGEN O TARJETA
+   ====================================================== */
 diagram.nodeTemplate =
   $(go.Node, "Vertical",
     {
@@ -44,7 +47,7 @@ diagram.nodeTemplate =
       }
     },
 
-    // 🔑 Binding obligatorio
+    // 🔑 binding real
     new go.Binding("isTreeExpanded").makeTwoWay(),
 
     $(go.Panel, "Auto",
@@ -78,18 +81,18 @@ diagram.nodeTemplate =
     )
   );
 
-// ===============================
-// LINKS
-// ===============================
+/* ======================================================
+   LINKS
+   ====================================================== */
 diagram.linkTemplate =
   $(go.Link,
     { routing: go.Link.Orthogonal, corner: 6 },
     $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.5 })
   );
 
-// ===============================
-// CARGA CSV
-// ===============================
+/* ======================================================
+   CARGA CSV
+   ====================================================== */
 Papa.parse("team.csv", {
   download: true,
   header: true,
@@ -97,13 +100,14 @@ Papa.parse("team.csv", {
   complete: res => buildModel(res.data)
 });
 
-// ===============================
-// CONSTRUIR MODELO (REGLA FINAL)
-// ===============================
+/* ======================================================
+   MODELO — REGLA DE NEGOCIO EXACTA
+   ====================================================== */
 function buildModel(rows) {
 
   const people = rows.filter(r => r["Email (required)"]);
 
+  // Mapa supervisor → personal
   const children = {};
   people.forEach(p => {
     const sup = (p["SupervisorEmail (required)"] || "").trim();
@@ -111,6 +115,7 @@ function buildModel(rows) {
     children[sup].push(p);
   });
 
+  // Team Leader = sin supervisor
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) {
     alert("No se pudo detectar Team Leader");
@@ -119,14 +124,14 @@ function buildModel(rows) {
 
   const nodes = [];
 
-  // ROOT → expandido
+  // ROOT
   nodes.push({
     key: "ROOT",
     name: "EMR TEAM",
     isTreeExpanded: true
   });
 
-  // TEAM LEADER → expandido (muestra supervisores)
+  // TEAM LEADER (muestra supervisores)
   nodes.push({
     key: leader["Email (required)"],
     parent: "ROOT",
@@ -136,8 +141,9 @@ function buildModel(rows) {
     isTreeExpanded: true
   });
 
-  // SUPERVISORES → visibles pero COLAPSADOS (ocultan personal)
+  // SUPERVISORES → visibles, pero PERSONAL oculto
   (children[leader["Email (required)"]] || []).forEach(s => {
+
     nodes.push({
       key: s["Email (required)"],
       parent: leader["Email (required)"],
@@ -147,7 +153,7 @@ function buildModel(rows) {
       isTreeExpanded: false   // 🔴 personal oculto
     });
 
-    // PERSONAL
+    // PERSONAL (vertical bajo cada supervisor)
     (children[s["Email (required)"]] || []).forEach(p => {
       nodes.push({
         key: p["Email (required)"],
