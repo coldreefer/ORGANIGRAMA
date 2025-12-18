@@ -13,7 +13,6 @@
 <div id="chart-container" style="width:100%; height: calc(100vh - 80px);"></div>
 
 <script type="module">
-  // 🔒 Forzamos compatibilidad ES2019
   import * as d3 from "https://esm.sh/d3@7?target=es2019";
   import { OrgChart } from "https://esm.sh/d3-org-chart@3?target=es2019";
 
@@ -24,9 +23,9 @@
 
   function initChart(data) {
 
-    /* ============================
-       1. Detectar columnas reales
-       ============================ */
+    /* =====================================
+       1. Detectar columnas reales del CSV
+       ===================================== */
     const headers = Object.keys(data[0]);
     const col = {
       name: pick(headers, ["name", "nombre"]),
@@ -37,9 +36,9 @@
 
     const ROOT_ID = "__ROOT__";
 
-    /* ============================
+    /* =====================================
        2. Crear nodos base
-       ============================ */
+       ===================================== */
     const nodes = data.map((d, i) => ({
       id: `node-${i}`,
       parentId: null,
@@ -49,9 +48,9 @@
       image: d[col.image] || ""
     }));
 
-    /* ============================
-       3. Detectar TEAM LEADER
-       ============================ */
+    /* =====================================
+       3. Detectar TEAM LEADER (JEFE)
+       ===================================== */
     const teamLeader = nodes.find(n =>
       /team leader|leader|head/i.test(n.role)
     );
@@ -61,9 +60,9 @@
       return;
     }
 
-    /* ============================
+    /* =====================================
        4. Crear ROOT
-       ============================ */
+       ===================================== */
     nodes.push({
       id: ROOT_ID,
       parentId: null,
@@ -76,12 +75,13 @@
 
     const byName = new Map(nodes.map(n => [n.name.toLowerCase(), n]));
 
-    /* ============================
-       5. Jerarquía FORZADA
-       ============================ */
+    /* =====================================
+       5. Jerarquía FORZADA (como OrgChart)
+       ===================================== */
     nodes.forEach(n => {
-      if (n.id === teamLeader.id || n.id === ROOT_ID) return;
+      if (n.id === ROOT_ID || n.id === teamLeader.id) return;
 
+      // Supervisor directo del Team Leader
       if (
         n.supervisorName &&
         n.supervisorName.toLowerCase() === teamLeader.name.toLowerCase()
@@ -90,6 +90,7 @@
         return;
       }
 
+      // Personal → su supervisor
       if (n.supervisorName) {
         const sup = byName.get(n.supervisorName.toLowerCase());
         if (sup) {
@@ -98,12 +99,13 @@
         }
       }
 
+      // Fallback seguro
       n.parentId = teamLeader.id;
     });
 
-    /* ============================
-       6. OrgChart COMPACTO
-       ============================ */
+    /* =====================================
+       6. Crear OrgChart (layout correcto)
+       ===================================== */
     const chart = new OrgChart()
       .container("#chart-container")
       .data(nodes)
@@ -127,12 +129,11 @@
 
     chart.render();
 
-    /* ============================
-       7. Estado inicial EXACTO
-       ============================ */
+    /* =====================================
+       7. ESTADO INICIAL EXACTO (CLAVE)
+       ===================================== */
     chart.collapseAll();
-    chart.expand(ROOT_ID);
-    chart.expand(teamLeader.id);
+    chart.expand(ROOT_ID);   // SOLO EMR TEAM
   }
 
   function pick(headers, keys) {
