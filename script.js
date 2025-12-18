@@ -1,7 +1,7 @@
 const $ = go.GraphObject.make;
 
 /* ======================================================
-   DIAGRAMA
+   DIAGRAM
    ====================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
@@ -9,12 +9,10 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowMove: false,
   allowCopy: false,
 
-  // 🔍 ZOOM
+  // Zoom & Pan
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.4,
   maxScale: 2,
-
-  // ✋ PAN (activo por defecto en GoJS)
   allowHorizontalScroll: true,
   allowVerticalScroll: true,
 
@@ -29,7 +27,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ======================================================
-   PROXY IMÁGENES (CCV / CORS)
+   IMAGE PROXY (CCV / CORS)
    ====================================================== */
 function proxyImage(url) {
   if (!url) return "";
@@ -37,36 +35,34 @@ function proxyImage(url) {
 }
 
 /* ======================================================
-   FOTO CIRCULAR REAL
+   PHOTO WITH CIRCULAR FRAME (NO CLIPPING)
    ====================================================== */
-function circularPhoto(size) {
+function photoWithCircle(size) {
   return $(go.Panel, "Spot",
-    {
-      width: size,
-      height: size,
-      clipping: true
-    },
+    { width: size, height: size },
 
-    $(go.Shape, "Circle", {
-      width: size,
-      height: size,
-      fill: "#e5e7eb",
-      stroke: "#cbd5e1",
-      strokeWidth: 2
-    }),
-
+    // Image (normal square)
     $(go.Picture, {
       width: size,
       height: size,
       imageStretch: go.GraphObject.UniformToFill
-    }, new go.Binding("source", "image", proxyImage))
+    }, new go.Binding("source", "image", proxyImage)),
+
+    // Circular frame on top
+    $(go.Shape, "Circle", {
+      width: size,
+      height: size,
+      fill: "transparent",
+      stroke: "#cbd5e1",
+      strokeWidth: 2
+    })
   );
 }
 
 /* ======================================================
-   PERSONA
+   PERSON CARD TEMPLATE
    ====================================================== */
-function personTemplate(border, roleColor) {
+function personCard(borderColor, roleColor) {
   return $(go.Node, "Vertical",
     {
       selectable: false,
@@ -75,19 +71,20 @@ function personTemplate(border, roleColor) {
     },
 
     $(go.Panel, "Auto",
-      { desiredSize: new go.Size(190, 245) },
+      { desiredSize: new go.Size(200, 250) },
 
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
-        stroke: border,
+        stroke: borderColor,
         strokeWidth: 2
       }),
 
       $(go.Panel, "Vertical",
         { margin: 12 },
 
-        circularPhoto(64),
+        photoWithCircle(64),
 
+        // NAME
         $(go.TextBlock, {
           margin: new go.Margin(10, 6, 2, 6),
           font: "bold 12px sans-serif",
@@ -96,6 +93,7 @@ function personTemplate(border, roleColor) {
           maxLines: 3
         }, new go.Binding("text", "name")),
 
+        // ROLE
         $(go.TextBlock, {
           margin: new go.Margin(2, 6, 0, 6),
           font: "11px sans-serif",
@@ -110,22 +108,23 @@ function personTemplate(border, roleColor) {
 }
 
 /* ======================================================
-   TEMPLATES
+   NODE TEMPLATES
    ====================================================== */
 diagram.nodeTemplateMap.add(
   "Leader",
-  personTemplate("#2563eb", "#2563eb")
+  personCard("#2563eb", "#2563eb")
 );
 
 diagram.nodeTemplateMap.add(
   "Worker",
-  personTemplate("#e5e7eb", "#475569")
+  personCard("#e5e7eb", "#475569")
 );
 
-diagram.nodeTemplate = personTemplate("#e5e7eb", "#475569");
+// Default
+diagram.nodeTemplate = personCard("#e5e7eb", "#475569");
 
 /* ======================================================
-   SUPERVISOR (GROUP)
+   SUPERVISOR GROUP (CLICK TO EXPAND)
    ====================================================== */
 diagram.groupTemplate =
   $(go.Group, "Vertical",
@@ -134,23 +133,25 @@ diagram.groupTemplate =
       selectionAdorned: false,
       cursor: "pointer",
 
+      // Workers layout: 2 columns, then vertical
       layout: $(go.GridLayout, {
         wrappingColumn: 2,
-        spacing: new go.Size(22, 22)
+        spacing: new go.Size(20, 20)
       }),
 
       isSubGraphExpanded: false,
 
-      click: (e, g) => {
+      click: (e, group) => {
         diagram.startTransaction("toggle");
-        g.isSubGraphExpanded = !g.isSubGraphExpanded;
+        group.isSubGraphExpanded = !group.isSubGraphExpanded;
         diagram.commitTransaction("toggle");
       }
     },
     new go.Binding("isSubGraphExpanded").makeTwoWay(),
 
+    // Supervisor card
     $(go.Panel, "Auto",
-      { desiredSize: new go.Size(200, 255) },
+      { desiredSize: new go.Size(200, 250) },
 
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
@@ -161,7 +162,7 @@ diagram.groupTemplate =
       $(go.Panel, "Vertical",
         { margin: 12 },
 
-        circularPhoto(64),
+        photoWithCircle(64),
 
         $(go.TextBlock, {
           margin: new go.Margin(10, 6, 2, 6),
@@ -182,6 +183,7 @@ diagram.groupTemplate =
       )
     ),
 
+    // Workers placeholder
     $(go.Placeholder, { padding: 18 })
   );
 
@@ -195,17 +197,17 @@ diagram.linkTemplate =
   );
 
 /* ======================================================
-   CSV
+   LOAD CSV
    ====================================================== */
 Papa.parse("team.csv", {
   download: true,
   header: true,
   skipEmptyLines: true,
-  complete: r => buildModel(r.data)
+  complete: res => buildModel(res.data)
 });
 
 /* ======================================================
-   MODELO
+   BUILD MODEL
    ====================================================== */
 function buildModel(rows) {
 
@@ -215,8 +217,16 @@ function buildModel(rows) {
   const nodes = [];
   const links = [];
 
-  nodes.push({ key: "ROOT", name: "EMR TEAM", category: "Leader" });
+  // ROOT
+  nodes.push({
+    key: "ROOT",
+    category: "Leader",
+    name: "EMR TEAM",
+    role: "",
+    image: ""
+  });
 
+  // TEAM LEADER (no supervisor email)
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
 
@@ -230,28 +240,29 @@ function buildModel(rows) {
 
   links.push({ from: "ROOT", to: leader.__id });
 
-  people.forEach(s => {
-    if (s["SupervisorEmail (required)"] === leader["Email (required)"]) {
+  // SUPERVISORS + WORKERS
+  people.forEach(sup => {
+    if (sup["SupervisorEmail (required)"] === leader["Email (required)"]) {
 
       nodes.push({
-        key: s.__id,
+        key: sup.__id,
         isGroup: true,
-        name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
-        role: s.Position || "",
-        image: s.ImageURL || ""
+        name: `${sup["First name (required)"]} ${sup["Last name (required)"]}`,
+        role: sup.Position || "",
+        image: sup.ImageURL || ""
       });
 
-      links.push({ from: leader.__id, to: s.__id });
+      links.push({ from: leader.__id, to: sup.__id });
 
-      people.forEach(w => {
-        if (w["SupervisorEmail (required)"] === s["Email (required)"]) {
+      people.forEach(worker => {
+        if (worker["SupervisorEmail (required)"] === sup["Email (required)"]) {
           nodes.push({
-            key: w.__id,
-            group: s.__id,
+            key: worker.__id,
+            group: sup.__id,
             category: "Worker",
-            name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
-            role: w.Position || "",
-            image: w.ImageURL || ""
+            name: `${worker["First name (required)"]} ${worker["Last name (required)"]}`,
+            role: worker.Position || "",
+            image: worker.ImageURL || ""
           });
         }
       });
