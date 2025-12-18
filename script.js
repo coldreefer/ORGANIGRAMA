@@ -1,13 +1,24 @@
 const $ = go.GraphObject.make;
 
 // ===============================
-// DIAGRAMA
+// DIAGRAMA (UX CORREGIDA)
 // ===============================
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
+
   allowMove: false,
   allowCopy: false,
   allowZoom: true,
+  allowHorizontalScroll: true,
+  allowVerticalScroll: true,
+
+  // 🔑 UX DE CÁMARA
+  autoScale: go.Diagram.None,
+  initialScale: 1,
+  minScale: 0.4,
+  maxScale: 1.5,
+  mouseWheelBehavior: go.Diagram.Zoom,
+
   "undoManager.isEnabled": false,
 
   layout: $(go.TreeLayout, {
@@ -26,14 +37,14 @@ diagram.nodeTemplate =
     {
       cursor: "pointer",
       click: (e, node) => {
-        // Toggle SOLO si tiene hijos
+        // Solo toggle si tiene hijos
         if (node.findTreeChildrenNodes().count > 0) {
           node.isTreeExpanded = !node.isTreeExpanded;
         }
       }
     },
 
-    // 🔑 binding obligatorio
+    // 🔑 Binding obligatorio
     new go.Binding("isTreeExpanded").makeTwoWay(),
 
     $(go.Panel, "Auto",
@@ -77,7 +88,7 @@ diagram.linkTemplate =
   );
 
 // ===============================
-// CARGAR CSV
+// CARGA CSV
 // ===============================
 Papa.parse("team.csv", {
   download: true,
@@ -125,7 +136,7 @@ function buildModel(rows) {
     isTreeExpanded: true
   });
 
-  // SUPERVISORES → COLAPSADOS (ocultan personal)
+  // SUPERVISORES → visibles pero COLAPSADOS (ocultan personal)
   (children[leader["Email (required)"]] || []).forEach(s => {
     nodes.push({
       key: s["Email (required)"],
@@ -133,10 +144,10 @@ function buildModel(rows) {
       name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
       role: s.Position || "",
       image: s.ImageURL || "",
-      isTreeExpanded: false   // 🔴 CLAVE
+      isTreeExpanded: false   // 🔴 personal oculto
     });
 
-    // PERSONAL (no tiene hijos)
+    // PERSONAL
     (children[s["Email (required)"]] || []).forEach(p => {
       nodes.push({
         key: p["Email (required)"],
