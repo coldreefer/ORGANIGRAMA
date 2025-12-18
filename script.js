@@ -12,7 +12,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowZoom: true,
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.4,
-  maxScale: 1.5,
+  maxScale: 1.6,
   initialScale: 1,
 
   allowHorizontalScroll: true,
@@ -24,12 +24,12 @@ const diagram = $(go.Diagram, "diagramDiv", {
     angle: 90,
     arrangement: go.TreeLayout.ArrangementHorizontal,
     nodeSpacing: 40,
-    layerSpacing: 50
+    layerSpacing: 55
   })
 });
 
 /* ======================================================
-   FOTO CIRCULAR (CON PLACEHOLDER)
+   FOTO CIRCULAR (IMÁGENES CCV + CORS)
    ====================================================== */
 function circularPhoto(size) {
   return $(go.Panel, "Spot",
@@ -44,15 +44,13 @@ function circularPhoto(size) {
       width: size,
       height: size,
       imageStretch: go.GraphObject.UniformToFill,
-      errorFunction: pic => {
-        pic.source = "images/avatar.png"; // 👈 placeholder local
-      }
+      sourceCrossOrigin: "anonymous" // 👈 CLAVE PARA CCV
     }, new go.Binding("source", "image"))
   );
 }
 
 /* ======================================================
-   TEMPLATE TARJETA PERSONA (MISMO PORTE)
+   TARJETA PERSONA (MISMO PORTE)
    ====================================================== */
 function personTemplate(borderColor, roleColor) {
   return $(go.Node, "Vertical",
@@ -124,7 +122,6 @@ diagram.groupTemplate =
       selectable: false,
       selectionAdorned: false,
       cursor: "pointer",
-      ungroupable: false,
 
       layout: $(go.GridLayout, {
         wrappingColumn: 2,
@@ -132,7 +129,12 @@ diagram.groupTemplate =
       }),
 
       isSubGraphExpanded: false,
-      click: (e, g) => g.isSubGraphExpanded = !g.isSubGraphExpanded
+
+      click: (e, g) => {
+        diagram.startTransaction("toggle");
+        g.isSubGraphExpanded = !g.isSubGraphExpanded;
+        diagram.commitTransaction("toggle");
+      }
     },
     new go.Binding("isSubGraphExpanded").makeTwoWay(),
 
@@ -202,6 +204,7 @@ function buildModel(rows) {
   const nodes = [];
   const links = [];
 
+  // ROOT
   nodes.push({
     key: "ROOT",
     name: "EMR TEAM",
@@ -210,6 +213,7 @@ function buildModel(rows) {
     category: "Leader"
   });
 
+  // TEAM LEADER
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
 
@@ -223,6 +227,7 @@ function buildModel(rows) {
 
   links.push({ from: "ROOT", to: leader.__id });
 
+  // SUPERVISORES + PERSONAL
   people.forEach(s => {
     if (s["SupervisorEmail (required)"] === leader["Email (required)"]) {
 
