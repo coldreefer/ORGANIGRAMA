@@ -1,3 +1,6 @@
+/* =====================================================
+   RESET / BASE
+   ===================================================== */
 * {
   box-sizing: border-box;
 }
@@ -6,51 +9,77 @@ html, body {
   margin: 0;
   height: 100%;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont;
-  background: #f8fafc;
+  background: #f1f5f9;
   color: #0f172a;
 }
 
-/* TÍTULO */
+/* =====================================================
+   TÍTULO
+   ===================================================== */
 h1 {
   text-align: center;
-  margin: 16px 0 10px;
+  margin: 18px 0 12px;
   font-weight: 600;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.4px;
 }
 
-/* CONTENEDOR */
+/* =====================================================
+   CONTENEDOR DIAGRAMA
+   ===================================================== */
 #diagramDiv {
   width: 100%;
-  height: calc(100vh - 70px);
-  background-color: #f8fafc;
+  height: calc(100vh - 75px);
+  background:
+    radial-gradient(circle at 1px 1px, #e5e7eb 1px, transparent 0);
+  background-size: 24px 24px;
 }
 
-/* NODOS */
+/* =====================================================
+   TARJETAS (GENERAL)
+   ===================================================== */
 .go-node {
-  transition: transform 0.12s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .go-node:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
 }
 
-/* QUITAR SOMBRAS Y EFECTOS RAROS */
-.go-node,
-.go-supervisor,
-.go-worker {
-  box-shadow: none !important;
-}
-
-/* IMÁGENES */
+/* =====================================================
+   CONTENEDOR FOTO (CLAVE)
+   ===================================================== */
 .go-node img {
+  width: 56px !important;
+  height: 56px !important;
+  object-fit: cover;              /* 🔑 TODAS MISMO PORTE */
   border-radius: 50%;
   border: 2px solid #e5e7eb;
+  background: #e2e8f0;
 }
 
-/* TEAM LEADER */
+/* =====================================================
+   TEXTO
+   ===================================================== */
+.go-node .name {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
+.go-node .role {
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.2;
+}
+
+/* =====================================================
+   TEAM LEADER
+   ===================================================== */
 .go-leader {
   border: 2px solid #2563eb !important;
   background: #ffffff;
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
 }
 
 .go-leader .role {
@@ -58,10 +87,13 @@ h1 {
   font-weight: 600;
 }
 
-/* SUPERVISOR */
+/* =====================================================
+   SUPERVISOR
+   ===================================================== */
 .go-supervisor {
   border: 2px solid #14b8a6 !important;
-  background: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #f0fdfa 100%);
+  box-shadow: 0 8px 22px rgba(20, 184, 166, 0.22);
 }
 
 .go-supervisor .role {
@@ -69,13 +101,18 @@ h1 {
   font-weight: 600;
 }
 
-/* PERSONAL */
+/* =====================================================
+   PERSONAL
+   ===================================================== */
 .go-worker {
   border: 1px solid #e5e7eb !important;
   background: #ffffff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
 }
 
-/* LINKS */
+/* =====================================================
+   LINKS
+   ===================================================== */
 .go-link path {
   stroke: #cbd5e1 !important;
   stroke-width: 1.4px;
