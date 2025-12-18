@@ -4,7 +4,12 @@
   <meta charset="UTF-8">
   <title>Organigrama EMR</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- GoJS -->
   <script src="https://unpkg.com/gojs/release/go.js"></script>
+
+  <!-- PapaParse (CSV real) -->
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 
   <style>
     body {
@@ -20,7 +25,6 @@
     #myDiagramDiv {
       width: 100%;
       height: calc(100vh - 80px);
-      background: #f6f8fb;
     }
   </style>
 </head>
@@ -40,8 +44,7 @@
       arrangement: go.TreeLayout.ArrangementHorizontal,
       nodeSpacing: 30,
       layerSpacing: 40
-    }),
-    "undoManager.isEnabled": false
+    })
   });
 
   diagram.nodeTemplate =
@@ -61,6 +64,15 @@
         ),
         $(go.Panel, "Vertical",
           { margin: 10 },
+          $(go.Picture,
+            {
+              width: 48,
+              height: 48,
+              margin: 6,
+              background: "#cbd5e1"
+            },
+            new go.Binding("source", "image")
+          ),
           $(go.TextBlock,
             { font: "bold 13px sans-serif" },
             new go.Binding("text", "name")
@@ -79,81 +91,76 @@
       $(go.Shape, { stroke: "#cbd5e1" })
     );
 
-  fetch("team.csv")
-    .then(r => r.text())
-    .then(buildModel);
+  // === CARGA CSV REAL ===
+  Papa.parse("team.csv", {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    complete: function (res) {
+      buildModel(res.data);
+    }
+  });
 
-  function buildModel(csv) {
-    const rows = csv.trim().split("\n").map(r => r.split(","));
-    const headers = rows.shift().map(h => h.toLowerCase());
+  function buildModel(people) {
 
-    const idx = {
-      name: find(headers, ["name", "nombre"]),
-      role: find(headers, ["role", "cargo", "title"]),
-      supervisor: find(headers, ["supervisor", "manager"])
-    };
+    // normalizar
+    people = people.filter(p => p.Name);
 
-    const people = rows.map(r => ({
-      name: r[idx.name]?.trim(),
-      role: r[idx.role]?.trim() || "",
-      supervisor: r[idx.supervisor]?.trim() || ""
-    })).filter(p => p.name);
-
-    // --- construir mapa de relaciones ---
     const children = {};
     people.forEach(p => {
-      if (!children[p.supervisor]) children[p.supervisor] = [];
-      children[p.supervisor].push(p.name);
+      const sup = p.Supervisor || "";
+      if (!children[sup]) children[sup] = [];
+      children[sup].push(p.Name);
     });
 
-    // --- detectar Team Leader REAL ---
-    let leader = people.find(p =>
-      (children[p.name] || []).some(
+    // detectar Team Leader real (tiene supervisores con gente)
+    const leader = people.find(p =>
+      (children[p.Name] || []).some(
         c => (children[c] || []).length > 0
       )
     );
 
     if (!leader) {
-      alert("No se pudo detectar Team Leader automáticamente");
+      alert("No se pudo detectar Team Leader");
       return;
     }
 
     const nodes = [];
     nodes.push({ key: "ROOT", name: "EMR TEAM", isTreeExpanded: false });
+
     nodes.push({
-      key: leader.name,
+      key: leader.Name,
       parent: "ROOT",
-      name: leader.name,
-      role: leader.role,
+      name: leader.Name,
+      role: leader.Role,
+      image: leader.Image,
       isTreeExpanded: false
     });
 
-    (children[leader.name] || []).forEach(sup => {
-      const supObj = people.find(p => p.name === sup);
+    (children[leader.Name] || []).forEach(sup => {
+      const s = people.find(p => p.Name === sup);
       nodes.push({
         key: sup,
-        parent: leader.name,
+        parent: leader.Name,
         name: sup,
-        role: supObj?.role || "",
+        role: s.Role,
+        image: s.Image,
         isTreeExpanded: false
       });
 
       (children[sup] || []).forEach(emp => {
-        const empObj = people.find(p => p.name === emp);
+        const e = people.find(p => p.Name === emp);
         nodes.push({
           key: emp,
           parent: sup,
           name: emp,
-          role: empObj?.role || ""
+          role: e.Role,
+          image: e.Image
         });
       });
     });
 
     diagram.model = new go.TreeModel(nodes);
-  }
-
-  function find(arr, keys) {
-    return arr.findIndex(h => keys.some(k => h.includes(k)));
   }
 </script>
 
