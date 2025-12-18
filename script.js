@@ -28,9 +28,9 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ======================================================
-   TEMPLATE BASE
+   FUNCIÓN TARJETA PERSONA (MISMO PORTE)
    ====================================================== */
-function personTemplate(stroke, roleColor) {
+function personTemplate(strokeColor, roleColor) {
   return $(go.Node, "Vertical",
     {
       selectable: false,
@@ -38,32 +38,50 @@ function personTemplate(stroke, roleColor) {
       cursor: "pointer"
     },
     $(go.Panel, "Auto",
+      { desiredSize: new go.Size(170, 200) },   // 🔒 MISMO TAMAÑO
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
-        stroke,
+        stroke: strokeColor,
         strokeWidth: 2
       }),
       $(go.Panel, "Vertical",
         { margin: 12 },
 
-        $(go.Picture, {
-          width: 56,
-          height: 56,
-          imageStretch: go.GraphObject.UniformToFill,
-          background: "#e5e7eb"
-        }, new go.Binding("source", "image")),
+        // FOTO CIRCULAR
+        $(go.Panel, "Spot",
+          $(go.Shape, "Circle", {
+            width: 64,
+            height: 64,
+            fill: "#e5e7eb",
+            stroke: "#cbd5e1"
+          }),
+          $(go.Picture, {
+            width: 64,
+            height: 64,
+            clip: true,
+            imageStretch: go.GraphObject.UniformToFill
+          }, new go.Binding("source", "image"))
+        ),
 
+        // NOMBRE
         $(go.TextBlock, {
+          margin: new go.Margin(8, 6, 0, 6),
           font: "bold 13px Inter, sans-serif",
-          stroke: "#0f172a",
           textAlign: "center",
-          margin: new go.Margin(6, 0, 0, 0)
+          wrap: go.TextBlock.WrapFit,
+          maxLines: 2,
+          overflow: go.TextBlock.Ellipsis
         }, new go.Binding("text", "name")),
 
+        // ROL
         $(go.TextBlock, {
+          margin: new go.Margin(4, 6, 0, 6),
           font: "12px Inter, sans-serif",
           stroke: roleColor,
-          textAlign: "center"
+          textAlign: "center",
+          wrap: go.TextBlock.WrapFit,
+          maxLines: 2,
+          overflow: go.TextBlock.Ellipsis
         }, new go.Binding("text", "role"))
       )
     )
@@ -71,7 +89,7 @@ function personTemplate(stroke, roleColor) {
 }
 
 /* ======================================================
-   NODE TEMPLATES
+   TEMPLATES
    ====================================================== */
 diagram.nodeTemplateMap.add("Leader",
   personTemplate("#2563eb", "#2563eb")
@@ -81,11 +99,11 @@ diagram.nodeTemplateMap.add("Worker",
   personTemplate("#e5e7eb", "#475569")
 );
 
-// Default (fallback)
+// fallback
 diagram.nodeTemplate = personTemplate("#e5e7eb", "#475569");
 
 /* ======================================================
-   GROUP TEMPLATE = SUPERVISOR
+   GROUP = SUPERVISOR
    ====================================================== */
 diagram.groupTemplate =
   $(go.Group, "Vertical",
@@ -106,6 +124,7 @@ diagram.groupTemplate =
     new go.Binding("isSubGraphExpanded").makeTwoWay(),
 
     $(go.Panel, "Auto",
+      { desiredSize: new go.Size(180, 210) },
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
         stroke: "#14b8a6",
@@ -114,27 +133,42 @@ diagram.groupTemplate =
       $(go.Panel, "Vertical",
         { margin: 12 },
 
-        $(go.Picture, {
-          width: 56,
-          height: 56,
-          imageStretch: go.GraphObject.UniformToFill,
-          background: "#e5e7eb"
-        }, new go.Binding("source", "image")),
+        // FOTO CIRCULAR
+        $(go.Panel, "Spot",
+          $(go.Shape, "Circle", {
+            width: 64,
+            height: 64,
+            fill: "#e5e7eb",
+            stroke: "#99f6e4"
+          }),
+          $(go.Picture, {
+            width: 64,
+            height: 64,
+            clip: true,
+            imageStretch: go.GraphObject.UniformToFill
+          }, new go.Binding("source", "image"))
+        ),
 
         $(go.TextBlock, {
+          margin: new go.Margin(8, 6, 0, 6),
           font: "bold 13px Inter, sans-serif",
-          textAlign: "center"
+          textAlign: "center",
+          maxLines: 2,
+          overflow: go.TextBlock.Ellipsis
         }, new go.Binding("text", "name")),
 
         $(go.TextBlock, {
+          margin: new go.Margin(4, 6, 0, 6),
           font: "12px Inter, sans-serif",
           stroke: "#0f766e",
-          textAlign: "center"
+          textAlign: "center",
+          maxLines: 2,
+          overflow: go.TextBlock.Ellipsis
         }, new go.Binding("text", "role"))
       )
     ),
 
-    $(go.Placeholder, { padding: 14 })
+    $(go.Placeholder, { padding: 16 })
   );
 
 /* ======================================================
