@@ -21,7 +21,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
   "undoManager.isEnabled": false,
 
   layout: $(go.TreeLayout, {
-    angle: 90, // vertical base
+    angle: 90, // árbol hacia abajo
     arrangement: go.TreeLayout.ArrangementHorizontal,
     nodeSpacing: 30,
     layerSpacing: 40
@@ -29,7 +29,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ======================================================
-   TEMPLATE DE NODO NORMAL
+   TEMPLATE NODO NORMAL
    ====================================================== */
 diagram.nodeTemplate =
   $(go.Node, "Vertical",
@@ -75,7 +75,7 @@ diagram.nodeTemplate =
   );
 
 /* ======================================================
-   TEMPLATE NODO INVISIBLE (FILA)
+   TEMPLATE FILA INVISIBLE (SOLO ESTRUCTURA)
    ====================================================== */
 diagram.nodeTemplateMap.add("Row",
   $(go.Node,
@@ -104,7 +104,7 @@ Papa.parse("team.csv", {
 });
 
 /* ======================================================
-   MODELO
+   MODELO — JERARQUÍA CORRECTA
    ====================================================== */
 function buildModel(rows) {
 
@@ -124,8 +124,7 @@ function buildModel(rows) {
   }
 
   const nodes = [];
-
-  const ROW_KEY = "SUP_ROW";
+  const ROW_KEY = "__SUP_ROW__";
 
   // ROOT
   nodes.push({
@@ -134,7 +133,7 @@ function buildModel(rows) {
     isTreeExpanded: true
   });
 
-  // TEAM LEADER
+  // TEAM LEADER (HIJO DEL ROOT)
   nodes.push({
     key: leader["Email (required)"],
     parent: "ROOT",
@@ -144,7 +143,7 @@ function buildModel(rows) {
     isTreeExpanded: true
   });
 
-  // FILA INVISIBLE (SUPERVISORES HORIZONTALES)
+  // FILA INVISIBLE — HIJA DEL TEAM LEADER
   nodes.push({
     key: ROW_KEY,
     parent: leader["Email (required)"],
@@ -152,7 +151,7 @@ function buildModel(rows) {
     isTreeExpanded: true
   });
 
-  // SUPERVISORES
+  // SUPERVISORES — HIJOS DE LA FILA
   (children[leader["Email (required)"]] || []).forEach(s => {
 
     nodes.push({
@@ -161,10 +160,10 @@ function buildModel(rows) {
       name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
       role: s.Position || "",
       image: s.ImageURL || "",
-      isTreeExpanded: false
+      isTreeExpanded: false   // personal oculto
     });
 
-    // PERSONAL (VERTICAL)
+    // PERSONAL — HIJOS DEL SUPERVISOR (VERTICAL)
     (children[s["Email (required)"]] || []).forEach(p => {
       nodes.push({
         key: p["Email (required)"],
