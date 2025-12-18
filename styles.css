@@ -2,60 +2,57 @@ body {
   margin: 0;
   font-family: "Segoe UI", Arial, sans-serif;
   background: #f5f7fa;
-  text-align: center;
 }
 
 h1 {
+  text-align: center;
   margin: 20px 0;
   color: #1e293b;
 }
 
-#chart {
+#chart-container {
   width: 100%;
-  overflow-x: auto;
+  height: calc(100vh - 80px);
 }
 
-/* Cards */
-.node rect {
-  fill: #ffffff;
-  stroke: #d1d5db;
-  stroke-width: 1;
-  rx: 10;
-  ry: 10;
-  filter: drop-shadow(0 4px 8px rgba(0,0,0,.08));
+/* Tarjetas estilo OrgChart */
+.org-card {
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 6px 14px rgba(0,0,0,.08);
+  border: 1px solid #e5e7eb;
+  padding: 12px;
+  text-align: center;
+  width: 180px;
 }
 
-.node text {
-  font-size: 12px;
-  fill: #1e293b;
-  text-anchor: middle;
+.org-card img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 6px;
 }
 
-.node .name {
+.org-name {
   font-weight: 600;
+  font-size: 13px;
+  color: #0f172a;
 }
 
-.node .role {
+.org-role {
   font-size: 11px;
-  fill: #64748b;
+  color: #64748b;
+  margin-bottom: 6px;
 }
 
-/* Foto */
-.node image {
-  clip-path: circle(18px at center);
-}
-
-/* Líneas */
-.link {
-  fill: none;
-  stroke: #cbd5e1;
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-
-/* Botón contador */
-.count {
+.org-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
-  fill: #0f172a;
-  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #0f172a;
 }
