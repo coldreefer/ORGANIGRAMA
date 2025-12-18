@@ -23,9 +23,9 @@
 
   function initChart(data) {
 
-    /* ======================================================
-       1. Detectar columnas reales del CSV
-       ====================================================== */
+    /* ============================
+       1. Detectar columnas
+       ============================ */
     const headers = Object.keys(data[0]).map(h => h.toLowerCase());
     const col = {
       first: find(headers, ["first", "nombre"]),
@@ -37,14 +37,15 @@
 
     const ROOT_ID = "__ROOT__";
 
-    /* ======================================================
-       2. Crear nodos base (sin jerarquía aún)
-       ====================================================== */
+    /* ============================
+       2. Crear nodos BASE
+       TODOS cuelgan del ROOT
+       ============================ */
     const nodes = data.map((d, i) => {
       const name = `${d[col.first] || ""} ${d[col.last] || ""}`.trim();
       return {
         id: `node-${i}`,
-        parentId: null,
+        parentId: ROOT_ID,          // 🔒 clave: nadie queda sin padre
         name,
         role: d[col.role] || "",
         supervisorName: (d[col.supervisor] || "").trim(),
@@ -54,9 +55,10 @@
 
     const byName = new Map(nodes.map(n => [n.name.toLowerCase(), n]));
 
-    /* ======================================================
-       3. Resolver supervisor directo (personal → supervisor)
-       ====================================================== */
+    /* ============================
+       3. Resolver jerarquía REAL
+       personal → supervisor
+       ============================ */
     nodes.forEach(n => {
       if (!n.supervisorName) return;
       const sup = byName.get(n.supervisorName.toLowerCase());
@@ -65,44 +67,30 @@
       }
     });
 
-    /* ======================================================
-       4. Detectar JEFE real
-          - no tiene supervisor
-          - pero sí tiene gente a cargo
-       ====================================================== */
-    const jefe = nodes.find(n =>
-      !n.supervisorName &&
-      nodes.some(x => x.parentId === n.id)
-    );
-
-    /* ======================================================
-       5. ROOT ARTIFICIAL → JEFE
-       ====================================================== */
+    /* ============================
+       4. Insertar ROOT ÚNICO
+       ============================ */
     nodes.push({
       id: ROOT_ID,
-      parentId: null,
+      parentId: null,              // 🔴 el ÚNICO null
       name: "EMR TEAM",
       role: "",
       image: ""
     });
 
-    if (jefe) {
-      jefe.parentId = ROOT_ID;
+    /* ============================
+       5. Seguridad final
+       (debug, pero no rompe)
+       ============================ */
+    const roots = nodes.filter(n => n.parentId === null);
+    if (roots.length !== 1) {
+      console.error("Roots detectados:", roots);
+      throw new Error("Estructura inválida: multiple roots");
     }
 
-    /* ======================================================
-       6. Cualquier nodo sin parentId cuelga del JEFE
-          (evita no-root y cycles)
-       ====================================================== */
-    nodes.forEach(n => {
-      if (!n.parentId && n.id !== ROOT_ID && jefe) {
-        n.parentId = jefe.id;
-      }
-    });
-
-    /* ======================================================
-       7. Render OrgChart
-       ====================================================== */
+    /* ============================
+       6. Render OrgChart
+       ============================ */
     const chart = new OrgChart()
       .container("#chart-container")
       .data(nodes)
@@ -121,10 +109,6 @@
         </div>
       `);
 
-    /* ======================================================
-       8. Estado inicial EXACTO como OrgChart
-          - solo EMR TEAM visible
-       ====================================================== */
     chart.render();
     chart.collapseAll();
     chart.expand(ROOT_ID);
