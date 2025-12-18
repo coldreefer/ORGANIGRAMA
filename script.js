@@ -13,7 +13,6 @@ const diagram = $(go.Diagram, "diagramDiv", {
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.4,
   maxScale: 1.5,
-  initialScale: 1,
 
   allowHorizontalScroll: true,
   allowVerticalScroll: true,
@@ -31,26 +30,27 @@ const diagram = $(go.Diagram, "diagramDiv", {
 /* ======================================================
    TEMPLATE BASE
    ====================================================== */
-const baseNodeTemplate =
-  $(go.Node, "Vertical",
+function personTemplate(stroke, roleColor) {
+  return $(go.Node, "Vertical",
     {
       selectable: false,
       selectionAdorned: false,
-      cursor: "pointer",
-      cssClass: "go-node"
+      cursor: "pointer"
     },
     $(go.Panel, "Auto",
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
-        stroke: "#e5e7eb",
-        strokeWidth: 1
+        stroke,
+        strokeWidth: 2
       }),
       $(go.Panel, "Vertical",
         { margin: 12 },
 
         $(go.Picture, {
           width: 56,
-          height: 56
+          height: 56,
+          imageStretch: go.GraphObject.UniformToFill,
+          background: "#e5e7eb"
         }, new go.Binding("source", "image")),
 
         $(go.TextBlock, {
@@ -62,17 +62,30 @@ const baseNodeTemplate =
 
         $(go.TextBlock, {
           font: "12px Inter, sans-serif",
-          stroke: "#475569",
+          stroke: roleColor,
           textAlign: "center"
         }, new go.Binding("text", "role"))
       )
     )
   );
-
-diagram.nodeTemplate = baseNodeTemplate;
+}
 
 /* ======================================================
-   GROUP = SUPERVISOR
+   NODE TEMPLATES
+   ====================================================== */
+diagram.nodeTemplateMap.add("Leader",
+  personTemplate("#2563eb", "#2563eb")
+);
+
+diagram.nodeTemplateMap.add("Worker",
+  personTemplate("#e5e7eb", "#475569")
+);
+
+// Default (fallback)
+diagram.nodeTemplate = personTemplate("#e5e7eb", "#475569");
+
+/* ======================================================
+   GROUP TEMPLATE = SUPERVISOR
    ====================================================== */
 diagram.groupTemplate =
   $(go.Group, "Vertical",
@@ -81,7 +94,6 @@ diagram.groupTemplate =
       selectionAdorned: false,
       cursor: "pointer",
       ungroupable: false,
-      cssClass: "go-node go-supervisor",
 
       layout: $(go.GridLayout, {
         wrappingColumn: 2,
@@ -89,16 +101,13 @@ diagram.groupTemplate =
       }),
 
       isSubGraphExpanded: false,
-
-      click: (e, group) => {
-        group.isSubGraphExpanded = !group.isSubGraphExpanded;
-      }
+      click: (e, g) => g.isSubGraphExpanded = !g.isSubGraphExpanded
     },
     new go.Binding("isSubGraphExpanded").makeTwoWay(),
 
     $(go.Panel, "Auto",
       $(go.Shape, "RoundedRectangle", {
-        fill: "#ffffff",
+        fill: "white",
         stroke: "#14b8a6",
         strokeWidth: 2
       }),
@@ -107,7 +116,9 @@ diagram.groupTemplate =
 
         $(go.Picture, {
           width: 56,
-          height: 56
+          height: 56,
+          imageStretch: go.GraphObject.UniformToFill,
+          background: "#e5e7eb"
         }, new go.Binding("source", "image")),
 
         $(go.TextBlock, {
@@ -146,54 +157,53 @@ Papa.parse("team.csv", {
 });
 
 /* ======================================================
-   MODELO ROBUSTO
+   MODELO
    ====================================================== */
 function buildModel(rows) {
 
   const people = rows.filter(r => r["First name (required)"]);
+  people.forEach((p, i) => p.__id = "P_" + i);
 
   const nodes = [];
   const links = [];
 
-  people.forEach((p, i) => p.__id = "P_" + i);
-
-  nodes.push({ key: "ROOT", name: "EMR TEAM", role: "", image: "" });
+  nodes.push({ key: "ROOT", name: "EMR TEAM", role: "", image: "", category: "Leader" });
 
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
 
   nodes.push({
     key: leader.__id,
+    category: "Leader",
     name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
     role: leader.Position || "",
-    image: leader.ImageURL || "",
-    cssClass: "go-node go-leader"
+    image: leader.ImageURL || ""
   });
 
   links.push({ from: "ROOT", to: leader.__id });
 
-  people.forEach(p => {
-    if (p["SupervisorEmail (required)"] === leader["Email (required)"]) {
+  people.forEach(s => {
+    if (s["SupervisorEmail (required)"] === leader["Email (required)"]) {
 
       nodes.push({
-        key: p.__id,
+        key: s.__id,
         isGroup: true,
-        name: `${p["First name (required)"]} ${p["Last name (required)"]}`,
-        role: p.Position || "",
-        image: p.ImageURL || ""
+        name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
+        role: s.Position || "",
+        image: s.ImageURL || ""
       });
 
-      links.push({ from: leader.__id, to: p.__id });
+      links.push({ from: leader.__id, to: s.__id });
 
       people.forEach(w => {
-        if (w["SupervisorEmail (required)"] === p["Email (required)"]) {
+        if (w["SupervisorEmail (required)"] === s["Email (required)"]) {
           nodes.push({
             key: w.__id,
-            group: p.__id,
+            group: s.__id,
+            category: "Worker",
             name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
             role: w.Position || "",
-            image: w.ImageURL || "",
-            cssClass: "go-node go-worker"
+            image: w.ImageURL || ""
           });
         }
       });
