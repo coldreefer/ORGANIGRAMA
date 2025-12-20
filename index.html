@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Organigrama EMR</title>
+  <title>Organigrama EMR + Vendors</title>
 
   <!-- GoJS -->
   <script src="https://unpkg.com/gojs@2.3.17/release/go.js"></script>
@@ -16,18 +16,18 @@
 <body>
   <header>
     <h1>Organigrama EMR</h1>
-    <p>Haz clic en un supervisor para mostrar u ocultar su equipo</p>
+    <p>Internos y Vendors (por Department)</p>
   </header>
 
   <div id="diagramWrapper">
     <div id="diagramDiv"></div>
 
-    <!-- Controles flotantes -->
-    <div class="controls" aria-label="Controles de vista">
-      <button id="btnZoomIn" title="Zoom +">＋</button>
-      <button id="btnZoomOut" title="Zoom −">－</button>
-      <button id="btnFit" title="Ajustar a pantalla">⤢</button>
-      <button id="btnFull" title="Pantalla completa">⛶</button>
+    <!-- Controles -->
+    <div class="controls">
+      <button id="btnZoomIn">＋</button>
+      <button id="btnZoomOut">－</button>
+      <button id="btnFit">⤢</button>
+      <button id="btnFull">⛶</button>
     </div>
   </div>
 
