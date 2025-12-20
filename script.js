@@ -170,19 +170,26 @@ diagram.groupTemplate =
         spacing: new go.Size(20, 20)
       }),
 
-      isSubGraphExpanded: false,
-
-      // Click solo para expandir/colapsar
-      click: (e, g) => {
-        diagram.startTransaction("toggle");
-        g.isSubGraphExpanded = !g.isSubGraphExpanded;
-        diagram.commitTransaction("toggle");
-      }
+      isSubGraphExpanded: false
     },
     new go.Binding("isSubGraphExpanded").makeTwoWay(),
 
-    // Tarjeta del supervisor
+    // 🔵 PANEL DEL SUPERVISOR (AQUÍ va el click)
     $(go.Panel, "Auto",
+      {
+        name: "SUPERVISOR_CARD",
+        isActionable: true,   // 🔴 CLAVE
+        cursor: "pointer",
+        click: (e, panel) => {
+          const group = panel.part;
+          if (!(group instanceof go.Group)) return;
+
+          diagram.startTransaction("toggle");
+          group.isSubGraphExpanded = !group.isSubGraphExpanded;
+          diagram.commitTransaction("toggle");
+        }
+      },
+
       { desiredSize: new go.Size(210, 290) },
 
       $(go.Shape, "RoundedRectangle", {
@@ -213,20 +220,23 @@ diagram.groupTemplate =
           maxLines: 2
         }, new go.Binding("text", "role")),
 
-        // ✅ contador del supervisor
+        // contador
         countLine(),
 
-        // Indicador expand/collapse
+        // indicador visual
         $(go.TextBlock, {
           margin: new go.Margin(6, 0, 0, 0),
           font: "10px sans-serif",
           stroke: "#64748b"
-        }, new go.Binding("text", "isSubGraphExpanded",
+        }, new go.Binding(
+          "text",
+          "isSubGraphExpanded",
           e => e ? "▲ Ocultar equipo" : "▼ Ver equipo"
         ).ofObject())
       )
     ),
 
+    // 👇 AQUÍ van los trabajadores
     $(go.Placeholder, { padding: 18 })
   );
 
