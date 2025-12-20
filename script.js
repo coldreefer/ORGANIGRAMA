@@ -9,29 +9,31 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowMove: false,
   allowCopy: false,
 
-  // Zoom
+  // Zoom + Pan
   mouseWheelBehavior: go.Diagram.Zoom,
-  minScale: 0.3,
+  minScale: 0.35,
   maxScale: 2.5,
 
-  // Pan + scroll libre
   allowHorizontalScroll: true,
   allowVerticalScroll: true,
   scrollMode: go.Diagram.InfiniteScroll,
 
   "undoManager.isEnabled": false,
 
+  // Animaciones suaves
+  "animationManager.isEnabled": true,
+  "animationManager.duration": 350,
+
   layout: $(go.TreeLayout, {
     angle: 90,
-    arrangement: go.TreeLayout.ArrangementFixedRoots,
     alignment: go.TreeLayout.AlignmentCenterChildren,
-    nodeSpacing: 20,
-    layerSpacing: 60
+    nodeSpacing: 26,
+    layerSpacing: 70
   })
 });
 
 /* ======================================================
-   IMAGE PROXY (CCV / CORS)
+   IMAGE PROXY
    ====================================================== */
 function proxyImage(url) {
   if (!url) return "";
@@ -39,73 +41,61 @@ function proxyImage(url) {
 }
 
 /* ======================================================
-   PHOTO + CIRCULAR FRAME (MARCO, NO RECORTE)
+   FOTO CON MARCO CIRCULAR
    ====================================================== */
-function photoWithCircle(size) {
+function photo(size) {
   return $(go.Panel, "Spot",
     { width: size, height: size },
 
-    // Imagen centrada en contenedor fijo
-    $(go.Panel, "Auto",
-      { width: size, height: size },
-
-      $(go.Picture, {
-        width: size,
-        height: size,
-        alignment: go.Spot.Center,
-        imageStretch: go.GraphObject.UniformToFill
-      }, new go.Binding("source", "image", proxyImage))
-    ),
-
-    // Marco circular encima
-    $(go.Shape, "Circle", {
+    $(go.Picture, {
       width: size,
       height: size,
+      imageStretch: go.GraphObject.UniformToFill
+    }, new go.Binding("source", "image", proxyImage)),
+
+    $(go.Shape, "Circle", {
       fill: "transparent",
-      stroke: "#2563eb",   // azul visible
+      stroke: "#2563eb",
       strokeWidth: 2
     })
   );
 }
 
 /* ======================================================
-   PERSON CARD
+   CARD PERSONA
    ====================================================== */
-function personCard(borderColor, roleColor) {
+function personCard(border, roleColor) {
   return $(go.Node, "Vertical",
     {
       selectable: false,
-      selectionAdorned: false,
-      cursor: "pointer"
+      selectionAdorned: false
     },
 
     $(go.Panel, "Auto",
-      { desiredSize: new go.Size(200, 250) },
+      { desiredSize: new go.Size(210, 255) },
 
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
-        stroke: borderColor,
+        stroke: border,
         strokeWidth: 2
       }),
 
       $(go.Panel, "Vertical",
         { margin: 12 },
 
-        photoWithCircle(64),
+        photo(64),
 
-        // Nombre
         $(go.TextBlock, {
           margin: new go.Margin(10, 6, 2, 6),
-          font: "bold 12px sans-serif",
+          font: "bold 12.5px sans-serif",
           textAlign: "center",
           wrap: go.TextBlock.WrapFit,
           maxLines: 3
         }, new go.Binding("text", "name")),
 
-        // Cargo
         $(go.TextBlock, {
           margin: new go.Margin(2, 6, 0, 6),
-          font: "11px sans-serif",
+          font: "11.5px sans-serif",
           stroke: roleColor,
           textAlign: "center",
           wrap: go.TextBlock.WrapFit,
@@ -129,20 +119,17 @@ diagram.nodeTemplateMap.add(
   personCard("#e5e7eb", "#475569")
 );
 
-// Default
 diagram.nodeTemplate = personCard("#e5e7eb", "#475569");
 
 /* ======================================================
-   SUPERVISOR GROUP (CLICK TO EXPAND)
+   SUPERVISOR GROUP (UX CLARO)
    ====================================================== */
 diagram.groupTemplate =
   $(go.Group, "Vertical",
     {
       selectable: false,
       selectionAdorned: false,
-      cursor: "pointer",
 
-      // Personal: 2 columnas, crecimiento vertical
       layout: $(go.GridLayout, {
         wrappingColumn: 2,
         spacing: new go.Size(20, 20)
@@ -158,9 +145,9 @@ diagram.groupTemplate =
     },
     new go.Binding("isSubGraphExpanded").makeTwoWay(),
 
-    // Card del supervisor
+    // Supervisor card + indicador
     $(go.Panel, "Auto",
-      { desiredSize: new go.Size(200, 250) },
+      { desiredSize: new go.Size(210, 275) },
 
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
@@ -171,24 +158,26 @@ diagram.groupTemplate =
       $(go.Panel, "Vertical",
         { margin: 12 },
 
-        photoWithCircle(64),
+        photo(64),
 
         $(go.TextBlock, {
           margin: new go.Margin(10, 6, 2, 6),
           font: "bold 13px sans-serif",
-          textAlign: "center",
-          wrap: go.TextBlock.WrapFit,
-          maxLines: 3
+          textAlign: "center"
         }, new go.Binding("text", "name")),
 
         $(go.TextBlock, {
-          margin: new go.Margin(2, 6, 0, 6),
-          font: "11px sans-serif",
+          font: "11.5px sans-serif",
           stroke: "#0f766e",
-          textAlign: "center",
-          wrap: go.TextBlock.WrapFit,
-          maxLines: 2
-        }, new go.Binding("text", "role"))
+          textAlign: "center"
+        }, new go.Binding("text", "role")),
+
+        $(go.TextBlock, {
+          margin: new go.Margin(6, 0, 0, 0),
+          font: "10px sans-serif",
+          stroke: "#64748b"
+        }, new go.Binding("text", "isSubGraphExpanded",
+          e => e ? "▲ Ocultar equipo" : "▼ Ver equipo").ofObject())
       )
     ),
 
@@ -200,7 +189,7 @@ diagram.groupTemplate =
    ====================================================== */
 diagram.linkTemplate =
   $(go.Link,
-    { routing: go.Link.Orthogonal, corner: 6 },
+    { routing: go.Link.Orthogonal, corner: 8 },
     $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.4 })
   );
 
@@ -215,7 +204,7 @@ Papa.parse("team.csv", {
 });
 
 /* ======================================================
-   BUILD MODEL (TEAM LEADER ES ROOT)
+   BUILD MODEL
    ====================================================== */
 function buildModel(rows) {
 
@@ -225,7 +214,6 @@ function buildModel(rows) {
   const nodes = [];
   const links = [];
 
-  // TEAM LEADER
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
 
@@ -237,7 +225,6 @@ function buildModel(rows) {
     image: leader.ImageURL || ""
   });
 
-  // SUPERVISORES + PERSONAL
   people.forEach(sup => {
     if (sup["SupervisorEmail (required)"] === leader["Email (required)"]) {
 
