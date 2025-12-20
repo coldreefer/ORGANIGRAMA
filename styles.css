@@ -43,6 +43,7 @@ header p {
 #diagramScroller {
   display: flex;
   flex-direction: row;
+  align-items: flex-start; /* 🔑 alineación superior */
   height: 100%;
   width: max-content;
 }
@@ -57,17 +58,17 @@ header p {
 
 /* ================= EMR ================= */
 .diagramBlock.emr {
-  min-width: 2200px;     /* ⬅️ reducido, sigue amplio */
+  min-width: 2000px;
 }
 
 #diagramDiv {
-  width: 2200px;
+  width: 2000px;
   height: 1600px;
 }
 
 /* ================= VENDORS ================= */
 .diagramBlock.vendors {
-  min-width: 1000px;     /* ⬅️ CLAVE: ya no queda lejos */
+  min-width: 1100px;
   padding: 24px;
 }
 
@@ -78,14 +79,14 @@ header p {
 }
 
 #vendorsDiv {
-  width: 900px;
-  height: 600px;
+  width: 1000px;
+  height: 1600px; /* 🔑 misma altura que EMR */
   background: #f8fafc;
 }
 
 /* ================= CONTROLES ================= */
 .controls{
-  position: fixed;   /* ⬅️ CLAVE: ya no se mueven */
+  position: fixed; /* 🔑 no se mueven */
   right: 16px;
   bottom: 16px;
   display: flex;
