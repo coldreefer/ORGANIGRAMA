@@ -43,28 +43,28 @@ function proxyImage(url) {
    FOTO CIRCULAR REAL (RECORTE + BORDE)
    ====================================================== */
 function photo(size) {
-  return $(go.Panel, "Spot",
+  return $(go.Panel, "Auto",
     { width: size, height: size },
 
-    // Imagen normal (SIEMPRE carga)
+    // Borde cuadrado (ligeramente redondeado)
+    $(go.Shape, "RoundedRectangle",
+      {
+        fill: "white",
+        stroke: "#2563eb",
+        strokeWidth: 2,
+        parameter1: 6   // radio suave de esquinas
+      }
+    ),
+
+    // Imagen cuadrada estable
     $(go.Picture,
       {
-        width: size,
-        height: size,
+        width: size - 6,
+        height: size - 6,
+        margin: 3,
         imageStretch: go.GraphObject.UniformToFill
       },
       new go.Binding("source", "image", proxyImage)
-    ),
-
-    // Marco circular que da el efecto visual correcto
-    $(go.Shape, "Circle",
-      {
-        width: size,
-        height: size,
-        fill: "transparent",
-        stroke: "#2563eb",
-        strokeWidth: 2
-      }
     )
   );
 }
