@@ -366,22 +366,28 @@ diagram.groupTemplateMap.add("VendorRoot",
     {
       isSubGraphExpanded: true,
       selectable: false,
+
+      // 🔑 layout propio SOLO para Vendors
       layout: $(go.TreeLayout, {
-        angle: 90,
-        nodeSpacing: 20,
-        layerSpacing: 60
+        angle: 0,                 // ➡️ horizontal
+        alignment: go.TreeLayout.AlignmentCenterChildren,
+        nodeSpacing: 40,
+        layerSpacing: 80
       })
     },
+
     $(go.Shape, "RoundedRectangle", {
       fill: "#f5f3ff",
       stroke: "#7c3aed",
       strokeWidth: 2
     }),
+
     $(go.TextBlock, {
       margin: 14,
       font: "bold 14px sans-serif",
       stroke: "#4c1d95"
     }, new go.Binding("text", "name")),
+
     $(go.Placeholder, { padding: 18 })
   )
 );
@@ -488,7 +494,7 @@ function buildVendors(rows) {
     category: "VendorRoot",
     isGroup: true,
     name: "Vendors",
-    loc: "1800 0"
+    loc: "1700 200"
   });
 
   const departments = {};
