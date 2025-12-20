@@ -46,22 +46,16 @@ function photo(size) {
   return $(go.Panel, "Spot",
     { width: size, height: size },
 
-    // Recorte circular
-    $(go.Panel, "Auto",
+    $(go.Picture,
       {
         width: size,
         height: size,
-        clip: true
+        imageStretch: go.GraphObject.UniformToFill,
+        clipPath: $(go.Shape, "Circle")
       },
-      $(go.Shape, "Circle", { fill: "white" }),
-      $(go.Picture, {
-        width: size,
-        height: size,
-        imageStretch: go.GraphObject.UniformToFill
-      }, new go.Binding("source", "image", proxyImage))
+      new go.Binding("source", "image", proxyImage)
     ),
 
-    // Borde
     $(go.Shape, "Circle", {
       width: size,
       height: size,
@@ -71,6 +65,7 @@ function photo(size) {
     })
   );
 }
+
 
 /* ======================================================
    PERSON CARD
