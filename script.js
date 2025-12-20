@@ -1,7 +1,7 @@
 const $ = go.GraphObject.make;
 
 /* ======================================================
-   AVATAR GENÉRICO (SVG EMBEBIDO)
+   AVATAR DEFAULT (SVG DATA URL)
    ====================================================== */
 const DEFAULT_AVATAR =
   "data:image/svg+xml;utf8," +
@@ -21,44 +21,58 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowMove: false,
   allowCopy: false,
 
+  // Zoom + scroll libre
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.35,
   maxScale: 2.5,
-
   allowHorizontalScroll: true,
   allowVerticalScroll: true,
   scrollMode: go.Diagram.InfiniteScroll,
 
-  "undoManager.isEnabled": false,
+  // Animaciones suaves
   "animationManager.isEnabled": true,
-  "animationManager.duration": 350,
+  "animationManager.duration": 320,
 
+  // Layout
   layout: $(go.TreeLayout, {
     angle: 90,
     alignment: go.TreeLayout.AlignmentCenterChildren,
     nodeSpacing: 26,
     layerSpacing: 70
-  })
+  }),
+
+  "undoManager.isEnabled": false
 });
 
 /* ======================================================
-   IMAGE PROXY + FALLBACK
+   IMPORTANTÍSIMO: quitar selección (borde azul)
+   ====================================================== */
+diagram.toolManager.clickSelectingTool.isEnabled = false;
+diagram.toolManager.dragSelectingTool.isEnabled = false;
+// También evitamos “selection adornments” por si acaso
+diagram.addDiagramListener("ChangedSelection", () => {
+  if (diagram.selection.count > 0) diagram.clearSelection();
+});
+
+/* ======================================================
+   IMAGE RESOLVE (proxy + fallback)
    ====================================================== */
 function resolveImage(url) {
-  if (!url || url.trim() === "") return DEFAULT_AVATAR;
+  if (!url || String(url).trim() === "") return DEFAULT_AVATAR;
+  // Proxy para evitar CORS en fotos remotas
   return "https://images.weserv.nl/?url=" + encodeURIComponent(url);
 }
 
 /* ======================================================
-   FOTO CUADRADA CON BORDE (CONSISTENTE)
+   FOTO CUADRADA + BORDE CUADRADO (coherente)
    ====================================================== */
-function photo(size) {
+function photo(size, strokeColor) {
   return $(go.Panel, "Auto",
     { width: size, height: size },
 
     $(go.Shape, "RoundedRectangle", {
       fill: "white",
-      stroke: "#2563eb",
+      stroke: strokeColor,
       strokeWidth: 2,
       parameter1: 6
     }),
@@ -73,14 +87,32 @@ function photo(size) {
 }
 
 /* ======================================================
+   BADGE: "A cargo: N"
+   ====================================================== */
+function countLine() {
+  return $(go.TextBlock, {
+    margin: new go.Margin(6, 0, 0, 0),
+    font: "10px sans-serif",
+    stroke: "#64748b",
+    textAlign: "center"
+  }, new go.Binding("text", "teamCount", n => {
+    const v = Number(n || 0);
+    return `A cargo: ${v}`;
+  }));
+}
+
+/* ======================================================
    PERSON CARD
    ====================================================== */
-function personCard(border, roleColor) {
+function personCard(border, roleColor, photoBorder) {
   return $(go.Node, "Vertical",
-    { selectable: false },
+    {
+      selectable: false,
+      selectionAdorned: false
+    },
 
     $(go.Panel, "Auto",
-      { desiredSize: new go.Size(210, 255) },
+      { desiredSize: new go.Size(210, 265) },
 
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
@@ -91,31 +123,38 @@ function personCard(border, roleColor) {
       $(go.Panel, "Vertical",
         { margin: 12 },
 
-        photo(64),
+        photo(64, photoBorder),
 
         $(go.TextBlock, {
           margin: new go.Margin(10, 6, 2, 6),
           font: "bold 12.5px sans-serif",
           textAlign: "center",
-          wrap: go.TextBlock.WrapFit
+          wrap: go.TextBlock.WrapFit,
+          maxLines: 3
         }, new go.Binding("text", "name")),
 
         $(go.TextBlock, {
+          margin: new go.Margin(2, 6, 0, 6),
           font: "11.5px sans-serif",
           stroke: roleColor,
-          textAlign: "center"
-        }, new go.Binding("text", "role"))
+          textAlign: "center",
+          wrap: go.TextBlock.WrapFit,
+          maxLines: 2
+        }, new go.Binding("text", "role")),
+
+        // ✅ contador (si no existe, igual mostrará 0; puedes ocultarlo si prefieres)
+        countLine()
       )
     )
   );
 }
 
 /* ======================================================
-   TEMPLATES
+   NODE TEMPLATES
    ====================================================== */
-diagram.nodeTemplateMap.add("Leader", personCard("#2563eb", "#2563eb"));
-diagram.nodeTemplateMap.add("Worker", personCard("#e5e7eb", "#475569"));
-diagram.nodeTemplate = personCard("#e5e7eb", "#475569");
+diagram.nodeTemplateMap.add("Leader", personCard("#2563eb", "#2563eb", "#2563eb"));
+diagram.nodeTemplateMap.add("Worker", personCard("#e5e7eb", "#475569", "#94a3b8"));
+diagram.nodeTemplate = personCard("#e5e7eb", "#475569", "#94a3b8");
 
 /* ======================================================
    SUPERVISOR GROUP
@@ -123,8 +162,17 @@ diagram.nodeTemplate = personCard("#e5e7eb", "#475569");
 diagram.groupTemplate =
   $(go.Group, "Vertical",
     {
+      selectable: false,
+      selectionAdorned: false,
+
+      layout: $(go.GridLayout, {
+        wrappingColumn: 2,
+        spacing: new go.Size(20, 20)
+      }),
+
       isSubGraphExpanded: false,
-      layout: $(go.GridLayout, { wrappingColumn: 2, spacing: new go.Size(20, 20) }),
+
+      // Click solo para expandir/colapsar
       click: (e, g) => {
         diagram.startTransaction("toggle");
         g.isSubGraphExpanded = !g.isSubGraphExpanded;
@@ -133,8 +181,9 @@ diagram.groupTemplate =
     },
     new go.Binding("isSubGraphExpanded").makeTwoWay(),
 
+    // Tarjeta del supervisor
     $(go.Panel, "Auto",
-      { desiredSize: new go.Size(210, 275) },
+      { desiredSize: new go.Size(210, 290) },
 
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
@@ -145,26 +194,34 @@ diagram.groupTemplate =
       $(go.Panel, "Vertical",
         { margin: 12 },
 
-        photo(64),
+        photo(64, "#14b8a6"),
 
         $(go.TextBlock, {
+          margin: new go.Margin(10, 6, 2, 6),
           font: "bold 13px sans-serif",
-          textAlign: "center"
+          textAlign: "center",
+          wrap: go.TextBlock.WrapFit,
+          maxLines: 3
         }, new go.Binding("text", "name")),
 
         $(go.TextBlock, {
+          margin: new go.Margin(0, 6, 0, 6),
           font: "11.5px sans-serif",
           stroke: "#0f766e",
-          textAlign: "center"
+          textAlign: "center",
+          wrap: go.TextBlock.WrapFit,
+          maxLines: 2
         }, new go.Binding("text", "role")),
 
+        // ✅ contador del supervisor
+        countLine(),
+
+        // Indicador expand/collapse
         $(go.TextBlock, {
           margin: new go.Margin(6, 0, 0, 0),
           font: "10px sans-serif",
           stroke: "#64748b"
-        }, new go.Binding(
-          "text",
-          "isSubGraphExpanded",
+        }, new go.Binding("text", "isSubGraphExpanded",
           e => e ? "▲ Ocultar equipo" : "▼ Ver equipo"
         ).ofObject())
       )
@@ -177,8 +234,7 @@ diagram.groupTemplate =
    LINKS
    ====================================================== */
 diagram.linkTemplate =
-  $(go.Link,
-    { routing: go.Link.Orthogonal, corner: 8 },
+  $(go.Link, { routing: go.Link.Orthogonal, corner: 8 },
     $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.4 })
   );
 
@@ -193,7 +249,7 @@ Papa.parse("team.csv", {
 });
 
 /* ======================================================
-   BUILD MODEL
+   BUILD MODEL + COUNTS
    ====================================================== */
 function buildModel(rows) {
   const people = rows.filter(r => r["First name (required)"]);
@@ -202,44 +258,63 @@ function buildModel(rows) {
   const nodes = [];
   const links = [];
 
+  // TEAM LEADER (root)
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
+
+  // Leader total a cargo = todos menos él (incluye supervisores + trabajadores)
+  const leaderTotal = Math.max(0, people.length - 1);
 
   nodes.push({
     key: leader.__id,
     category: "Leader",
     name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
     role: leader.Position || "",
-    image: leader.ImageURL || ""
+    image: leader.ImageURL || "",
+    teamCount: leaderTotal
   });
 
+  // Para calcular conteos por supervisor
+  const emailToPerson = new Map(people.map(p => [p["Email (required)"], p]));
+  const supervisorEmail = leader["Email (required)"];
+
   people.forEach(sup => {
-    if (sup["SupervisorEmail (required)"] === leader["Email (required)"]) {
+    if (sup["SupervisorEmail (required)"] === supervisorEmail) {
+
+      // trabajadores directos del supervisor
+      const supEmail = sup["Email (required)"];
+      const workers = people.filter(w => w["SupervisorEmail (required)"] === supEmail);
+      const supCount = workers.length;
 
       nodes.push({
         key: sup.__id,
         isGroup: true,
         name: `${sup["First name (required)"]} ${sup["Last name (required)"]}`,
         role: sup.Position || "",
-        image: sup.ImageURL || ""
+        image: sup.ImageURL || "",
+        teamCount: supCount
       });
 
       links.push({ from: leader.__id, to: sup.__id });
 
-      people.forEach(worker => {
-        if (worker["SupervisorEmail (required)"] === sup["Email (required)"]) {
-          nodes.push({
-            key: worker.__id,
-            group: sup.__id,
-            category: "Worker",
-            name: `${worker["First name (required)"]} ${worker["Last name (required)"]}`,
-            role: worker.Position || "",
-            image: worker.ImageURL || ""
-          });
-        }
+      workers.forEach(worker => {
+        nodes.push({
+          key: worker.__id,
+          group: sup.__id,
+          category: "Worker",
+          name: `${worker["First name (required)"]} ${worker["Last name (required)"]}`,
+          role: worker.Position || "",
+          image: worker.ImageURL || "",
+          teamCount: 0
+        });
       });
     }
   });
 
-  diagram.model = new go.GraphLinksModel(nodes, links);
+  const model = new go.GraphLinksModel(nodes, links);
+  model.nodeKeyProperty = "key";
+  diagram.model = model;
+
+  // Por seguridad: limpiar selección post-carga
+  diagram.clearSelection();
 }
