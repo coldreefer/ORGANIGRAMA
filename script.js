@@ -52,28 +52,45 @@ const diagram = $(go.Diagram, "diagramDiv", {
    ====================================================== */
 function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
 
-document.getElementById("btnZoomIn").addEventListener("click", () => {
-  diagram.scale = clamp(diagram.scale * 1.12, diagram.minScale, diagram.maxScale);
-});
+document.addEventListener("DOMContentLoaded", () => {
 
-document.getElementById("btnZoomOut").addEventListener("click", () => {
-  diagram.scale = clamp(diagram.scale / 1.12, diagram.minScale, diagram.maxScale);
-});
+  const btnZoomIn  = document.getElementById("btnZoomIn");
+  const btnZoomOut = document.getElementById("btnZoomOut");
+  const btnFit     = document.getElementById("btnFit");
+  const btnFull    = document.getElementById("btnFull");
 
-document.getElementById("btnFit").addEventListener("click", () => {
-  diagram.zoomToFit();
-});
-
-document.getElementById("btnFull").addEventListener("click", async () => {
-  const el = document.getElementById("diagramWrapper");
-  try{
-    if (!document.fullscreenElement) await el.requestFullscreen();
-    else await document.exitFullscreen();
-  } catch(e){
-    // Si el browser bloquea fullscreen por políticas, al menos hacemos fit
-    diagram.zoomToFit();
+  if (btnZoomIn) {
+    btnZoomIn.addEventListener("click", () => {
+      diagram.scale = clamp(diagram.scale * 1.12, diagram.minScale, diagram.maxScale);
+    });
   }
+
+  if (btnZoomOut) {
+    btnZoomOut.addEventListener("click", () => {
+      diagram.scale = clamp(diagram.scale / 1.12, diagram.minScale, diagram.maxScale);
+    });
+  }
+
+  if (btnFit) {
+    btnFit.addEventListener("click", () => {
+      diagram.zoomToFit();
+    });
+  }
+
+  if (btnFull) {
+    btnFull.addEventListener("click", async () => {
+      const el = document.getElementById("diagramWrapper");
+      try {
+        if (!document.fullscreenElement) await el.requestFullscreen();
+        else await document.exitFullscreen();
+      } catch {
+        diagram.zoomToFit();
+      }
+    });
+  }
+
 });
+
 
 /* ======================================================
    IMAGE RESOLVE (proxy + fallback)
