@@ -1,11 +1,23 @@
 const $ = go.GraphObject.make;
 
 /* ======================================================
-   DIAGRAM CONFIG
+   AVATAR GENÉRICO (SVG EMBEBIDO)
+   ====================================================== */
+const DEFAULT_AVATAR =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <rect width="100" height="100" fill="#e5e7eb"/>
+    <circle cx="50" cy="38" r="18" fill="#9ca3af"/>
+    <path d="M20 90c4-22 56-22 60 0" fill="#9ca3af"/>
+  </svg>
+`);
+
+/* ======================================================
+   DIAGRAM
    ====================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
-
   allowMove: false,
   allowCopy: false,
 
@@ -18,8 +30,6 @@ const diagram = $(go.Diagram, "diagramDiv", {
   scrollMode: go.Diagram.InfiniteScroll,
 
   "undoManager.isEnabled": false,
-
-  // Animaciones suaves
   "animationManager.isEnabled": true,
   "animationManager.duration": 350,
 
@@ -32,50 +42,42 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ======================================================
-   IMAGE PROXY
+   IMAGE PROXY + FALLBACK
    ====================================================== */
-function proxyImage(url) {
-  if (!url) return "";
+function resolveImage(url) {
+  if (!url || url.trim() === "") return DEFAULT_AVATAR;
   return "https://images.weserv.nl/?url=" + encodeURIComponent(url);
 }
 
 /* ======================================================
-   FOTO CIRCULAR REAL (RECORTE + BORDE)
+   FOTO CUADRADA CON BORDE (CONSISTENTE)
    ====================================================== */
 function photo(size) {
   return $(go.Panel, "Auto",
     { width: size, height: size },
 
-    // Borde cuadrado (ligeramente redondeado)
-    $(go.Shape, "RoundedRectangle",
-      {
-        fill: "white",
-        stroke: "#2563eb",
-        strokeWidth: 2,
-        parameter1: 6   // radio suave de esquinas
-      }
-    ),
+    $(go.Shape, "RoundedRectangle", {
+      fill: "white",
+      stroke: "#2563eb",
+      strokeWidth: 2,
+      parameter1: 6
+    }),
 
-    // Imagen cuadrada estable
-    $(go.Picture,
-      {
-        width: size - 6,
-        height: size - 6,
-        margin: 3,
-        imageStretch: go.GraphObject.UniformToFill
-      },
-      new go.Binding("source", "image", proxyImage)
-    )
+    $(go.Picture, {
+      width: size - 6,
+      height: size - 6,
+      margin: 3,
+      imageStretch: go.GraphObject.UniformToFill
+    }, new go.Binding("source", "image", resolveImage))
   );
 }
-
 
 /* ======================================================
    PERSON CARD
    ====================================================== */
 function personCard(border, roleColor) {
   return $(go.Node, "Vertical",
-    { selectable: false, selectionAdorned: false },
+    { selectable: false },
 
     $(go.Panel, "Auto",
       { desiredSize: new go.Size(210, 255) },
@@ -95,17 +97,13 @@ function personCard(border, roleColor) {
           margin: new go.Margin(10, 6, 2, 6),
           font: "bold 12.5px sans-serif",
           textAlign: "center",
-          wrap: go.TextBlock.WrapFit,
-          maxLines: 3
+          wrap: go.TextBlock.WrapFit
         }, new go.Binding("text", "name")),
 
         $(go.TextBlock, {
-          margin: new go.Margin(2, 6, 0, 6),
           font: "11.5px sans-serif",
           stroke: roleColor,
-          textAlign: "center",
-          wrap: go.TextBlock.WrapFit,
-          maxLines: 2
+          textAlign: "center"
         }, new go.Binding("text", "role"))
       )
     )
@@ -113,39 +111,23 @@ function personCard(border, roleColor) {
 }
 
 /* ======================================================
-   NODE TEMPLATES
+   TEMPLATES
    ====================================================== */
-diagram.nodeTemplateMap.add(
-  "Leader",
-  personCard("#2563eb", "#2563eb")
-);
-
-diagram.nodeTemplateMap.add(
-  "Worker",
-  personCard("#e5e7eb", "#475569")
-);
-
+diagram.nodeTemplateMap.add("Leader", personCard("#2563eb", "#2563eb"));
+diagram.nodeTemplateMap.add("Worker", personCard("#e5e7eb", "#475569"));
 diagram.nodeTemplate = personCard("#e5e7eb", "#475569");
 
 /* ======================================================
-   SUPERVISOR GROUP (COLLAPSE UX)
+   SUPERVISOR GROUP
    ====================================================== */
 diagram.groupTemplate =
   $(go.Group, "Vertical",
     {
-      selectable: false,
-      selectionAdorned: false,
-
-      layout: $(go.GridLayout, {
-        wrappingColumn: 2,
-        spacing: new go.Size(20, 20)
-      }),
-
       isSubGraphExpanded: false,
-
-      click: (e, group) => {
+      layout: $(go.GridLayout, { wrappingColumn: 2, spacing: new go.Size(20, 20) }),
+      click: (e, g) => {
         diagram.startTransaction("toggle");
-        group.isSubGraphExpanded = !group.isSubGraphExpanded;
+        g.isSubGraphExpanded = !g.isSubGraphExpanded;
         diagram.commitTransaction("toggle");
       }
     },
@@ -166,7 +148,6 @@ diagram.groupTemplate =
         photo(64),
 
         $(go.TextBlock, {
-          margin: new go.Margin(10, 6, 2, 6),
           font: "bold 13px sans-serif",
           textAlign: "center"
         }, new go.Binding("text", "name")),
@@ -215,7 +196,6 @@ Papa.parse("team.csv", {
    BUILD MODEL
    ====================================================== */
 function buildModel(rows) {
-
   const people = rows.filter(r => r["First name (required)"]);
   people.forEach((p, i) => p.__id = "P_" + i);
 
