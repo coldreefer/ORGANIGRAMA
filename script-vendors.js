@@ -10,13 +10,13 @@ const vendorsDiagram = $V(go.Diagram, "vendorsDiv", {
   allowSelect: false,
 
   mouseWheelBehavior: go.Diagram.Zoom,
-  minScale: 0.5,
+  minScale: 0.6,
   maxScale: 2,
 
   layout: $V(go.TreeLayout, {
     angle: 90,
     nodeSpacing: 30,
-    layerSpacing: 70
+    layerSpacing: 60
   }),
 
   "animationManager.isEnabled": true,
@@ -24,12 +24,12 @@ const vendorsDiagram = $V(go.Diagram, "vendorsDiv", {
 });
 
 /* ======================================================
-   NODE: ROOT (VENDORS)
+   ROOT (siempre visible, sin toggle)
    ====================================================== */
 vendorsDiagram.nodeTemplateMap.add("Root",
   $V(go.Node, "Auto",
     $V(go.Shape, "RoundedRectangle", {
-      fill: "white",
+      fill: "#ffffff",
       stroke: "#cbd5e1",
       strokeWidth: 2
     }),
@@ -42,7 +42,7 @@ vendorsDiagram.nodeTemplateMap.add("Root",
 );
 
 /* ======================================================
-   NODE: DEPARTMENT
+   DEPARTMENT (toggle SOLO empresas)
    ====================================================== */
 vendorsDiagram.nodeTemplateMap.add("Department",
   $V(go.Node, "Auto",
@@ -50,9 +50,9 @@ vendorsDiagram.nodeTemplateMap.add("Department",
       isActionable: true,
       cursor: "pointer",
       click: (e, node) => {
-        vendorsDiagram.startTransaction("toggle");
+        vendorsDiagram.startTransaction("toggle-dept");
         node.isTreeExpanded = !node.isTreeExpanded;
-        vendorsDiagram.commitTransaction("toggle");
+        vendorsDiagram.commitTransaction("toggle-dept");
       }
     },
     $V(go.Shape, "RoundedRectangle", {
@@ -61,6 +61,7 @@ vendorsDiagram.nodeTemplateMap.add("Department",
       strokeWidth: 2
     }),
     $V(go.Panel, "Vertical", { margin: 12 },
+
       $V(go.TextBlock, {
         font: "bold 13px sans-serif",
         stroke: "#0f172a",
@@ -85,7 +86,7 @@ vendorsDiagram.nodeTemplateMap.add("Department",
 );
 
 /* ======================================================
-   NODE: COMPANY
+   COMPANY
    ====================================================== */
 vendorsDiagram.nodeTemplateMap.add("Company",
   $V(go.Node, "Auto",
@@ -129,19 +130,18 @@ Papa.parse("vendors.csv", {
 });
 
 /* ======================================================
-   BUILD TREE
+   BUILD TREE (expandido por defecto)
    ====================================================== */
 function buildVendors(rows) {
-  const vendors = rows.filter(r => r.Department && r.Company);
+  const vendors = rows.filter(r => r.Department);
 
   const nodes = [];
-  const links = [];
 
-  // Root
   nodes.push({
     key: "VENDORS",
     category: "Root",
-    name: "Vendors"
+    name: "Vendors",
+    isTreeExpanded: true
   });
 
   const departments = {};
@@ -152,12 +152,14 @@ function buildVendors(rows) {
   });
 
   Object.entries(departments).forEach(([dept, list]) => {
+
     nodes.push({
       key: dept,
       parent: "VENDORS",
       category: "Department",
       name: dept,
-      count: list.length
+      count: list.length,
+      isTreeExpanded: true   // ✅ visible al cargar
     });
 
     list.forEach((c, i) => {
@@ -165,12 +167,12 @@ function buildVendors(rows) {
         key: `${dept}_${i}`,
         parent: dept,
         category: "Company",
-        name: c.Company,
-        info: c.Info || ""
+        name: `${c["First name (required)"]} ${c["Last name (required)"]}`.trim(),
+        info: c.Position || ""
       });
     });
   });
 
   vendorsDiagram.model = new go.TreeModel(nodes);
-  setTimeout(() => vendorsDiagram.zoomToFit(), 60);
+  setTimeout(() => vendorsDiagram.zoomToFit(), 50);
 }
