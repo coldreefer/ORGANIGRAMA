@@ -493,6 +493,7 @@ function buildVendors(rows) {
     category: "VendorRoot",
     isGroup: true,
     name: "Vendors",
+    isLayoutPositioned: false,
     loc: "1700 200"
   });
 
