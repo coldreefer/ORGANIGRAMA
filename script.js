@@ -488,6 +488,7 @@ function buildVendors(rows) {
     category: "VendorRoot",
     isGroup: true,
     name: "Vendors",
+    loc: "1800 0"
   });
 
   const departments = {};
