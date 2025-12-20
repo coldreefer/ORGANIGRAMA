@@ -336,3 +336,155 @@ function buildModel(rows) {
   // Al cargar, ajusta a pantalla (ideal para presentación)
   setTimeout(() => diagram.zoomToFit(), 50);
 }
+/* ======================================================
+   ==================== VENDORS =========================
+   (MISMO DIAGRAM – NO SE TOCA EMR)
+   ====================================================== */
+
+/* ---------- Templates Vendors ---------- */
+
+// Root Vendors
+diagram.nodeTemplateMap.add("VendorRoot",
+  $(go.Node, "Auto",
+    $(go.Shape, "RoundedRectangle", {
+      fill: "#f5f3ff",
+      stroke: "#7c3aed",
+      strokeWidth: 2
+    }),
+    $(go.TextBlock, {
+      margin: 14,
+      font: "bold 14px sans-serif",
+      stroke: "#4c1d95"
+    }, new go.Binding("text", "name"))
+  )
+);
+
+// Department (visible siempre)
+diagram.nodeTemplateMap.add("VendorDepartment",
+  $(go.Node, "Auto",
+    {
+      isActionable: true,
+      cursor: "pointer",
+      click: (e, node) => {
+        const diagram = node.diagram;
+        diagram.startTransaction("toggleDept");
+        node.isTreeExpanded = !node.isTreeExpanded;
+        diagram.commitTransaction("toggleDept");
+      }
+    },
+    $(go.Shape, "RoundedRectangle", {
+      fill: "#ffffff",
+      stroke: "#94a3b8",
+      strokeWidth: 2
+    }),
+    $(go.Panel, "Vertical", { margin: 12 },
+      $(go.TextBlock, {
+        font: "bold 13px sans-serif",
+        stroke: "#0f172a",
+        textAlign: "center"
+      }, new go.Binding("text", "name")),
+
+      $(go.TextBlock, {
+        margin: new go.Margin(6,0,0,0),
+        font: "10px sans-serif",
+        stroke: "#475569"
+      }, new go.Binding("text", "count", n => `${n} proveedores`)),
+
+      $(go.TextBlock, {
+        margin: new go.Margin(6,0,0,0),
+        font: "10px sans-serif",
+        stroke: "#64748b"
+      }, new go.Binding("text", "isTreeExpanded",
+        e => e ? "▲ Ocultar" : "▼ Ver"
+      ).ofObject())
+    )
+  )
+);
+
+// Company
+diagram.nodeTemplateMap.add("VendorCompany",
+  $(go.Node, "Auto",
+    $(go.Shape, "RoundedRectangle", {
+      fill: "#ffffff",
+      stroke: "#e5e7eb",
+      strokeWidth: 1.5
+    }),
+    $(go.Panel, "Vertical", { margin: 10 },
+      $(go.TextBlock, {
+        font: "bold 12px sans-serif",
+        textAlign: "center"
+      }, new go.Binding("text", "name")),
+      $(go.TextBlock, {
+        margin: new go.Margin(4,0,0,0),
+        font: "10px sans-serif",
+        stroke: "#64748b",
+        textAlign: "center"
+      }, new go.Binding("text", "info"))
+    )
+  )
+);
+
+/* ---------- Carga CSV Vendors ---------- */
+
+Papa.parse("vendors.csv", {
+  download: true,
+  header: true,
+  skipEmptyLines: true,
+  complete: res => buildVendors(res.data)
+});
+
+/* ---------- Build Vendors ---------- */
+
+function buildVendors(rows) {
+
+  const vendors = rows.filter(r => r.Department);
+
+  const model = diagram.model;
+  if (!model) return;
+
+  diagram.startTransaction("addVendors");
+
+  // Root Vendors (posición a la derecha del EMR)
+  const vendorsRootKey = "VENDORS_ROOT";
+
+  model.addNodeData({
+    key: vendorsRootKey,
+    category: "VendorRoot",
+    name: "Vendors",
+    loc: "1200 0"   // ← ajustable si quieres más cerca/lejos
+  });
+
+  const departments = {};
+
+  vendors.forEach(v => {
+    if (!departments[v.Department]) departments[v.Department] = [];
+    departments[v.Department].push(v);
+  });
+
+  Object.entries(departments).forEach(([dept, list], i) => {
+
+    const deptKey = `VEND_DEPT_${i}`;
+
+    model.addNodeData({
+      key: deptKey,
+      parent: vendorsRootKey,
+      category: "VendorDepartment",
+      name: dept,
+      count: list.length
+    });
+
+    list.forEach((c, j) => {
+      model.addNodeData({
+        key: `${deptKey}_C_${j}`,
+        parent: deptKey,
+        category: "VendorCompany",
+        name: `${c["First name (required)"]} ${c["Last name (required)"]}`.trim(),
+        info: c.Position || ""
+      });
+    });
+  });
+
+  diagram.commitTransaction("addVendors");
+
+  // NO tocamos zoom si ya lo manejas tú
+}
