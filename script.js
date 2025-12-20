@@ -1,15 +1,16 @@
 const $ = go.GraphObject.make;
 
 /* ======================================================
-   AVATAR DEFAULT (SVG DATA URL)
+   AVATAR DEFAULT “tipo Instagram” (silueta en círculo)
    ====================================================== */
 const DEFAULT_AVATAR =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(`
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-    <rect width="100" height="100" fill="#e5e7eb"/>
-    <circle cx="50" cy="38" r="18" fill="#9ca3af"/>
-    <path d="M20 90c4-22 56-22 60 0" fill="#9ca3af"/>
+    <rect width="100" height="100" fill="#ffffff"/>
+    <circle cx="50" cy="50" r="46" fill="#f1f5f9"/>
+    <circle cx="50" cy="42" r="16" fill="#9ca3af"/>
+    <path d="M22 88c4-20 52-20 56 0" fill="#9ca3af"/>
   </svg>
 `);
 
@@ -21,6 +22,9 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowMove: false,
   allowCopy: false,
 
+  // IMPORTANTE: evita el borde azul / selección
+  allowSelect: false,
+
   // Zoom + scroll libre
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.35,
@@ -29,11 +33,10 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowVerticalScroll: true,
   scrollMode: go.Diagram.InfiniteScroll,
 
-  // Animaciones suaves
+  // Animaciones
   "animationManager.isEnabled": true,
   "animationManager.duration": 320,
 
-  // Layout
   layout: $(go.TreeLayout, {
     angle: 90,
     alignment: go.TreeLayout.AlignmentCenterChildren,
@@ -45,13 +48,31 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ======================================================
-   IMPORTANTÍSIMO: quitar selección (borde azul)
+   CONTROLES UI (Zoom/Fit/Fullscreen)
    ====================================================== */
-diagram.toolManager.clickSelectingTool.isEnabled = false;
-diagram.toolManager.dragSelectingTool.isEnabled = false;
-// También evitamos “selection adornments” por si acaso
-diagram.addDiagramListener("ChangedSelection", () => {
-  if (diagram.selection.count > 0) diagram.clearSelection();
+function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+document.getElementById("btnZoomIn").addEventListener("click", () => {
+  diagram.scale = clamp(diagram.scale * 1.12, diagram.minScale, diagram.maxScale);
+});
+
+document.getElementById("btnZoomOut").addEventListener("click", () => {
+  diagram.scale = clamp(diagram.scale / 1.12, diagram.minScale, diagram.maxScale);
+});
+
+document.getElementById("btnFit").addEventListener("click", () => {
+  diagram.zoomToFit();
+});
+
+document.getElementById("btnFull").addEventListener("click", async () => {
+  const el = document.getElementById("diagramWrapper");
+  try{
+    if (!document.fullscreenElement) await el.requestFullscreen();
+    else await document.exitFullscreen();
+  } catch(e){
+    // Si el browser bloquea fullscreen por políticas, al menos hacemos fit
+    diagram.zoomToFit();
+  }
 });
 
 /* ======================================================
@@ -59,7 +80,6 @@ diagram.addDiagramListener("ChangedSelection", () => {
    ====================================================== */
 function resolveImage(url) {
   if (!url || String(url).trim() === "") return DEFAULT_AVATAR;
-  // Proxy para evitar CORS en fotos remotas
   return "https://images.weserv.nl/?url=" + encodeURIComponent(url);
 }
 
@@ -87,7 +107,7 @@ function photo(size, strokeColor) {
 }
 
 /* ======================================================
-   BADGE: "A cargo: N"
+   “A cargo: N” (solo si teamCount > 0)
    ====================================================== */
 function countLine() {
   return $(go.TextBlock, {
@@ -95,21 +115,17 @@ function countLine() {
     font: "10px sans-serif",
     stroke: "#64748b",
     textAlign: "center"
-  }, new go.Binding("text", "teamCount", n => {
-    const v = Number(n || 0);
-    return `A cargo: ${v}`;
-  }));
+  },
+  new go.Binding("visible", "teamCount", n => Number(n || 0) > 0),
+  new go.Binding("text", "teamCount", n => `A cargo: ${Number(n || 0)}`));
 }
 
 /* ======================================================
-   PERSON CARD
+   PERSON CARD (Leader/Worker)
    ====================================================== */
 function personCard(border, roleColor, photoBorder) {
   return $(go.Node, "Vertical",
-    {
-      selectable: false,
-      selectionAdorned: false
-    },
+    { selectable: false, selectionAdorned: false },
 
     $(go.Panel, "Auto",
       { desiredSize: new go.Size(210, 265) },
@@ -142,7 +158,7 @@ function personCard(border, roleColor, photoBorder) {
           maxLines: 2
         }, new go.Binding("text", "role")),
 
-        // ✅ contador (si no existe, igual mostrará 0; puedes ocultarlo si prefieres)
+        // ✅ solo aparece si teamCount > 0 (Leader sí, Worker no)
         countLine()
       )
     )
@@ -157,28 +173,27 @@ diagram.nodeTemplateMap.add("Worker", personCard("#e5e7eb", "#475569", "#94a3b8"
 diagram.nodeTemplate = personCard("#e5e7eb", "#475569", "#94a3b8");
 
 /* ======================================================
-   SUPERVISOR GROUP
+   SUPERVISOR GROUP (click en la tarjeta para toggle)
    ====================================================== */
 diagram.groupTemplate =
   $(go.Group, "Vertical",
     {
       selectable: false,
       selectionAdorned: false,
+      isSubGraphExpanded: false,
 
       layout: $(go.GridLayout, {
         wrappingColumn: 2,
         spacing: new go.Size(20, 20)
-      }),
-
-      isSubGraphExpanded: false
+      })
     },
     new go.Binding("isSubGraphExpanded").makeTwoWay(),
 
-    // 🔵 PANEL DEL SUPERVISOR (AQUÍ va el click)
+    // Tarjeta del supervisor: aquí va el click (estable)
     $(go.Panel, "Auto",
       {
         name: "SUPERVISOR_CARD",
-        isActionable: true,   // 🔴 CLAVE
+        isActionable: true,
         cursor: "pointer",
         click: (e, panel) => {
           const group = panel.part;
@@ -189,8 +204,7 @@ diagram.groupTemplate =
           diagram.commitTransaction("toggle");
         }
       },
-
-      { desiredSize: new go.Size(210, 290) },
+      { desiredSize: new go.Size(210, 300) },
 
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
@@ -220,23 +234,19 @@ diagram.groupTemplate =
           maxLines: 2
         }, new go.Binding("text", "role")),
 
-        // contador
+        // ✅ contador solo si teamCount > 0 (supervisor sí)
         countLine(),
 
-        // indicador visual
         $(go.TextBlock, {
           margin: new go.Margin(6, 0, 0, 0),
           font: "10px sans-serif",
           stroke: "#64748b"
-        }, new go.Binding(
-          "text",
-          "isSubGraphExpanded",
+        }, new go.Binding("text", "isSubGraphExpanded",
           e => e ? "▲ Ocultar equipo" : "▼ Ver equipo"
         ).ofObject())
       )
     ),
 
-    // 👇 AQUÍ van los trabajadores
     $(go.Placeholder, { padding: 18 })
   );
 
@@ -268,11 +278,11 @@ function buildModel(rows) {
   const nodes = [];
   const links = [];
 
-  // TEAM LEADER (root)
+  // Root (Team Leader)
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
 
-  // Leader total a cargo = todos menos él (incluye supervisores + trabajadores)
+  // Total a cargo Team Leader = todos menos él
   const leaderTotal = Math.max(0, people.length - 1);
 
   nodes.push({
@@ -284,14 +294,12 @@ function buildModel(rows) {
     teamCount: leaderTotal
   });
 
-  // Para calcular conteos por supervisor
-  const emailToPerson = new Map(people.map(p => [p["Email (required)"], p]));
-  const supervisorEmail = leader["Email (required)"];
+  // Supervisores directos del líder
+  const leaderEmail = leader["Email (required)"];
 
   people.forEach(sup => {
-    if (sup["SupervisorEmail (required)"] === supervisorEmail) {
+    if (sup["SupervisorEmail (required)"] === leaderEmail) {
 
-      // trabajadores directos del supervisor
       const supEmail = sup["Email (required)"];
       const workers = people.filter(w => w["SupervisorEmail (required)"] === supEmail);
       const supCount = workers.length;
@@ -307,15 +315,15 @@ function buildModel(rows) {
 
       links.push({ from: leader.__id, to: sup.__id });
 
-      workers.forEach(worker => {
+      workers.forEach(w => {
         nodes.push({
-          key: worker.__id,
+          key: w.__id,
           group: sup.__id,
           category: "Worker",
-          name: `${worker["First name (required)"]} ${worker["Last name (required)"]}`,
-          role: worker.Position || "",
-          image: worker.ImageURL || "",
-          teamCount: 0
+          name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
+          role: w.Position || "",
+          image: w.ImageURL || "",
+          teamCount: 0 // ✅ no muestra “A cargo”
         });
       });
     }
@@ -325,6 +333,6 @@ function buildModel(rows) {
   model.nodeKeyProperty = "key";
   diagram.model = model;
 
-  // Por seguridad: limpiar selección post-carga
-  diagram.clearSelection();
+  // Al cargar, ajusta a pantalla (ideal para presentación)
+  setTimeout(() => diagram.zoomToFit(), 50);
 }
