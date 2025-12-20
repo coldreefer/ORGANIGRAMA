@@ -367,12 +367,11 @@ diagram.groupTemplateMap.add("VendorRoot",
       isSubGraphExpanded: true,
       selectable: false,
 
-      // 🔑 layout propio SOLO para Vendors
-      layout: $(go.TreeLayout, {
-        angle: 0,                 // ➡️ horizontal
-        alignment: go.TreeLayout.AlignmentCenterChildren,
-        nodeSpacing: 40,
-        layerSpacing: 80
+      // ✅ layout horizontal REAL
+      layout: $(go.GridLayout, {
+        wrappingColumn: Infinity,
+        spacing: new go.Size(60, 20),
+        alignment: go.GridLayout.Position
       })
     },
 
