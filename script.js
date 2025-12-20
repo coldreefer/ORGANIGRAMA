@@ -1,7 +1,7 @@
 const $ = go.GraphObject.make;
 
 /* ======================================================
-   DIAGRAM
+   DIAGRAM CONFIG
    ====================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
@@ -9,7 +9,6 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowMove: false,
   allowCopy: false,
 
-  // Zoom + Pan
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.35,
   maxScale: 2.5,
@@ -41,19 +40,31 @@ function proxyImage(url) {
 }
 
 /* ======================================================
-   FOTO CON MARCO CIRCULAR
+   FOTO CIRCULAR REAL (RECORTE + BORDE)
    ====================================================== */
 function photo(size) {
   return $(go.Panel, "Spot",
     { width: size, height: size },
 
-    $(go.Picture, {
+    // Recorte circular
+    $(go.Panel, "Auto",
+      {
+        width: size,
+        height: size,
+        clip: true
+      },
+      $(go.Shape, "Circle", { fill: "white" }),
+      $(go.Picture, {
+        width: size,
+        height: size,
+        imageStretch: go.GraphObject.UniformToFill
+      }, new go.Binding("source", "image", proxyImage))
+    ),
+
+    // Borde
+    $(go.Shape, "Circle", {
       width: size,
       height: size,
-      imageStretch: go.GraphObject.UniformToFill
-    }, new go.Binding("source", "image", proxyImage)),
-
-    $(go.Shape, "Circle", {
       fill: "transparent",
       stroke: "#2563eb",
       strokeWidth: 2
@@ -62,14 +73,11 @@ function photo(size) {
 }
 
 /* ======================================================
-   CARD PERSONA
+   PERSON CARD
    ====================================================== */
 function personCard(border, roleColor) {
   return $(go.Node, "Vertical",
-    {
-      selectable: false,
-      selectionAdorned: false
-    },
+    { selectable: false, selectionAdorned: false },
 
     $(go.Panel, "Auto",
       { desiredSize: new go.Size(210, 255) },
@@ -122,7 +130,7 @@ diagram.nodeTemplateMap.add(
 diagram.nodeTemplate = personCard("#e5e7eb", "#475569");
 
 /* ======================================================
-   SUPERVISOR GROUP (UX CLARO)
+   SUPERVISOR GROUP (COLLAPSE UX)
    ====================================================== */
 diagram.groupTemplate =
   $(go.Group, "Vertical",
@@ -145,7 +153,6 @@ diagram.groupTemplate =
     },
     new go.Binding("isSubGraphExpanded").makeTwoWay(),
 
-    // Supervisor card + indicador
     $(go.Panel, "Auto",
       { desiredSize: new go.Size(210, 275) },
 
@@ -176,8 +183,11 @@ diagram.groupTemplate =
           margin: new go.Margin(6, 0, 0, 0),
           font: "10px sans-serif",
           stroke: "#64748b"
-        }, new go.Binding("text", "isSubGraphExpanded",
-          e => e ? "▲ Ocultar equipo" : "▼ Ver equipo").ofObject())
+        }, new go.Binding(
+          "text",
+          "isSubGraphExpanded",
+          e => e ? "▲ Ocultar equipo" : "▼ Ver equipo"
+        ).ofObject())
       )
     ),
 
