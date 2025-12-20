@@ -33,10 +33,45 @@ header p {
   width: 100%;
   height: calc(100vh - 72px);
   overflow: auto;
+  position: relative;
 }
 
 #diagramDiv {
   width: 2600px;
   height: 1600px;
   background: #f8fafc;
+}
+
+/* ===== Controles flotantes ===== */
+.controls{
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 50;
+}
+
+.controls button{
+  width: 44px;
+  height: 44px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #0f172a;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 44px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.10);
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.controls button:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+}
+
+.controls button:active{
+  transform: translateY(0px);
 }
