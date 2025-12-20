@@ -19,28 +19,33 @@
     <p>Haz clic en un supervisor para mostrar u ocultar su equipo</p>
   </header>
 
+  <!-- ================== LIENZO ÚNICO ================== -->
   <div id="diagramWrapper">
+
+    <!-- ===== EMR ===== -->
     <div id="diagramDiv"></div>
 
-    <!-- Controles flotantes -->
+    <!-- ===== VENDORS (MISMO LIENZO) ===== -->
+    <div id="vendorsContainer">
+      <h2>Vendors</h2>
+      <div id="vendorsDiv"></div>
+    </div>
+
+    <!-- ===== CONTROLES ===== -->
     <div class="controls" aria-label="Controles de vista">
       <button id="btnZoomIn" title="Zoom +">＋</button>
       <button id="btnZoomOut" title="Zoom −">－</button>
       <button id="btnFit" title="Ajustar a pantalla">⤢</button>
       <button id="btnFull" title="Pantalla completa">⛶</button>
     </div>
+
   </div>
+  <!-- ================== FIN LIENZO ================== -->
 
-  <!-- ===== Vendors (árbol independiente, como tu imagen) ===== -->
-  <section id="vendorsSection">
-    <h2>Vendors</h2>
-    <div id="vendorsDiv"></div>
-  </section>
-
-  <!-- Tu EMR (intocable) -->
+  <!-- EMR (intocable) -->
   <script src="script.js"></script>
 
-  <!-- Vendors (nuevo, separado) -->
+  <!-- Vendors (separado) -->
   <script src="script-vendors.js"></script>
 </body>
 </html>
