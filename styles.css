@@ -7,10 +7,10 @@ html, body {
 body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: #f8fafc;
-  overflow-y: auto;   /* ← permite bajar */
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
+/* ================= HEADER ================= */
 header {
   padding: 12px 16px;
   text-align: center;
@@ -30,20 +30,57 @@ header p {
   color: #475569;
 }
 
+/* ================= WRAPPER ================= */
 #diagramWrapper {
+  position: relative;
   width: 100%;
-  min-height: calc(100vh - 72px); /* ← clave */
-  overflow: auto;
+  height: calc(100vh - 72px);
+  overflow-x: auto;   /* ✅ SCROLL COMPARTIDO */
+  overflow-y: hidden;
+}
+
+/* ================= CONTENEDOR HORIZONTAL ================= */
+#diagramScroller {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  width: max-content;
+}
+
+/* ================= BLOQUES ================= */
+.diagramBlock {
+  min-width: 2600px;
+  height: 100%;
+  background: #f8fafc;
+  border-right: 1px solid #e5e7eb;
   position: relative;
 }
 
+/* ================= EMR ================= */
 #diagramDiv {
   width: 2600px;
   height: 1600px;
+}
+
+/* ================= VENDORS ================= */
+.diagramBlock.vendors {
+  min-width: 1600px;
+  padding: 24px;
+}
+
+.diagramBlock.vendors h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+#vendorsDiv {
+  width: 1500px;
+  height: 520px;
   background: #f8fafc;
 }
 
-/* ===== Controles flotantes ===== */
+/* ================= CONTROLES ================= */
 .controls{
   position: absolute;
   right: 16px;
@@ -63,30 +100,5 @@ header p {
   border-radius: 12px;
   cursor: pointer;
   font-size: 18px;
-  line-height: 44px;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.10);
-  transition: transform 0.08s ease, box-shadow 0.08s ease;
-}
-
-.controls button:hover{
-  transform: translateY(-1px);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
-}
-
-.controls button:active{
-  transform: translateY(0px);
-}
-/* ===============================
-   VENDORS SECTION
-   =============================== */
-#vendorsSection {
-  margin-top: 60px;
-  padding-top: 40px;
-  border-top: 1px solid #e5e7eb;
-}
-
-#vendorsDiv {
-  width: 100%;
-  height: 520px;
-  background: #f8fafc;
 }
