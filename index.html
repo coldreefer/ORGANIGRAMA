@@ -14,38 +14,43 @@
 </head>
 
 <body>
-  <header>
-    <h1>Organigrama EMR</h1>
-    <p>Haz clic en un supervisor para mostrar u ocultar su equipo</p>
-  </header>
 
-  <!-- ================== LIENZO ÚNICO ================== -->
-  <div id="diagramWrapper">
+<header>
+  <h1>Organigrama EMR</h1>
+  <p>Desplázate horizontalmente para ver Vendors</p>
+</header>
+
+<!-- ================== LIENZO ÚNICO HORIZONTAL ================== -->
+<div id="diagramWrapper">
+
+  <div id="diagramScroller">
 
     <!-- ===== EMR ===== -->
-    <div id="diagramDiv"></div>
+    <section class="diagramBlock">
+      <div id="diagramDiv"></div>
+    </section>
 
-    <!-- ===== VENDORS (MISMO LIENZO) ===== -->
-    <div id="vendorsContainer">
+    <!-- ===== VENDORS ===== -->
+    <section class="diagramBlock vendors">
       <h2>Vendors</h2>
       <div id="vendorsDiv"></div>
-    </div>
-
-    <!-- ===== CONTROLES ===== -->
-    <div class="controls" aria-label="Controles de vista">
-      <button id="btnZoomIn" title="Zoom +">＋</button>
-      <button id="btnZoomOut" title="Zoom −">－</button>
-      <button id="btnFit" title="Ajustar a pantalla">⤢</button>
-      <button id="btnFull" title="Pantalla completa">⛶</button>
-    </div>
+    </section>
 
   </div>
-  <!-- ================== FIN LIENZO ================== -->
 
-  <!-- EMR (intocable) -->
-  <script src="script.js"></script>
+  <!-- ===== CONTROLES ===== -->
+  <div class="controls">
+    <button id="btnZoomIn">＋</button>
+    <button id="btnZoomOut">－</button>
+    <button id="btnFit">⤢</button>
+    <button id="btnFull">⛶</button>
+  </div>
 
-  <!-- Vendors (separado) -->
-  <script src="script-vendors.js"></script>
+</div>
+<!-- ================== FIN LIENZO ================== -->
+
+<script src="script.js"></script>
+<script src="script-vendors.js"></script>
+
 </body>
 </html>
