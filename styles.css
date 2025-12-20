@@ -35,7 +35,7 @@ header p {
   position: relative;
   width: 100%;
   height: calc(100vh - 72px);
-  overflow-x: auto;   /* ✅ SCROLL COMPARTIDO */
+  overflow-x: auto;
   overflow-y: hidden;
 }
 
@@ -49,7 +49,6 @@ header p {
 
 /* ================= BLOQUES ================= */
 .diagramBlock {
-  min-width: 2600px;
   height: 100%;
   background: #f8fafc;
   border-right: 1px solid #e5e7eb;
@@ -57,14 +56,18 @@ header p {
 }
 
 /* ================= EMR ================= */
+.diagramBlock.emr {
+  min-width: 2200px;     /* ⬅️ reducido, sigue amplio */
+}
+
 #diagramDiv {
-  width: 2600px;
+  width: 2200px;
   height: 1600px;
 }
 
 /* ================= VENDORS ================= */
 .diagramBlock.vendors {
-  min-width: 1600px;
+  min-width: 1000px;     /* ⬅️ CLAVE: ya no queda lejos */
   padding: 24px;
 }
 
@@ -75,20 +78,20 @@ header p {
 }
 
 #vendorsDiv {
-  width: 1500px;
-  height: 520px;
+  width: 900px;
+  height: 600px;
   background: #f8fafc;
 }
 
 /* ================= CONTROLES ================= */
 .controls{
-  position: absolute;
+  position: fixed;   /* ⬅️ CLAVE: ya no se mueven */
   right: 16px;
   bottom: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  z-index: 50;
+  z-index: 100;
 }
 
 .controls button{
