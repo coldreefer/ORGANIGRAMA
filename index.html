@@ -10,6 +10,7 @@
   <!-- PapaParse -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 
+  <!-- Estilos -->
   <link rel="stylesheet" href="styles.css" />
 </head>
 
@@ -20,8 +21,24 @@
   <p>Arrastra con el mouse y usa zoom (un solo lienzo)</p>
 </header>
 
-<div id="diagramDiv"></div>
+<!-- ================= LIENZO ÚNICO ================= -->
+<div id="diagramWrapper">
 
+  <!-- GOJS CANVAS -->
+  <div id="diagramDiv"></div>
+
+  <!-- ================= CONTROLES ================= -->
+  <div class="controls">
+    <button id="btnZoomIn" title="Zoom +">＋</button>
+    <button id="btnZoomOut" title="Zoom -">－</button>
+    <button id="btnFit" title="Ajustar">⤢</button>
+    <button id="btnFull" title="Pantalla completa">⛶</button>
+  </div>
+
+</div>
+
+<!-- Script principal -->
 <script src="script.js"></script>
+
 </body>
 </html>
