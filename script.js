@@ -21,11 +21,8 @@ const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
   allowMove: false,
   allowCopy: false,
-
-  // IMPORTANTE: evita el borde azul / selección
   allowSelect: false,
 
-  // Zoom + scroll libre
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.35,
   maxScale: 2.5,
@@ -33,19 +30,14 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowVerticalScroll: true,
   scrollMode: go.Diagram.InfiniteScroll,
 
-  // Animaciones
   "animationManager.isEnabled": true,
   "animationManager.duration": 320,
 
-  layout: $(go.TreeLayout, {
-    angle: 90,
-    alignment: go.TreeLayout.AlignmentCenterChildren,
-    nodeSpacing: 26,
-    layerSpacing: 70
-  }),
-
   "undoManager.isEnabled": false
+
+  // 🚫 NO layout aquí
 });
+
 
 /* ======================================================
    CONTROLES UI (Zoom/Fit/Fullscreen)
@@ -303,6 +295,14 @@ function buildModel(rows) {
   const leaderTotal = Math.max(0, people.length - 1);
 
   nodes.push({
+    key: "EMR_ROOT",
+    isGroup: true,
+    category: "EMR_ROOT",
+    loc: "0 0",
+    isLayoutPositioned: false
+  });
+
+  nodes.push({
     key: leader.__id,
     category: "Leader",
     name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
@@ -438,6 +438,27 @@ diagram.groupTemplateMap.add("VendorDepartment",
 
     // 🔑 ESTO ES OBLIGATORIO
     $(go.Placeholder, { padding: 12 })
+  )
+);
+
+/* ======================================================
+   ROOT EMR (CONTENEDOR DEL ORGANIGRAMA PRINCIPAL)
+   ====================================================== */
+diagram.groupTemplateMap.add("EMR_ROOT",
+  $(go.Group, "Vertical",
+    {
+      selectable: false,
+      isSubGraphExpanded: true,
+
+      // ✅ ESTE layout SOLO AFECTA AL EMR
+      layout: $(go.TreeLayout, {
+        angle: 90,
+        alignment: go.TreeLayout.AlignmentCenterChildren,
+        nodeSpacing: 26,
+        layerSpacing: 70
+      })
+    },
+    $(go.Placeholder, { padding: 20 })
   )
 );
 
