@@ -344,8 +344,17 @@ function buildModel(rows) {
 /* ---------- Templates Vendors ---------- */
 
 // Root Vendors
-diagram.nodeTemplateMap.add("VendorRoot",
-  $(go.Node, "Auto",
+diagram.groupTemplateMap.add("VendorRoot",
+  $(go.Group, "Vertical",
+    {
+      isSubGraphExpanded: true,
+      selectable: false,
+      layout: $(go.TreeLayout, {
+        angle: 90,
+        nodeSpacing: 20,
+        layerSpacing: 60
+      })
+    },
     $(go.Shape, "RoundedRectangle", {
       fill: "#f5f3ff",
       stroke: "#7c3aed",
@@ -355,51 +364,61 @@ diagram.nodeTemplateMap.add("VendorRoot",
       margin: 14,
       font: "bold 14px sans-serif",
       stroke: "#4c1d95"
-    }, new go.Binding("text", "name"))
+    }, new go.Binding("text", "name")),
+    $(go.Placeholder, { padding: 18 })
   )
 );
 
+
 // Department (visible siempre)
-diagram.nodeTemplateMap.add("VendorDepartment",
-  $(go.Node, "Auto",
+diagram.groupTemplateMap.add("VendorDepartment",
+  $(go.Group, "Vertical",
     {
-      isActionable: true,
+      isSubGraphExpanded: true,
+      selectable: false,
       cursor: "pointer",
-      click: (e, node) => {
-        const diagram = node.diagram;
+      click: (e, group) => {
+        const diagram = group.diagram;
         diagram.startTransaction("toggleDept");
-        node.isTreeExpanded = !node.isTreeExpanded;
+        group.isSubGraphExpanded = !group.isSubGraphExpanded;
         diagram.commitTransaction("toggleDept");
       }
     },
-    $(go.Shape, "RoundedRectangle", {
-      fill: "#ffffff",
-      stroke: "#94a3b8",
-      strokeWidth: 2
-    }),
-    $(go.Panel, "Vertical", { margin: 12 },
-      $(go.TextBlock, {
-        font: "bold 13px sans-serif",
-        stroke: "#0f172a",
-        textAlign: "center"
-      }, new go.Binding("text", "name")),
 
-      $(go.TextBlock, {
-        margin: new go.Margin(6,0,0,0),
-        font: "10px sans-serif",
-        stroke: "#475569"
-      }, new go.Binding("text", "count", n => `${n} proveedores`)),
+    $(go.Panel, "Auto",
+      $(go.Shape, "RoundedRectangle", {
+        fill: "#ffffff",
+        stroke: "#94a3b8",
+        strokeWidth: 2
+      }),
+      $(go.Panel, "Vertical", { margin: 12 },
+        $(go.TextBlock, {
+          font: "bold 13px sans-serif",
+          stroke: "#0f172a",
+          textAlign: "center"
+        }, new go.Binding("text", "name")),
 
-      $(go.TextBlock, {
-        margin: new go.Margin(6,0,0,0),
-        font: "10px sans-serif",
-        stroke: "#64748b"
-      }, new go.Binding("text", "isTreeExpanded",
-        e => e ? "▲ Ocultar" : "▼ Ver"
-      ).ofObject())
-    )
+        $(go.TextBlock, {
+          margin: new go.Margin(6,0,0,0),
+          font: "10px sans-serif",
+          stroke: "#475569"
+        }, new go.Binding("text", "count", n => `${n} proveedores`)),
+
+        $(go.TextBlock, {
+          margin: new go.Margin(6,0,0,0),
+          font: "10px sans-serif",
+          stroke: "#64748b"
+        }, new go.Binding("text", "isSubGraphExpanded",
+          e => e ? "▲ Ocultar" : "▼ Ver"
+        ).ofObject())
+      )
+    ),
+
+    // 🔑 ESTO ES OBLIGATORIO
+    $(go.Placeholder, { padding: 12 })
   )
 );
+
 
 // Company
 diagram.nodeTemplateMap.add("VendorCompany",
@@ -450,8 +469,8 @@ function buildVendors(rows) {
   model.addNodeData({
     key: vendorsRootKey,
     category: "VendorRoot",
+    isGroup: true,
     name: "Vendors",
-    loc: "1200 0"   // ← ajustable si quieres más cerca/lejos
   });
 
   const departments = {};
@@ -467,7 +486,8 @@ function buildVendors(rows) {
 
     model.addNodeData({
       key: deptKey,
-      parent: vendorsRootKey,
+      group: vendorsRootKey,
+      isGroup: true,
       category: "VendorDepartment",
       name: dept,
       count: list.length
@@ -476,7 +496,7 @@ function buildVendors(rows) {
     list.forEach((c, j) => {
       model.addNodeData({
         key: `${deptKey}_C_${j}`,
-        parent: deptKey,
+        group: deptKey,
         category: "VendorCompany",
         name: `${c["First name (required)"]} ${c["Last name (required)"]}`.trim(),
         info: c.Position || ""
