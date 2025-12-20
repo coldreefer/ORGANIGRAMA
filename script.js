@@ -46,19 +46,22 @@ function photo(size) {
   return $(go.Panel, "Spot",
     { width: size, height: size },
 
-    // Círculo con la imagen como relleno
+    // Imagen circular REAL usando Shape + Image Brush
     $(go.Shape, "Circle",
       {
         width: size,
         height: size,
-        strokeWidth: 0,
-        fill: $(go.Brush, "Image", {
-          source: new go.Binding("source", "image", proxyImage)
-        })
-      }
+        strokeWidth: 0
+      },
+      new go.Binding("fill", "image", img => {
+        if (!img) return "white";
+        return $(go.Brush, "Image", {
+          source: proxyImage(img)
+        });
+      })
     ),
 
-    // Borde circular
+    // Borde limpio
     $(go.Shape, "Circle",
       {
         width: size,
