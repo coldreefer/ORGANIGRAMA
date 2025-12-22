@@ -1,18 +1,7 @@
 /* ======================================================
-   1. CONSTANTES Y CONFIG
+   1. CONSTANTES
    ====================================================== */
 const $ = go.GraphObject.make;
-
-const DEFAULT_AVATAR =
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(`
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-    <rect width="100" height="100" fill="#ffffff"/>
-    <circle cx="50" cy="50" r="46" fill="#f1f5f9"/>
-    <circle cx="50" cy="42" r="16" fill="#9ca3af"/>
-    <path d="M22 88c4-20 52-20 56 0" fill="#9ca3af"/>
-  </svg>
-`);
 
 /* ======================================================
    2. DIAGRAM
@@ -60,20 +49,12 @@ function showOnlyRoot(rootKey) {
     n.visible = visible;
   });
 
-  diagram.links.each(l => {
-    const from = l.fromNode;
-    const to = l.toNode;
-    l.visible = from?.visible && to?.visible;
-  });
-
   diagram.commitTransaction("view");
-
   setTimeout(() => goToNodeByKey(rootKey), 80);
 }
 
-
 /* ======================================================
-   4. TEMPLATES PERSONAS (TEAM)
+   4. TEMPLATES TEAM
    ====================================================== */
 function photo(size, strokeColor) {
   return $(go.Panel, "Auto",
@@ -83,17 +64,11 @@ function photo(size, strokeColor) {
       stroke: strokeColor,
       strokeWidth: 2,
       parameter1: 6
-    }),
-    $(go.Picture, {
-      width: size - 6,
-      height: size - 6,
-      margin: 3,
-      imageStretch: go.GraphObject.UniformToFill
-    }, new go.Binding("source", "image"))
+    })
   );
 }
 
-function personCard(border, roleColor, photoBorder) {
+function personCard(border, roleColor) {
   return $(go.Node, "Vertical",
     $(go.Panel, "Auto",
       { desiredSize: new go.Size(210, 265) },
@@ -103,7 +78,7 @@ function personCard(border, roleColor, photoBorder) {
         strokeWidth: 2
       }),
       $(go.Panel, "Vertical", { margin: 12 },
-        photo(64, photoBorder),
+        photo(64, border),
         $(go.TextBlock, {
           margin: new go.Margin(10, 6, 2, 6),
           font: "bold 12.5px sans-serif",
@@ -119,14 +94,28 @@ function personCard(border, roleColor, photoBorder) {
   );
 }
 
-diagram.nodeTemplateMap.add("Leader", personCard("#2563eb", "#2563eb", "#2563eb"));
-diagram.nodeTemplateMap.add("Worker", personCard("#e5e7eb", "#475569", "#94a3b8"));
+diagram.nodeTemplateMap.add("Leader", personCard("#2563eb", "#2563eb"));
+diagram.nodeTemplateMap.add("Worker", personCard("#e5e7eb", "#475569"));
+
+diagram.groupTemplateMap.add("EMR_ROOT",
+  $(go.Group, "Auto",
+    {
+      layout: $(go.TreeLayout, {
+        angle: 90,
+        alignment: go.TreeLayout.AlignmentCenterChildren,
+        nodeSpacing: 26,
+        layerSpacing: 70
+      })
+    },
+    $(go.Placeholder, { padding: 20 })
+  )
+);
 
 /* ======================================================
    5. TEMPLATES VENDORS
    ====================================================== */
 diagram.groupTemplateMap.add("VendorRoot",
-  $(go.Group, "Auto",
+  $(go.Group, "Vertical",
     {
       layout: $(go.TreeLayout, {
         angle: 90,
@@ -134,36 +123,58 @@ diagram.groupTemplateMap.add("VendorRoot",
         layerSpacing: 40
       })
     },
+    $(go.Panel, "Auto",
+      $(go.Shape, "RoundedRectangle", {
+        fill: "#f5f3ff",
+        stroke: "#7c3aed",
+        strokeWidth: 2
+      }),
+      $(go.TextBlock, {
+        margin: 14,
+        font: "bold 14px sans-serif",
+        stroke: "#4c1d95"
+      }, "VENDORS")
+    ),
     $(go.Placeholder, { padding: 20 })
   )
 );
 
-diagram.nodeTemplateMap.add("VendorDept",
-  $(go.Node, "Auto",
+diagram.groupTemplateMap.add("VendorDept",
+  $(go.Group, "Vertical",
     {
-      isTreeExpanded: false,
-      cursor: "pointer",
-      click: (e, n) => {
-        diagram.startTransaction("toggleDept");
-        n.isTreeExpanded = !n.isTreeExpanded;
-        diagram.commitTransaction("toggleDept");
-      }
+      isSubGraphExpanded: false,
+      layout: $(go.GridLayout, {
+        wrappingColumn: 2,
+        spacing: new go.Size(20, 20)
+      })
     },
-    $(go.Shape, "RoundedRectangle", {
-      fill: "white",
-      stroke: "#7c3aed",
-      strokeWidth: 2
-    }),
-    $(go.Panel, "Vertical", { margin: 10 },
-      $(go.TextBlock, {
-        font: "bold 13px sans-serif",
-        textAlign: "center"
-      }, new go.Binding("text", "name")),
-      $(go.TextBlock, {
-        font: "10px sans-serif",
-        stroke: "#64748b"
-      }, new go.Binding("text", "count", c => `${c} vendors`))
-    )
+    new go.Binding("isSubGraphExpanded").makeTwoWay(),
+
+    $(go.Panel, "Auto",
+      {
+        cursor: "pointer",
+        click: (e, p) => {
+          diagram.startTransaction("toggleDept");
+          p.part.isSubGraphExpanded = !p.part.isSubGraphExpanded;
+          diagram.commitTransaction("toggleDept");
+        }
+      },
+      $(go.Shape, "RoundedRectangle", {
+        fill: "white",
+        stroke: "#7c3aed",
+        strokeWidth: 2
+      }),
+      $(go.Panel, "Vertical", { margin: 10 },
+        $(go.TextBlock, { font: "bold 13px sans-serif" },
+          new go.Binding("text", "name")),
+        $(go.TextBlock({
+          font: "10px sans-serif",
+          stroke: "#64748b"
+        }, new go.Binding("text", "count", c => `${c} vendors`)))
+      )
+    ),
+
+    $(go.Placeholder, { padding: 14 })
   )
 );
 
@@ -175,12 +186,12 @@ diagram.nodeTemplateMap.add("VendorCompany",
       strokeWidth: 1.5
     }),
     $(go.Panel, "Vertical", { margin: 8 },
-      $(go.TextBlock, { font: "bold 12px sans-serif" },
+      $(go.TextBlock({ font: "bold 12px sans-serif" },
         new go.Binding("text", "name")),
-      $(go.TextBlock, {
+      $(go.TextBlock({
         font: "10px sans-serif",
         stroke: "#64748b"
-      }, new go.Binding("text", "info"))
+      }, new go.Binding("text", "info")))
     )
   )
 );
@@ -245,6 +256,8 @@ function buildVendors(rows) {
   const model = diagram.model;
   if (!model) return;
 
+  diagram.startTransaction("vendors");
+
   model.addNodeData({
     key: "VENDORS_ROOT",
     isGroup: true,
@@ -260,24 +273,28 @@ function buildVendors(rows) {
 
   Object.entries(depts).forEach(([dept, list], i) => {
     const deptKey = `V_DEPT_${i}`;
+
     model.addNodeData({
       key: deptKey,
+      isGroup: true,
+      group: "VENDORS_ROOT",
       category: "VendorDept",
       name: dept,
       count: list.length
     });
-    model.addLinkData({ from: "VENDORS_ROOT", to: deptKey });
 
     list.forEach((v, j) => {
       model.addNodeData({
         key: `${deptKey}_C_${j}`,
+        group: deptKey,
         category: "VendorCompany",
-        name: `${v["First name (required)"]} ${v["Last name (required)"]}`,
+        name: `${v["First name (required)"]} ${v["Last name (required)"]}`.trim(),
         info: v.Position || ""
       });
-      model.addLinkData({ from: deptKey, to: `${deptKey}_C_${j}` });
     });
   });
+
+  diagram.commitTransaction("vendors");
 }
 
 /* ======================================================
@@ -323,16 +340,10 @@ document.getElementById("btnZoomOut")?.addEventListener("click", () => {
 document.getElementById("btnFit")?.addEventListener("click", () => {
   diagram.zoomToFit();
 });
+
 document.getElementById("btnFull")?.addEventListener("click", () => {
   const el = document.documentElement;
-
-  if (!document.fullscreenElement) {
-    el.requestFullscreen().catch(err => {
-      console.error("Error fullscreen:", err);
-    });
-  } else {
-    document.exitFullscreen();
-  }
-
+  if (!document.fullscreenElement) el.requestFullscreen();
+  else document.exitFullscreen();
   setTimeout(() => diagram.zoomToFit(), 300);
 });
