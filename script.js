@@ -189,7 +189,9 @@ diagram.groupTemplate =
     {
       selectable: false,
       selectionAdorned: false,
-      isSubGraphExpanded: false,
+
+      // ✅ EXPANDIDO POR DEFECTO
+      isSubGraphExpanded: true,
 
       layout: $(go.GridLayout, {
         wrappingColumn: 2,
@@ -198,21 +200,20 @@ diagram.groupTemplate =
     },
     new go.Binding("isSubGraphExpanded").makeTwoWay(),
 
-    // Tarjeta del supervisor: aquí va el click (estable)
+    // TARJETA DEL SUPERVISOR (CLICKABLE)
     $(go.Panel, "Auto",
       {
-        name: "SUPERVISOR_CARD",
-        isActionable: true,
         cursor: "pointer",
         click: (e, panel) => {
           const group = panel.part;
           if (!(group instanceof go.Group)) return;
 
-          diagram.startTransaction("toggle");
+          e.diagram.startTransaction("toggleSupervisor");
           group.isSubGraphExpanded = !group.isSubGraphExpanded;
-          diagram.commitTransaction("toggle");
+          e.diagram.commitTransaction("toggleSupervisor");
         }
       },
+
       { desiredSize: new go.Size(210, 300) },
 
       $(go.Shape, "RoundedRectangle", {
@@ -243,7 +244,6 @@ diagram.groupTemplate =
           maxLines: 2
         }, new go.Binding("text", "role")),
 
-        // ✅ contador solo si teamCount > 0 (supervisor sí)
         countLine(),
 
         $(go.TextBlock, {
@@ -256,6 +256,7 @@ diagram.groupTemplate =
       )
     ),
 
+    // ⬇️ AQUÍ APARECEN LOS WORKERS
     $(go.Placeholder, { padding: 18 })
   );
 
