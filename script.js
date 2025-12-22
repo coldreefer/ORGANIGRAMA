@@ -1,8 +1,19 @@
 const $ = go.GraphObject.make;
 
 /* ======================================================
-   DIAGRAM
+   CONFIG GENERAL
    ====================================================== */
+const DEFAULT_AVATAR =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <rect width="100" height="100" fill="#ffffff"/>
+    <circle cx="50" cy="50" r="46" fill="#f1f5f9"/>
+    <circle cx="50" cy="42" r="16" fill="#9ca3af"/>
+    <path d="M22 88c4-20 52-20 56 0" fill="#9ca3af"/>
+  </svg>
+`);
+
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
   allowMove: false,
@@ -11,14 +22,13 @@ const diagram = $(go.Diagram, "diagramDiv", {
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.4,
   maxScale: 2.5,
-  scrollMode: go.Diagram.InfiniteScroll,
   "animationManager.isEnabled": true,
-  "animationManager.duration": 250,
+  "animationManager.duration": 300,
   "undoManager.isEnabled": false
 });
 
 /* ======================================================
-   LINK (SIN FLECHAS)
+   LINKS (SIN FLECHAS)
    ====================================================== */
 diagram.linkTemplate = $(
   go.Link,
@@ -31,9 +41,9 @@ diagram.linkTemplate = $(
    ====================================================== */
 function photo() {
   return $(go.Picture, {
-    width: 40,
-    height: 40,
-    margin: new go.Margin(0, 8, 0, 0),
+    width: 42,
+    height: 42,
+    margin: new go.Margin(0, 10, 0, 0),
     imageStretch: go.GraphObject.UniformToFill
   }, new go.Binding("source", "image"));
 }
@@ -51,19 +61,23 @@ function card(stroke, withPhoto, showCount) {
     }),
     $(
       go.Panel, "Horizontal",
-      { margin: 10 },
+      { margin: 12 },
       withPhoto ? photo() : $(go.Panel),
       $(
         go.Panel, "Vertical",
-        $(go.TextBlock, { font: "bold 13px sans-serif" },
-          new go.Binding("text", "name")),
-        $(go.TextBlock, { font: "11px sans-serif", stroke: "#475569" },
-          new go.Binding("text", "role")),
+        $(go.TextBlock, {
+          font: "bold 13px sans-serif",
+          stroke: "#0f172a"
+        }, new go.Binding("text", "name")),
+        $(go.TextBlock, {
+          font: "11px sans-serif",
+          stroke: "#475569"
+        }, new go.Binding("text", "role")),
         showCount
           ? $(go.TextBlock, {
+              margin: new go.Margin(6, 0, 0, 0),
               font: "10px sans-serif",
-              stroke: "#64748b",
-              margin: new go.Margin(6, 0, 0, 0)
+              stroke: "#64748b"
             }, new go.Binding("text", "count", c => `👤 ${c}`))
           : $(go.Panel)
       )
@@ -72,7 +86,7 @@ function card(stroke, withPhoto, showCount) {
 }
 
 /* ======================================================
-   TEAM TEMPLATES
+   TEAM TEMPLATES (CON FOTO)
    ====================================================== */
 diagram.nodeTemplateMap.add("Leader",
   $(go.Node, "Auto", card("#2563eb", true, true))
@@ -84,7 +98,7 @@ diagram.groupTemplateMap.add("Supervisor",
       isSubGraphExpanded: false,
       layout: $(go.TreeLayout, {
         angle: 90,
-        nodeSpacing: 20,
+        nodeSpacing: 22,
         layerSpacing: 30
       })
     },
@@ -99,7 +113,7 @@ diagram.groupTemplateMap.add("Supervisor",
       },
       card("#14b8a6", true, true)
     ),
-    $(go.Placeholder, { padding: 14 })
+    $(go.Placeholder, { padding: 16 })
   )
 );
 
@@ -110,37 +124,16 @@ diagram.nodeTemplateMap.add("Worker",
 /* ======================================================
    VENDOR TEMPLATES (SIN FOTO)
    ====================================================== */
-diagram.groupTemplateMap.add("VendorDept",
-  $(go.Group, "Vertical",
-    {
-      isSubGraphExpanded: false,
-      layout: $(go.TreeLayout, {
-        angle: 90,
-        nodeSpacing: 14,
-        layerSpacing: 22
-      })
-    },
-    $(go.Panel, "Auto",
-      {
-        cursor: "pointer",
-        click: (e, p) => {
-          diagram.startTransaction("toggleVendor");
-          p.part.isSubGraphExpanded = !p.part.isSubGraphExpanded;
-          diagram.commitTransaction("toggleVendor");
-        }
-      },
-      card("#7c3aed", false, true)
-    ),
-    $(go.Placeholder, { padding: 12 })
-  )
+diagram.nodeTemplateMap.add("VendorRoot",
+  $(go.Node, "Auto", card("#7c3aed", false, true))
 );
 
-diagram.nodeTemplateMap.add("VendorPerson",
-  $(go.Node, "Auto", card("#e5e7eb", false, false))
+diagram.nodeTemplateMap.add("VendorDept",
+  $(go.Node, "Auto", card("#7c3aed", false, true))
 );
 
 /* ======================================================
-   BUILD TEAM (MODELO A)
+   BUILD TEAM
    ====================================================== */
 function buildTeam(rows) {
   const nodes = [];
@@ -157,7 +150,7 @@ function buildTeam(rows) {
     category: "Leader",
     name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
     role: leader.Position || "",
-    image: leader.Image || "",
+    image: leader.Image || DEFAULT_AVATAR,
     count: people.length - 1
   });
 
@@ -171,7 +164,7 @@ function buildTeam(rows) {
         category: "Supervisor",
         name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
         role: s.Position || "",
-        image: s.Image || "",
+        image: s.Image || DEFAULT_AVATAR,
         count: workers.length
       });
 
@@ -184,7 +177,7 @@ function buildTeam(rows) {
           group: s.id,
           name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
           role: w.Position || "",
-          image: w.Image || ""
+          image: w.Image || DEFAULT_AVATAR
         });
       });
     }
@@ -198,58 +191,47 @@ function buildTeam(rows) {
 }
 
 /* ======================================================
-   BUILD VENDORS (MODELO B)
+   BUILD VENDORS (HORIZONTAL)
    ====================================================== */
 function buildVendors(rows) {
   const nodes = [];
   const links = [];
 
-  const root = "VENDORS";
   nodes.push({
-    key: root,
-    category: "VendorDept",
+    key: "VENDORS",
+    category: "VendorRoot",
     name: "Vendors",
-    count: rows.length,
-    isGroup: true
+    count: rows.length
   });
 
   const depts = {};
   rows.forEach(v => {
-    if (!depts[v.Department]) depts[v.Department] = [];
-    depts[v.Department].push(v);
+    const d = v.Department || "Sin área";
+    if (!depts[d]) depts[d] = [];
+    depts[d].push(v);
   });
 
   Object.entries(depts).forEach(([dept, list], i) => {
     const dk = `D_${i}`;
     nodes.push({
       key: dk,
-      isGroup: true,
       category: "VendorDept",
       name: dept,
       count: list.length
     });
-    links.push({ from: root, to: dk });
-
-    list.forEach((v, j) => {
-      nodes.push({
-        key: `${dk}_${j}`,
-        category: "VendorPerson",
-        group: dk,
-        name: `${v["First name (required)"]} ${v["Last name (required)"]}`,
-        role: v.Position || ""
-      });
-    });
+    links.push({ from: "VENDORS", to: dk });
   });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
   diagram.layout = $(go.TreeLayout, {
-    angle: 0,
+    angle: 0,               // 👈 HORIZONTAL
+    nodeSpacing: 40,
     layerSpacing: 120
   });
 }
 
 /* ======================================================
-   LOAD + BOTONES
+   LOAD CSV + BOTONES
    ====================================================== */
 let TEAM_DATA = [];
 let VENDOR_DATA = [];
