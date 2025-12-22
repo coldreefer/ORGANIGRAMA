@@ -479,6 +479,7 @@ function buildVendors(rows) {
        from: deptKey,
        to: `${deptKey}_C_${j}`
     });
+    });
   });
 
   diagram.commitTransaction("vendors");
