@@ -14,9 +14,16 @@ const DEFAULT_AVATAR =
   </svg>
 `);
 
+/* ======================================================
+   IMAGE RESOLVER (FIX REAL)
+   ====================================================== */
 function resolveImage(row) {
-  if (!row || !row.ImageID) return DEFAULT_AVATAR;
-  return `./images/${row.ImageID}.jpg`; // ajusta ruta si aplica
+  if (!row || !row.ImageURL) return DEFAULT_AVATAR;
+
+  const url = row.ImageURL.toString().trim();
+  if (!url) return DEFAULT_AVATAR;
+
+  return url; // URL directa desde CSV
 }
 
 /* ======================================================
@@ -31,8 +38,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
   minScale: 0.4,
   maxScale: 2.5,
   "animationManager.isEnabled": true,
-  "animationManager.duration": 300,
-  "undoManager.isEnabled": false
+  "animationManager.duration": 300
 });
 
 /* ======================================================
@@ -48,12 +54,16 @@ diagram.linkTemplate = $(
    FOTO
    ====================================================== */
 function photo() {
-  return $(go.Picture, {
-    width: 42,
-    height: 42,
-    margin: new go.Margin(0, 10, 0, 0),
-    imageStretch: go.GraphObject.UniformToFill
-  }, new go.Binding("source", "image"));
+  return $(
+    go.Picture,
+    {
+      width: 42,
+      height: 42,
+      margin: new go.Margin(0, 10, 0, 0),
+      imageStretch: go.GraphObject.UniformToFill
+    },
+    new go.Binding("source", "image")
+  );
 }
 
 /* ======================================================
@@ -100,11 +110,7 @@ diagram.groupTemplateMap.add("Supervisor",
   $(go.Group, "Vertical",
     {
       isSubGraphExpanded: false,
-      layout: $(go.TreeLayout, {
-        angle: 90,
-        nodeSpacing: 20,
-        layerSpacing: 30
-      })
+      layout: $(go.TreeLayout, { angle: 90, nodeSpacing: 20, layerSpacing: 30 })
     },
     $(go.Panel, "Auto",
       {
@@ -126,7 +132,7 @@ diagram.nodeTemplateMap.add("Worker",
 );
 
 /* ======================================================
-   VENDOR TEMPLATES
+   VENDOR TEMPLATES (HORIZONTAL SIEMPRE)
    ====================================================== */
 diagram.groupTemplateMap.add("VendorRoot",
   $(go.Group, "Auto",
@@ -142,13 +148,13 @@ diagram.groupTemplateMap.add("VendorRoot",
 );
 
 diagram.groupTemplateMap.add("VendorDept",
-  $(go.Group, "Vertical",
+  $(go.Group, "Auto",
     {
       isSubGraphExpanded: false,
       layout: $(go.TreeLayout, {
-        angle: 90,
-        nodeSpacing: 14,
-        layerSpacing: 22
+        angle: 0,
+        nodeSpacing: 30,
+        layerSpacing: 40
       })
     },
     $(go.Panel, "Auto",
@@ -162,7 +168,7 @@ diagram.groupTemplateMap.add("VendorDept",
       },
       card("#7c3aed", false, true)
     ),
-    $(go.Placeholder, { padding: 12 })
+    $(go.Placeholder, { padding: 14 })
   )
 );
 
@@ -174,7 +180,7 @@ function buildTeam(rows) {
   const links = [];
 
   const people = rows.filter(r => r["First name (required)"]);
-  people.forEach((p, i) => p.id = "T_" + i);
+  people.forEach(p => p.id = p["Email (required)"]);
 
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
@@ -185,12 +191,12 @@ function buildTeam(rows) {
     name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
     role: leader.Position || "",
     image: resolveImage(leader),
-    count: people.length - 1
+    count: people.filter(p => p["SupervisorEmail (required)"] === leader.id).length
   });
 
   people.forEach(s => {
-    if (s["SupervisorEmail (required)"] === leader["Email (required)"]) {
-      const workers = people.filter(w => w["SupervisorEmail (required)"] === s["Email (required)"]);
+    if (s["SupervisorEmail (required)"] === leader.id) {
+      const workers = people.filter(w => w["SupervisorEmail (required)"] === s.id);
 
       nodes.push({
         key: s.id,
@@ -260,7 +266,7 @@ function buildVendors(rows) {
 }
 
 /* ======================================================
-   LOAD + EVENTS
+   LOAD
    ====================================================== */
 let TEAM_DATA = [];
 let VENDOR_DATA = [];
@@ -268,17 +274,16 @@ let VENDOR_DATA = [];
 Papa.parse("team.csv", {
   download: true,
   header: true,
+  delimiter: ";",
   complete: r => TEAM_DATA = r.data
 });
 
 Papa.parse("vendors.csv", {
   download: true,
   header: true,
+  delimiter: ";",
   complete: r => VENDOR_DATA = r.data
 });
 
-const btnTeams = document.getElementById("btnTeams");
-if (btnTeams) btnTeams.onclick = () => buildTeam(TEAM_DATA);
-
-const btnVendors = document.getElementById("btnVendorsDept");
-if (btnVendors) btnVendors.onclick = () => buildVendors(VENDOR_DATA);
+document.getElementById("btnTeams").onclick = () => buildTeam(TEAM_DATA);
+document.getElementById("btnVendorsDept").onclick = () => buildVendors(VENDOR_DATA);
