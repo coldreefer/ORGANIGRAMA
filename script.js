@@ -1,4 +1,5 @@
 const $ = go.GraphObject.make;
+const vendorLinks = [];
 
 /* ======================================================
    AVATAR DEFAULT “tipo Instagram” (silueta en círculo)
@@ -328,7 +329,10 @@ function buildModel(rows) {
     }
   });
 
-  diagram.model = new go.GraphLinksModel(nodes, links);
+  diagram.model = new go.GraphLinksModel(
+     nodes,
+     links.concat(vendorLinks)
+   );
   setTimeout(() => diagram.zoomToFit(), 50);
 }
 
@@ -454,20 +458,26 @@ function buildVendors(rows) {
 
     model.addNodeData({
       key: deptKey,
-      group: "VENDORS_ROOT",
       category: "VendorDepartment",
       name: dept,
       count: list.length
     });
 
+    vendorLinks.push({
+       from: "VENDORS_ROOT",
+       to: deptKey
+    });
+
     list.forEach((c,j) => {
       model.addNodeData({
         key: `${deptKey}_C_${j}`,
-        group: deptKey,
         category: "VendorCompany",
         name: `${c["First name (required)"]} ${c["Last name (required)"]}`.trim(),
         info: c.Position || ""
       });
+    vendorLinks.push({
+       from: deptKey,
+       to: `${deptKey}_C_${j}`
     });
   });
 
