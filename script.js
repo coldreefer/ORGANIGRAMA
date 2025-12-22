@@ -1,8 +1,5 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL (WORKDAY-LIKE REAL)
- *  - Teams con overlay flotante (workers fuera del árbol)
- *  - Zoom funcional
- *  - Vendors intactos
+ *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL (WORKDAY-LIKE REAL — FIXED)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -122,7 +119,7 @@ function card(stroke, withPhoto, showCount) {
 }
 
 /* ========================================================================================
-   TEAM OVERLAY (WORKDAY-LIKE)
+   TEAM OVERLAY (FIX REAL)
    ======================================================================================== */
 function hideTeamOverlay() {
   if (TEAM_OVERLAY) {
@@ -136,24 +133,18 @@ function buildTeamOverlay(supervisorGroup) {
 
   const workers = supervisorGroup.data.workers || [];
 
-  const gridPanel = $(
+  const workersPanel = $(
     go.Panel,
-    "Auto",
-    { maxSize: new go.Size(UI.overlayMaxWidth, UI.overlayMaxHeight) },
-    $(
-      go.Panel,
-      "Grid",
-      {
-        layout: $(go.GridLayout, {
-          wrappingColumn: UI.workerColumns,
-          spacing: new go.Size(UI.workerSpacing, UI.workerSpacing)
-        })
-      },
-      ...workers.map(w =>
-        $(go.Node, "Auto",
-          card("#e5e7eb", true, false),
-          { data: w }
-        )
+    {
+      layout: $(go.GridLayout, {
+        wrappingColumn: UI.workerColumns,
+        spacing: new go.Size(UI.workerSpacing, UI.workerSpacing)
+      })
+    },
+    ...workers.map(w =>
+      $(go.Node, "Auto",
+        card("#e5e7eb", true, false),
+        { data: w }
       )
     )
   );
@@ -182,7 +173,12 @@ function buildTeamOverlay(supervisorGroup) {
           margin: new go.Margin(0, 0, 12, 0)
         }
       ),
-      gridPanel
+      $(
+        go.Panel,
+        "Auto",
+        { maxSize: new go.Size(UI.overlayMaxWidth, UI.overlayMaxHeight) },
+        workersPanel
+      )
     )
   );
 }
@@ -298,8 +294,6 @@ function buildTeam(rows) {
       image: resolveImage(s),
       count: workers.length,
       hasChildren: workers.length > 0,
-
-      // 🔥 CLAVE: los workers NO entran al layout
       workers: workers.map(w => ({
         key: w.id,
         name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
