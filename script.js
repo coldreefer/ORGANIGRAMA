@@ -441,6 +441,7 @@ function buildVendors(rows) {
 
   model.addNodeData({
     key: "VENDORS_ROOT",
+    isGroup: true,
     category: "VendorRoot",
     name: "Vendors",
     loc: "2000 0",
@@ -454,6 +455,7 @@ function buildVendors(rows) {
   });
 
   Object.entries(departments).forEach(([dept, list], i) => {
+
     const deptKey = `VEND_DEPT_${i}`;
 
     model.addNodeData({
@@ -464,23 +466,26 @@ function buildVendors(rows) {
     });
 
     vendorLinks.push({
-       from: "VENDORS_ROOT",
-       to: deptKey
+      from: "VENDORS_ROOT",
+      to: deptKey
     });
 
-    list.forEach((c,j) => {
+    list.forEach((c, j) => {
       model.addNodeData({
         key: `${deptKey}_C_${j}`,
         category: "VendorCompany",
         name: `${c["First name (required)"]} ${c["Last name (required)"]}`.trim(),
         info: c.Position || ""
       });
-    vendorLinks.push({
-       from: deptKey,
-       to: `${deptKey}_C_${j}`
+
+      vendorLinks.push({
+        from: deptKey,
+        to: `${deptKey}_C_${j}`
+      });
     });
-    });
-  });
+
+  }); // ⬅️ ESTA LLAVE FALTABA
 
   diagram.commitTransaction("vendors");
 }
+
