@@ -10,7 +10,10 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowSelect: false,
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.4,
-  maxScale: 2,
+  maxScale: 2.5,
+  scrollMode: go.Diagram.InfiniteScroll,
+  "animationManager.isEnabled": true,
+  "animationManager.duration": 250,
   "undoManager.isEnabled": false
 });
 
@@ -19,14 +22,26 @@ const diagram = $(go.Diagram, "diagramDiv", {
    ====================================================== */
 diagram.linkTemplate = $(
   go.Link,
-  { routing: go.Link.Orthogonal, corner: 6 },
-  $(go.Shape, { stroke: "#94a3b8", strokeWidth: 1.5 })
+  { routing: go.Link.Orthogonal, corner: 8 },
+  $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.5 })
 );
+
+/* ======================================================
+   FOTO CUADRADA
+   ====================================================== */
+function photo(size = 42) {
+  return $(go.Picture, {
+    width: size,
+    height: size,
+    margin: new go.Margin(0, 8, 0, 0),
+    imageStretch: go.GraphObject.UniformToFill
+  }, new go.Binding("source", "image"));
+}
 
 /* ======================================================
    CARD BASE
    ====================================================== */
-function card(stroke, showCount = true) {
+function personCard(stroke, showCount = true, withPhoto = true) {
   return $(
     go.Panel,
     "Auto",
@@ -37,72 +52,112 @@ function card(stroke, showCount = true) {
     }),
     $(
       go.Panel,
-      "Vertical",
+      "Horizontal",
       { margin: 10 },
-      $(go.TextBlock, {
-        font: "bold 13px sans-serif",
-        stroke: "#0f172a",
-        alignment: go.Spot.Center
-      }, new go.Binding("text", "name")),
-      $(go.TextBlock, {
-        font: "11px sans-serif",
-        stroke: "#475569",
-        alignment: go.Spot.Center
-      }, new go.Binding("text", "role")),
-      showCount
-        ? $(go.TextBlock, {
-            margin: new go.Margin(6, 0, 0, 0),
-            font: "10px sans-serif",
-            stroke: "#64748b",
-            alignment: go.Spot.Center
-          }, new go.Binding("text", "count", c => `👤 ${c}`))
-        : $(go.Panel)
+      withPhoto ? photo() : $(go.Panel),
+      $(
+        go.Panel,
+        "Vertical",
+        $(go.TextBlock, {
+          font: "bold 13px sans-serif",
+          stroke: "#0f172a"
+        }, new go.Binding("text", "name")),
+        $(go.TextBlock, {
+          font: "11px sans-serif",
+          stroke: "#475569"
+        }, new go.Binding("text", "role")),
+        showCount
+          ? $(go.TextBlock, {
+              margin: new go.Margin(6, 0, 0, 0),
+              font: "10px sans-serif",
+              stroke: "#64748b"
+            }, new go.Binding("text", "count", c => `👤 ${c}`))
+          : $(go.Panel)
+      )
     )
   );
 }
 
 /* ======================================================
-   NODE TEMPLATES
+   TEAM TEMPLATES
    ====================================================== */
 diagram.nodeTemplateMap.add("Leader",
-  $(go.Node, "Auto", card("#2563eb"))
+  $(go.Node, "Auto", personCard("#2563eb", true, true))
 );
 
-diagram.nodeTemplateMap.add("Supervisor",
-  $(go.Node, "Auto", card("#14b8a6"))
+diagram.groupTemplateMap.add("Supervisor",
+  $(go.Group, "Vertical",
+    {
+      isSubGraphExpanded: false,
+      layout: $(go.TreeLayout, {
+        angle: 90,
+        nodeSpacing: 20,
+        layerSpacing: 30
+      })
+    },
+    $(go.Panel, "Auto",
+      {
+        cursor: "pointer",
+        click: (e, p) => {
+          diagram.startTransaction("toggle");
+          p.part.isSubGraphExpanded = !p.part.isSubGraphExpanded;
+          diagram.commitTransaction("toggle");
+        }
+      },
+      personCard("#14b8a6", true, true)
+    ),
+    $(go.Placeholder, { padding: 14 })
+  )
 );
 
 diagram.nodeTemplateMap.add("Worker",
-  $(go.Node, "Auto", card("#e5e7eb", false))
-);
-
-diagram.nodeTemplateMap.add("VendorRoot",
-  $(go.Node, "Auto", card("#7c3aed"))
-);
-
-diagram.nodeTemplateMap.add("VendorDept",
-  $(go.Node, "Auto", card("#7c3aed"))
+  $(go.Node, "Auto", personCard("#e5e7eb", false, true))
 );
 
 /* ======================================================
-   TEAM LAYOUT (VERTICAL)
+   VENDORS TEMPLATES (SIN IMÁGENES)
    ====================================================== */
-const teamLayout = $(go.TreeLayout, {
-  angle: 90,
-  nodeSpacing: 30,
-  layerSpacing: 90,
-  alignment: go.TreeLayout.AlignmentCenterChildren
-});
+diagram.groupTemplateMap.add("VendorRoot",
+  $(go.Group, "Auto",
+    {
+      layout: $(go.TreeLayout, {
+        angle: 0,
+        nodeSpacing: 40,
+        layerSpacing: 90
+      })
+    },
+    $(go.Placeholder, { padding: 20 })
+  )
+);
 
-/* ======================================================
-   VENDOR LAYOUT (HORIZONTAL)
-   ====================================================== */
-const vendorLayout = $(go.TreeLayout, {
-  angle: 0,
-  nodeSpacing: 40,
-  layerSpacing: 120,
-  alignment: go.TreeLayout.AlignmentCenterChildren
-});
+diagram.groupTemplateMap.add("VendorDept",
+  $(go.Group, "Vertical",
+    {
+      isSubGraphExpanded: false,
+      layout: $(go.TreeLayout, {
+        angle: 90,
+        nodeSpacing: 16,
+        layerSpacing: 24
+      })
+    },
+    $(go.Panel, "Auto",
+      {
+        cursor: "pointer",
+        click: (e, p) => {
+          diagram.startTransaction("toggleVendor");
+          p.part.isSubGraphExpanded = !p.part.isSubGraphExpanded;
+          diagram.commitTransaction("toggleVendor");
+        }
+      },
+      personCard("#7c3aed", true, false)
+    ),
+    $(go.Placeholder, { padding: 12 })
+  )
+);
+
+diagram.nodeTemplateMap.add("VendorPerson",
+  $(go.Node, "Auto", personCard("#e5e7eb", false, false))
+);
 
 /* ======================================================
    BUILD TEAM
@@ -112,59 +167,62 @@ function buildTeam(rows) {
   const links = [];
 
   const people = rows.filter(r => r["First name (required)"]);
-  people.forEach((p, i) => p.id = "T_" + i);
+  people.forEach((p, i) => p._id = "T_" + i);
 
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
 
   nodes.push({
-    key: leader.id,
+    key: leader._id,
     category: "Leader",
     name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
     role: leader.Position || "",
+    image: leader.Image || "",
     count: people.length - 1
   });
 
-  people.forEach(p => {
-    if (p["SupervisorEmail (required)"] === leader["Email (required)"]) {
-      const subs = people.filter(w => w["SupervisorEmail (required)"] === p["Email (required)"]);
+  people.forEach(s => {
+    if (s["SupervisorEmail (required)"] === leader["Email (required)"]) {
+      const workers = people.filter(w => w["SupervisorEmail (required)"] === s["Email (required)"]);
 
       nodes.push({
-        key: p.id,
+        key: s._id,
+        isGroup: true,
         category: "Supervisor",
-        name: `${p["First name (required)"]} ${p["Last name (required)"]}`,
-        role: p.Position || "",
-        count: subs.length
+        name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
+        role: s.Position || "",
+        image: s.Image || "",
+        count: workers.length
       });
 
-      links.push({ from: leader.id, to: p.id });
+      links.push({ from: leader._id, to: s._id });
 
-      subs.forEach(w => {
+      workers.forEach(w => {
         nodes.push({
-          key: w.id,
+          key: w._id,
           category: "Worker",
+          group: s._id,
           name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
-          role: w.Position || ""
+          role: w.Position || "",
+          image: w.Image || ""
         });
-        links.push({ from: p.id, to: w.id });
       });
     }
   });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
-  diagram.layout = teamLayout;
+  diagram.layout = $(go.TreeLayout, { angle: 90, layerSpacing: 90 });
 }
 
 /* ======================================================
    BUILD VENDORS
    ====================================================== */
 function buildVendors(rows) {
-  const model = new go.GraphLinksModel();
-  const nodes = [];
-  const links = [];
+  const model = diagram.model;
 
-  nodes.push({
-    key: "VENDORS",
+  model.addNodeData({
+    key: "VENDORS_ROOT",
+    isGroup: true,
     category: "VendorRoot",
     name: "Vendors",
     count: rows.length
@@ -177,23 +235,29 @@ function buildVendors(rows) {
   });
 
   Object.entries(depts).forEach(([dept, list], i) => {
-    const dk = "D_" + i;
+    const dk = "VD_" + i;
 
-    nodes.push({
+    model.addNodeData({
       key: dk,
+      isGroup: true,
+      group: "VENDORS_ROOT",
       category: "VendorDept",
       name: dept,
       count: list.length
     });
 
-    links.push({ from: "VENDORS", to: dk });
+    model.addLinkData({ from: "VENDORS_ROOT", to: dk });
+
+    list.forEach((v, j) => {
+      model.addNodeData({
+        key: `${dk}_${j}`,
+        group: dk,
+        category: "VendorPerson",
+        name: `${v["First name (required)"]} ${v["Last name (required)"]}`,
+        role: v.Position || ""
+      });
+    });
   });
-
-  model.nodeDataArray = nodes;
-  model.linkDataArray = links;
-
-  diagram.model = model;
-  diagram.layout = vendorLayout;
 }
 
 /* ======================================================
@@ -207,23 +271,7 @@ Papa.parse("team.csv", {
     Papa.parse("vendors.csv", {
       download: true,
       header: true,
-      complete: v => {
-        diagram._vendorsData = v.data;
-      }
+      complete: v => buildVendors(v.data)
     });
   }
 });
-
-/* ======================================================
-   CONTROLS
-   ====================================================== */
-const btn = id => document.getElementById(id);
-
-if (btn("btnTeams")) btn("btnTeams").onclick = () => buildTeam(diagram.model.nodeDataArray || []);
-if (btn("btnVendorsDept")) btn("btnVendorsDept").onclick = () => buildVendors(diagram._vendorsData || []);
-if (btn("btnZoomIn")) btn("btnZoomIn").onclick = () => diagram.scale *= 1.1;
-if (btn("btnZoomOut")) btn("btnZoomOut").onclick = () => diagram.scale /= 1.1;
-if (btn("btnFit")) btn("btnFit").onclick = () => diagram.zoomToFit();
-if (btn("btnFull")) btn("btnFull").onclick = () => {
-  document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
-};
