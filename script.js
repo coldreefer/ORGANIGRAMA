@@ -51,17 +51,26 @@ function showOnlyRoot(rootKey) {
   diagram.startTransaction("view");
 
   diagram.nodes.each(n => {
-    if (n.key === "EMR_ROOT" || n.key === "VENDORS_ROOT") {
-      n.visible = (n.key === rootKey);
-    }
-    if (n.containingGroup) {
-      n.visible = (n.containingGroup.key === rootKey);
-    }
+    let visible = false;
+
+    if (n.key === rootKey) visible = true;
+    else if (n.data.group === rootKey) visible = true;
+    else if (n.containingGroup && n.containingGroup.key === rootKey) visible = true;
+
+    n.visible = visible;
+  });
+
+  diagram.links.each(l => {
+    const from = l.fromNode;
+    const to = l.toNode;
+    l.visible = from?.visible && to?.visible;
   });
 
   diagram.commitTransaction("view");
-  setTimeout(() => goToNodeByKey(rootKey), 60);
+
+  setTimeout(() => goToNodeByKey(rootKey), 80);
 }
+
 
 /* ======================================================
    4. TEMPLATES PERSONAS (TEAM)
@@ -313,4 +322,17 @@ document.getElementById("btnZoomOut")?.addEventListener("click", () => {
 
 document.getElementById("btnFit")?.addEventListener("click", () => {
   diagram.zoomToFit();
+});
+document.getElementById("btnFull")?.addEventListener("click", () => {
+  const el = document.documentElement;
+
+  if (!document.fullscreenElement) {
+    el.requestFullscreen().catch(err => {
+      console.error("Error fullscreen:", err);
+    });
+  } else {
+    document.exitFullscreen();
+  }
+
+  setTimeout(() => diagram.zoomToFit(), 300);
 });
