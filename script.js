@@ -1,33 +1,25 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL
- *  Versión explícita, extendida y mantenible
- *  Incluye:
- *   - Teams
- *   - Vendors
- *   - Vista foco por Supervisor
- *   - Grilla horizontal de Workers (6 columnas)
- *   - Restauración completa de estado
+ *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL (WORKDAY-LIKE)
+ *  - Teams con overlay flotante
+ *  - Vendors sin cambios
  ******************************************************************************************/
 
-/* ========================================================================================
-   GOJS FACTORY
-   ======================================================================================== */
 const $ = go.GraphObject.make;
 
 /* ========================================================================================
-   CONSTANTES VISUALES Y CONFIGURACIÓN GLOBAL
+   CONFIGURACIÓN GLOBAL
    ======================================================================================== */
-const UI_CONFIG = {
+const UI = {
   avatarSize: 42,
   cardMargin: 12,
-  workerGridColumns: 6,
-  workerGridSpacing: 30,
-  focusZoom: 1.35,
-  animationDuration: 350
+  workerColumns: 6,
+  workerSpacing: 24,
+  overlayMaxWidth: 950,
+  overlayMaxHeight: 420
 };
 
 /* ========================================================================================
-   AVATAR POR DEFECTO (INLINE SVG)
+   AVATAR DEFAULT
    ======================================================================================== */
 const DEFAULT_AVATAR =
   "data:image/svg+xml;utf8," +
@@ -41,18 +33,15 @@ const DEFAULT_AVATAR =
 `);
 
 /* ========================================================================================
-   ESTADO GLOBAL DE LA APLICACIÓN
+   ESTADO
    ======================================================================================== */
-const APP_STATE = {
-  focusedSupervisor: null,
-  savedDiagramPosition: null,
-  savedDiagramScale: null,
-  teamData: [],
-  vendorData: []
-};
+let TEAM_OVERLAY = null;
+let ACTIVE_SUPERVISOR = null;
+let TEAM_DATA = [];
+let VENDOR_DATA = [];
 
 /* ========================================================================================
-   DIAGRAM BASE
+   DIAGRAM
    ======================================================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
@@ -64,11 +53,11 @@ const diagram = $(go.Diagram, "diagramDiv", {
   maxScale: 2.5,
   padding: 40,
   "animationManager.isEnabled": true,
-  "animationManager.duration": UI_CONFIG.animationDuration
+  "animationManager.duration": 300
 });
 
 /* ========================================================================================
-   LINK TEMPLATE
+   LINKS
    ======================================================================================== */
 diagram.linkTemplate = $(
   go.Link,
@@ -77,25 +66,20 @@ diagram.linkTemplate = $(
 );
 
 /* ========================================================================================
-   UTILIDADES DE IMAGEN
+   HELPERS VISUALES
    ======================================================================================== */
 function resolveImage(row) {
-  if (!row) return DEFAULT_AVATAR;
-  if (!row.ImageURL) return DEFAULT_AVATAR;
+  if (!row || !row.ImageURL) return DEFAULT_AVATAR;
   const url = row.ImageURL.toString().trim();
-  if (url.length === 0) return DEFAULT_AVATAR;
-  return url;
+  return url || DEFAULT_AVATAR;
 }
 
-/* ========================================================================================
-   COMPONENTES VISUALES (PHOTO / CARD)
-   ======================================================================================== */
-function buildPhoto() {
+function photo() {
   return $(
     go.Picture,
     {
-      width: UI_CONFIG.avatarSize,
-      height: UI_CONFIG.avatarSize,
+      width: UI.avatarSize,
+      height: UI.avatarSize,
       margin: new go.Margin(0, 10, 0, 0),
       imageStretch: go.GraphObject.UniformToFill
     },
@@ -103,30 +87,24 @@ function buildPhoto() {
   );
 }
 
-function buildCard(strokeColor, withPhoto, showCount) {
+function card(stroke, withPhoto, showCount) {
   return $(
-    go.Panel,
-    "Auto",
+    go.Panel, "Auto",
     $(go.Shape, "RoundedRectangle", {
       fill: "white",
-      stroke: strokeColor,
+      stroke,
       strokeWidth: 2
     }),
     $(
-      go.Panel,
-      "Horizontal",
-      { margin: UI_CONFIG.cardMargin },
-      withPhoto ? buildPhoto() : $(go.Panel),
+      go.Panel, "Horizontal",
+      { margin: UI.cardMargin },
+      withPhoto ? photo() : $(go.Panel),
       $(
-        go.Panel,
-        "Vertical",
-        $(go.TextBlock, {
-          font: "bold 13px sans-serif"
-        }, new go.Binding("text", "name")),
-        $(go.TextBlock, {
-          font: "11px sans-serif",
-          stroke: "#475569"
-        }, new go.Binding("text", "role")),
+        go.Panel, "Vertical",
+        $(go.TextBlock, { font: "bold 13px sans-serif" },
+          new go.Binding("text", "name")),
+        $(go.TextBlock, { font: "11px sans-serif", stroke: "#475569" },
+          new go.Binding("text", "role")),
         showCount
           ? $(go.TextBlock, {
               margin: new go.Margin(6, 0, 0, 0),
@@ -143,100 +121,114 @@ function buildCard(strokeColor, withPhoto, showCount) {
 }
 
 /* ========================================================================================
-   LAYOUTS DEFINIDOS EXPLÍCITAMENTE
+   TEAM OVERLAY (WORKDAY STYLE)
    ======================================================================================== */
-const LAYOUT_SUPERVISOR_TREE = $(go.TreeLayout, {
-  angle: 90,
-  nodeSpacing: 20,
-  layerSpacing: 30
-});
+function hideTeamOverlay() {
+  if (TEAM_OVERLAY) {
+    diagram.remove(TEAM_OVERLAY);
+    TEAM_OVERLAY = null;
+    ACTIVE_SUPERVISOR = null;
+  }
+}
 
-const LAYOUT_WORKER_GRID = $(go.GridLayout, {
-  wrappingColumn: UI_CONFIG.workerGridColumns,
-  spacing: new go.Size(
-    UI_CONFIG.workerGridSpacing,
-    UI_CONFIG.workerGridSpacing
-  ),
-  alignment: go.GridLayout.Position
-});
+function buildTeamOverlay(supervisorGroup) {
 
-/* ========================================================================================
-   CONTROL DE FOCO — ENTRAR
-   ======================================================================================== */
-function enterSupervisorFocus(group) {
+  const workers = [];
 
-  diagram.startTransaction("enterSupervisorFocus");
-
-  // Guardar cámara
-  APP_STATE.savedDiagramPosition = diagram.position.copy();
-  APP_STATE.savedDiagramScale = diagram.scale;
-  APP_STATE.focusedSupervisor = group;
-
-  // Ocultar todo lo que no pertenece al grupo
-  diagram.nodes.each(node => {
-    if (node === group) {
-      node.visible = true;
-    } else if (node.containingGroup === group) {
-      node.visible = true;
-    } else {
-      node.visible = false;
+  supervisorGroup.memberParts.each(p => {
+    if (p.category === "Worker") {
+      workers.push(p.data);
     }
   });
 
-  diagram.links.each(link => link.visible = false);
+  const gridPanel = $(
+    go.Panel,
+    "Auto",
+    {
+      maxSize: new go.Size(UI.overlayMaxWidth, UI.overlayMaxHeight)
+    },
+    $(
+      go.Panel,
+      "Grid",
+      {
+        layout: $(go.GridLayout, {
+          wrappingColumn: UI.workerColumns,
+          spacing: new go.Size(UI.workerSpacing, UI.workerSpacing)
+        })
+      },
+      ...workers.map(w =>
+        $(go.Node, "Auto",
+          card("#e5e7eb", true, false),
+          { data: w }
+        )
+      )
+    )
+  );
 
-  // Cambiar layout del grupo
-  group.layout = LAYOUT_WORKER_GRID;
-  group.isSubGraphExpanded = true;
+  return $(
+    go.Part,
+    "Auto",
+    {
+      layerName: "Foreground",
+      selectable: false,
+      locationSpot: go.Spot.Top
+    },
+    $(go.Shape, "RoundedRectangle", {
+      fill: "white",
+      stroke: "#14b8a6",
+      strokeWidth: 2
+    }),
+    $(
+      go.Panel,
+      "Vertical",
+      { margin: 16 },
+      $(go.TextBlock,
+        supervisorGroup.data.name,
+        {
+          font: "bold 14px sans-serif",
+          margin: new go.Margin(0, 0, 12, 0)
+        }
+      ),
+      gridPanel
+    )
+  );
+}
 
-  diagram.commitTransaction("enterSupervisorFocus");
+function toggleTeamOverlay(supervisorGroup) {
 
-  // Ajustar cámara
-  diagram.centerRect(group.actualBounds);
-  diagram.scale = UI_CONFIG.focusZoom;
+  if (ACTIVE_SUPERVISOR === supervisorGroup) {
+    hideTeamOverlay();
+    return;
+  }
+
+  hideTeamOverlay();
+
+  TEAM_OVERLAY = buildTeamOverlay(supervisorGroup);
+  diagram.add(TEAM_OVERLAY);
+
+  TEAM_OVERLAY.location =
+    supervisorGroup.getDocumentPoint(go.Spot.Bottom);
+
+  ACTIVE_SUPERVISOR = supervisorGroup;
 }
 
 /* ========================================================================================
-   CONTROL DE FOCO — SALIR
-   ======================================================================================== */
-function exitSupervisorFocus() {
-
-  if (!APP_STATE.focusedSupervisor) return;
-
-  diagram.startTransaction("exitSupervisorFocus");
-
-  // Restaurar visibilidad
-  diagram.nodes.each(node => node.visible = true);
-  diagram.links.each(link => link.visible = true);
-
-  // Restaurar layout del supervisor
-  APP_STATE.focusedSupervisor.layout = LAYOUT_SUPERVISOR_TREE;
-  APP_STATE.focusedSupervisor.isSubGraphExpanded = false;
-
-  // Restaurar cámara
-  diagram.position = APP_STATE.savedDiagramPosition;
-  diagram.scale = APP_STATE.savedDiagramScale;
-
-  APP_STATE.focusedSupervisor = null;
-  APP_STATE.savedDiagramPosition = null;
-  APP_STATE.savedDiagramScale = null;
-
-  diagram.commitTransaction("exitSupervisorFocus");
-}
-
-/* ========================================================================================
-   NODE & GROUP TEMPLATES
+   TEMPLATES TEAMS
    ======================================================================================== */
 diagram.nodeTemplateMap.add(
   "Leader",
-  $(go.Node, "Auto", buildCard("#2563eb", true, true))
+  $(go.Node, "Auto", card("#2563eb", true, true))
 );
 
 diagram.groupTemplateMap.add(
   "Supervisor",
   $(go.Group, "Vertical",
     {
-      layout: LAYOUT_SUPERVISOR_TREE
+      layout: $(go.TreeLayout, {
+        angle: 90,
+        nodeSpacing: 20,
+        layerSpacing: 30
+      })
     },
     $(
       go.Panel,
@@ -245,49 +237,45 @@ diagram.groupTemplateMap.add(
         cursor: "pointer",
         click: (e, panel) => {
           const group = panel.part;
-
           if (!group.data.hasChildren) return;
-
-          if (APP_STATE.focusedSupervisor === group) {
-            exitSupervisorFocus();
-          } else {
-            enterSupervisorFocus(group);
-          }
+          toggleTeamOverlay(group);
         }
       },
-      buildCard("#14b8a6", true, true)
+      card("#14b8a6", true, true)
     ),
-    $(go.Placeholder, { padding: 20 })
+    $(go.Placeholder, { padding: 10 })
   )
 );
 
 diagram.nodeTemplateMap.add(
   "Worker",
-  $(go.Node, "Auto", buildCard("#e5e7eb", true, false))
+  $(go.Node, "Auto", card("#e5e7eb", true, false))
 );
 
 /* ========================================================================================
-   VENDOR TEMPLATES
+   TEMPLATES VENDORS (SIN CAMBIOS)
    ======================================================================================== */
 diagram.nodeTemplateMap.add(
   "VendorRoot",
-  $(go.Node, "Auto", buildCard("#64748b", false, true))
+  $(go.Node, "Auto", card("#64748b", false, true))
 );
 
 diagram.nodeTemplateMap.add(
   "VendorArea",
-  $(go.Node, "Auto", buildCard("#7c3aed", false, true))
+  $(go.Node, "Auto", card("#7c3aed", false, true))
 );
 
 diagram.nodeTemplateMap.add(
   "VendorItem",
-  $(go.Node, "Auto", buildCard("#e5e7eb", false, false))
+  $(go.Node, "Auto", card("#e5e7eb", false, false))
 );
 
 /* ========================================================================================
-   BUILD TEAM DATA
+   BUILD TEAMS
    ======================================================================================== */
 function buildTeam(rows) {
+
+  hideTeamOverlay();
 
   const nodes = [];
   const links = [];
@@ -343,9 +331,11 @@ function buildTeam(rows) {
 }
 
 /* ========================================================================================
-   BUILD VENDORS DATA
+   BUILD VENDORS
    ======================================================================================== */
 function buildVendors(rows) {
+
+  hideTeamOverlay();
 
   const nodes = [];
   const links = [];
@@ -382,14 +372,14 @@ function buildVendors(rows) {
     links.push({ from: "VENDORS", to: areaKey });
 
     vendors.forEach(v => {
-      const vendorKey = `V_${vendorIdx++}`;
+      const vk = `V_${vendorIdx++}`;
       nodes.push({
-        key: vendorKey,
+        key: vk,
         category: "VendorItem",
         name: `${v["First name (required)"]} ${v["Last name (required)"]}`.trim(),
         role: v.Position || ""
       });
-      links.push({ from: areaKey, to: vendorKey });
+      links.push({ from: areaKey, to: vk });
     });
   });
 
@@ -410,8 +400,8 @@ Papa.parse("team.csv", {
   header: true,
   delimiter: ";",
   complete: r => {
-    APP_STATE.teamData = r.data;
-    buildTeam(APP_STATE.teamData);
+    TEAM_DATA = r.data;
+    buildTeam(TEAM_DATA);
   }
 });
 
@@ -420,12 +410,12 @@ Papa.parse("vendors.csv", {
   header: true,
   delimiter: ";",
   complete: r => {
-    APP_STATE.vendorData = r.data;
+    VENDOR_DATA = r.data;
   }
 });
 
 /* ========================================================================================
    BOTONES
    ======================================================================================== */
-document.getElementById("btnTeams").onclick = () => buildTeam(APP_STATE.teamData);
-document.getElementById("btnVendorsDept").onclick = () => buildVendors(APP_STATE.vendorData);
+document.getElementById("btnTeams").onclick = () => buildTeam(TEAM_DATA);
+document.getElementById("btnVendorsDept").onclick = () => buildVendors(VENDOR_DATA);
