@@ -1,7 +1,8 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL (WORKDAY-LIKE)
- *  - Teams con overlay flotante
- *  - Vendors sin cambios
+ *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL (WORKDAY-LIKE REAL)
+ *  - Teams con overlay flotante (workers fuera del árbol)
+ *  - Zoom funcional
+ *  - Vendors intactos
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -33,7 +34,7 @@ const DEFAULT_AVATAR =
 `);
 
 /* ========================================================================================
-   ESTADO
+   ESTADO GLOBAL
    ======================================================================================== */
 let TEAM_OVERLAY = null;
 let ACTIVE_SUPERVISOR = null;
@@ -121,7 +122,7 @@ function card(stroke, withPhoto, showCount) {
 }
 
 /* ========================================================================================
-   TEAM OVERLAY (WORKDAY STYLE)
+   TEAM OVERLAY (WORKDAY-LIKE)
    ======================================================================================== */
 function hideTeamOverlay() {
   if (TEAM_OVERLAY) {
@@ -133,20 +134,12 @@ function hideTeamOverlay() {
 
 function buildTeamOverlay(supervisorGroup) {
 
-  const workers = [];
-
-  supervisorGroup.memberParts.each(p => {
-    if (p.category === "Worker") {
-      workers.push(p.data);
-    }
-  });
+  const workers = supervisorGroup.data.workers || [];
 
   const gridPanel = $(
     go.Panel,
     "Auto",
-    {
-      maxSize: new go.Size(UI.overlayMaxWidth, UI.overlayMaxHeight)
-    },
+    { maxSize: new go.Size(UI.overlayMaxWidth, UI.overlayMaxHeight) },
     $(
       go.Panel,
       "Grid",
@@ -247,11 +240,6 @@ diagram.groupTemplateMap.add(
   )
 );
 
-diagram.nodeTemplateMap.add(
-  "Worker",
-  $(go.Node, "Auto", card("#e5e7eb", true, false))
-);
-
 /* ========================================================================================
    TEMPLATES VENDORS (SIN CAMBIOS)
    ======================================================================================== */
@@ -271,7 +259,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   BUILD TEAMS
+   BUILD TEAMS (WORKERS FUERA DEL MODELO)
    ======================================================================================== */
 function buildTeam(rows) {
 
@@ -309,21 +297,18 @@ function buildTeam(rows) {
       role: s.Position || "",
       image: resolveImage(s),
       count: workers.length,
-      hasChildren: workers.length > 0
-    });
+      hasChildren: workers.length > 0,
 
-    links.push({ from: leader.id, to: s.id });
-
-    workers.forEach(w => {
-      nodes.push({
+      // 🔥 CLAVE: los workers NO entran al layout
+      workers: workers.map(w => ({
         key: w.id,
-        category: "Worker",
-        group: s.id,
         name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
         role: w.Position || "",
         image: resolveImage(w)
-      });
+      }))
     });
+
+    links.push({ from: leader.id, to: s.id });
   });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
