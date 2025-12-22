@@ -1,5 +1,5 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL (WORKDAY-LIKE REAL — FINAL SIN ERRORES)
+ *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL (WORKDAY-LIKE REAL — FIX DEFINITIVO)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -85,7 +85,7 @@ function photo() {
   );
 }
 
-function card(stroke, withPhoto, showCount) {
+function card(stroke, withPhoto) {
   return $(
     go.Panel, "Auto",
     $(go.Shape, "RoundedRectangle", {
@@ -109,7 +109,7 @@ function card(stroke, withPhoto, showCount) {
 }
 
 /* ========================================================================================
-   TEAM OVERLAY
+   TEAM OVERLAY — FIX REAL
    ======================================================================================== */
 function hideTeamOverlay() {
   if (TEAM_OVERLAY) {
@@ -123,20 +123,21 @@ function buildTeamOverlay(supervisorGroup) {
 
   const workers = supervisorGroup.data.workers || [];
 
-  const workersPanel = $(
-    go.Panel,
-    {
-      itemTemplate:
-        $(go.Panel, "Auto",   // ✅ PANEL, NO NODE
-          card("#e5e7eb", true, false)
-        ),
-      itemArray: workers,
-      layout: $(go.GridLayout, {
-        wrappingColumn: UI.workerColumns,
-        spacing: new go.Size(UI.workerSpacing, UI.workerSpacing)
-      })
-    }
-  );
+  // PANEL GRID (ÚNICO lugar donde existe GridLayout)
+  const workersGrid =
+    $(go.Panel,
+      {
+        layout: $(go.GridLayout, {
+          wrappingColumn: UI.workerColumns,
+          spacing: new go.Size(UI.workerSpacing, UI.workerSpacing)
+        }),
+        itemTemplate:
+          $(go.Panel, "Auto",
+            card("#e5e7eb", true)
+          ),
+        itemArray: workers
+      }
+    );
 
   return $(
     go.Part,
@@ -166,7 +167,7 @@ function buildTeamOverlay(supervisorGroup) {
         go.Panel,
         "Auto",
         { maxSize: new go.Size(UI.overlayMaxWidth, UI.overlayMaxHeight) },
-        workersPanel
+        workersGrid
       )
     )
   );
@@ -195,7 +196,7 @@ function toggleTeamOverlay(supervisorGroup) {
    ======================================================================================== */
 diagram.nodeTemplateMap.add(
   "Leader",
-  $(go.Node, "Auto", card("#2563eb", true, true))
+  $(go.Node, "Auto", card("#2563eb", true))
 );
 
 diagram.groupTemplateMap.add(
@@ -219,7 +220,7 @@ diagram.groupTemplateMap.add(
           toggleTeamOverlay(group);
         }
       },
-      card("#14b8a6", true, true)
+      card("#14b8a6", true)
     ),
     $(go.Placeholder, { padding: 10 })
   )
