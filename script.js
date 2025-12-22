@@ -1,5 +1,5 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL (WORKDAY-LIKE REAL — FIXED)
+ *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL (WORKDAY-LIKE REAL — FINAL FIX)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -12,7 +12,7 @@ const UI = {
   cardMargin: 12,
   workerColumns: 6,
   workerSpacing: 24,
-  overlayMaxWidth: 950,
+  overlayMaxWidth: 960,
   overlayMaxHeight: 420
 };
 
@@ -119,7 +119,7 @@ function card(stroke, withPhoto, showCount) {
 }
 
 /* ========================================================================================
-   TEAM OVERLAY (FIX REAL)
+   TEAM OVERLAY (WORKDAY REAL)
    ======================================================================================== */
 function hideTeamOverlay() {
   if (TEAM_OVERLAY) {
@@ -136,17 +136,16 @@ function buildTeamOverlay(supervisorGroup) {
   const workersPanel = $(
     go.Panel,
     {
+      itemTemplate:
+        $(go.Node, "Auto",
+          card("#e5e7eb", true, false)
+        ),
+      itemArray: workers,
       layout: $(go.GridLayout, {
         wrappingColumn: UI.workerColumns,
         spacing: new go.Size(UI.workerSpacing, UI.workerSpacing)
       })
-    },
-    ...workers.map(w =>
-      $(go.Node, "Auto",
-        card("#e5e7eb", true, false),
-        { data: w }
-      )
-    )
+    }
   );
 
   return $(
@@ -255,7 +254,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   BUILD TEAMS (WORKERS FUERA DEL MODELO)
+   BUILD TEAMS
    ======================================================================================== */
 function buildTeam(rows) {
 
@@ -295,7 +294,6 @@ function buildTeam(rows) {
       count: workers.length,
       hasChildren: workers.length > 0,
       workers: workers.map(w => ({
-        key: w.id,
         name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
         role: w.Position || "",
         image: resolveImage(w)
