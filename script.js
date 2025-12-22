@@ -314,46 +314,49 @@ document.getElementById("btnTeams").onclick = () => buildTeam(TEAM_DATA);
 document.getElementById("btnVendorsDept").onclick = () => buildVendors(VENDOR_DATA);
 
 /* ======================================================
-   CONTROLES UI (ZOOM / FIT / FULLSCREEN)
+   CONTROLES UI (ZOOM / FIT / FULLSCREEN) — DEFINITIVO
    ====================================================== */
 
 // Zoom +
 const btnZoomIn = document.getElementById("btnZoomIn");
 if (btnZoomIn) {
-  btnZoomIn.onclick = () => {
-    diagram.commandHandler.increaseZoom();
-  };
+  btnZoomIn.addEventListener("click", () => {
+    if (diagram) diagram.commandHandler.increaseZoom();
+  });
 }
 
 // Zoom -
 const btnZoomOut = document.getElementById("btnZoomOut");
 if (btnZoomOut) {
-  btnZoomOut.onclick = () => {
-    diagram.commandHandler.decreaseZoom();
-  };
+  btnZoomOut.addEventListener("click", () => {
+    if (diagram) diagram.commandHandler.decreaseZoom();
+  });
 }
 
-// Ajustar a pantalla (Fit)
+// Ajustar a pantalla
 const btnFit = document.getElementById("btnFit");
 if (btnFit) {
-  btnFit.onclick = () => {
+  btnFit.addEventListener("click", () => {
+    if (!diagram) return;
     diagram.commandHandler.zoomToFit();
     diagram.alignDocument(go.Spot.Center, go.Spot.Center);
-  };
+  });
 }
 
-// Pantalla completa (HTML Fullscreen API)
+// Pantalla completa
 const btnFull = document.getElementById("btnFull");
 const wrapper = document.getElementById("diagramWrapper");
 
 if (btnFull && wrapper) {
-  btnFull.onclick = () => {
+  btnFull.addEventListener("click", () => {
     if (!document.fullscreenElement) {
-      wrapper.requestFullscreen().catch(err => {
-        console.error("Error al entrar en pantalla completa:", err);
-      });
+      wrapper.requestFullscreen()
+        .then(() => {
+          if (diagram) diagram.commandHandler.zoomToFit();
+        })
+        .catch(err => console.error("Fullscreen error:", err));
     } else {
       document.exitFullscreen();
     }
-  };
+  });
 }
