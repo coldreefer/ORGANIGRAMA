@@ -89,7 +89,10 @@ function card(stroke, withPhoto, showCount) {
               margin: new go.Margin(6, 0, 0, 0),
               font: "10px sans-serif",
               stroke: "#64748b"
-            }, new go.Binding("text", "count", c => `👤 ${c}`))
+            },
+            new go.Binding("visible", "count", c => c > 0),
+            new go.Binding("text", "count", c => `👤 ${c}`)
+          )
           : $(go.Panel)
       )
     )
@@ -105,14 +108,28 @@ diagram.nodeTemplateMap.add("Leader",
 
 diagram.groupTemplateMap.add("Supervisor",
   $(go.Group, "Vertical",
+    new go.Binding("isSubGraphExpanded", "hasChildren", h => false),
+    new go.Binding("selectable", "hasChildren"),
+    new go.Binding("pickable", "hasChildren"),
+
     {
-      isSubGraphExpanded: false,
-      layout: $(go.TreeLayout, { angle: 90, nodeSpacing: 20, layerSpacing: 30 })
+      layout: $(go.TreeLayout, {
+        angle: 90,
+        nodeSpacing: 20,
+        layerSpacing: 30
+      })
     },
-    $(go.Panel, "Auto",
+
+    $(
+      go.Panel, "Auto",
       {
-        cursor: "pointer",
+        cursor: "pointer"
+      },
+      // CLICK SOLO SI TIENE HIJOS
+      new go.Binding("cursor", "hasChildren", h => h ? "pointer" : "default"),
+      {
         click: (e, p) => {
+          if (!p.part.data.hasChildren) return;
           diagram.startTransaction("toggle");
           p.part.isSubGraphExpanded = !p.part.isSubGraphExpanded;
           diagram.commitTransaction("toggle");
@@ -120,12 +137,13 @@ diagram.groupTemplateMap.add("Supervisor",
       },
       card("#14b8a6", true, true)
     ),
-    $(go.Placeholder, { padding: 14 })
-  )
-);
 
-diagram.nodeTemplateMap.add("Worker",
-  $(go.Node, "Auto", card("#e5e7eb", true, false))
+    // PLACEHOLDER SOLO SI TIENE HIJOS
+    $(go.Placeholder,
+      { padding: 14 },
+      new go.Binding("visible", "hasChildren")
+    )
+  )
 );
 
 /* ======================================================
@@ -200,12 +218,13 @@ function buildTeam(rows) {
 
     nodes.push({
       key: s.id,
-      isGroup: true,
+      isGroup: workers.length > 0,   // 👈 SOLO es grupo si tiene hijos
       category: "Supervisor",
       name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
       role: s.Position || "",
       image: resolveImage(s),
-      count: workers.length
+      count: workers.length,
+      hasChildren: workers.length > 0 // 👈 flag explícito
     });
 
     links.push({ from: leader.id, to: s.id });
