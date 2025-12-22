@@ -1,7 +1,7 @@
 const $ = go.GraphObject.make;
 
 /* ======================================================
-   CONFIG GENERAL
+   CONFIG
    ====================================================== */
 const DEFAULT_AVATAR =
   "data:image/svg+xml;utf8," +
@@ -14,6 +14,14 @@ const DEFAULT_AVATAR =
   </svg>
 `);
 
+function resolveImage(row) {
+  if (!row.ImageID) return DEFAULT_AVATAR;
+  return `./images/${row.ImageID}.jpg`; // ← AJUSTA RUTA SI ES NECESARIO
+}
+
+/* ======================================================
+   DIAGRAM
+   ====================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
   allowMove: false,
@@ -22,14 +30,13 @@ const diagram = $(go.Diagram, "diagramDiv", {
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.4,
   maxScale: 2.5,
-  scrollMode: go.Diagram.InfiniteScroll,
   "animationManager.isEnabled": true,
-  "animationManager.duration": 250,
+  "animationManager.duration": 300,
   "undoManager.isEnabled": false
 });
 
 /* ======================================================
-   LINKS LIMPIOS (SIN FLECHAS)
+   LINKS LIMPIOS
    ====================================================== */
 diagram.linkTemplate = $(
   go.Link,
@@ -38,19 +45,19 @@ diagram.linkTemplate = $(
 );
 
 /* ======================================================
-   FOTO CUADRADA
+   FOTO
    ====================================================== */
 function photo() {
   return $(go.Picture, {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     margin: new go.Margin(0, 10, 0, 0),
     imageStretch: go.GraphObject.UniformToFill
   }, new go.Binding("source", "image"));
 }
 
 /* ======================================================
-   CARD BASE
+   CARD
    ====================================================== */
 function card(stroke, withPhoto, showCount) {
   return $(
@@ -66,14 +73,10 @@ function card(stroke, withPhoto, showCount) {
       withPhoto ? photo() : $(go.Panel),
       $(
         go.Panel, "Vertical",
-        $(go.TextBlock, {
-          font: "bold 13px sans-serif",
-          stroke: "#0f172a"
-        }, new go.Binding("text", "name")),
-        $(go.TextBlock, {
-          font: "11px sans-serif",
-          stroke: "#475569"
-        }, new go.Binding("text", "role")),
+        $(go.TextBlock, { font: "bold 13px sans-serif" },
+          new go.Binding("text", "name")),
+        $(go.TextBlock, { font: "11px sans-serif", stroke: "#475569" },
+          new go.Binding("text", "role")),
         showCount
           ? $(go.TextBlock, {
               margin: new go.Margin(6, 0, 0, 0),
@@ -123,8 +126,21 @@ diagram.nodeTemplateMap.add("Worker",
 );
 
 /* ======================================================
-   VENDOR TEMPLATES (GROUP + ANIMACIÓN)
+   VENDOR TEMPLATES (GROUP ROOT)
    ====================================================== */
+diagram.groupTemplateMap.add("VendorRoot",
+  $(go.Group, "Auto",
+    {
+      layout: $(go.TreeLayout, {
+        angle: 0,
+        nodeSpacing: 40,
+        layerSpacing: 120
+      })
+    },
+    $(go.Placeholder, { padding: 20 })
+  )
+);
+
 diagram.groupTemplateMap.add("VendorDept",
   $(go.Group, "Vertical",
     {
@@ -168,7 +184,7 @@ function buildTeam(rows) {
     category: "Leader",
     name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
     role: leader.Position || "",
-    image: leader.Image || DEFAULT_AVATAR,
+    image: resolveImage(leader),
     count: people.length - 1
   });
 
@@ -182,7 +198,7 @@ function buildTeam(rows) {
         category: "Supervisor",
         name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
         role: s.Position || "",
-        image: s.Image || DEFAULT_AVATAR,
+        image: resolveImage(s),
         count: workers.length
       });
 
@@ -195,37 +211,34 @@ function buildTeam(rows) {
           group: s.id,
           name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
           role: w.Position || "",
-          image: w.Image || DEFAULT_AVATAR
+          image: resolveImage(w)
         });
       });
     }
   });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
-  diagram.layout = $(go.TreeLayout, {
-    angle: 90,
-    layerSpacing: 90
-  });
+  diagram.layout = $(go.TreeLayout, { angle: 90, layerSpacing: 90 });
 }
 
 /* ======================================================
-   BUILD VENDORS (HORIZONTAL + EXPAND)
+   BUILD VENDORS (HORIZONTAL REAL)
    ====================================================== */
 function buildVendors(rows) {
   const nodes = [];
   const links = [];
 
   nodes.push({
-    key: "VENDORS",
+    key: "VENDORS_ROOT",
     isGroup: true,
-    category: "VendorDept",
+    category: "VendorRoot",
     name: "Vendors",
     count: rows.length
   });
 
   const depts = {};
   rows.forEach(v => {
-    if (!v.Department) return; // ❌ no inventamos áreas
+    if (!v.Department) return;
     if (!depts[v.Department]) depts[v.Department] = [];
     depts[v.Department].push(v);
   });
@@ -235,23 +248,19 @@ function buildVendors(rows) {
     nodes.push({
       key: dk,
       isGroup: true,
+      group: "VENDORS_ROOT",
       category: "VendorDept",
       name: dept,
       count: list.length
     });
-    links.push({ from: "VENDORS", to: dk });
+    links.push({ from: "VENDORS_ROOT", to: dk });
   });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
-  diagram.layout = $(go.TreeLayout, {
-    angle: 0,               // 👈 HORIZONTAL REAL
-    nodeSpacing: 40,
-    layerSpacing: 120
-  });
 }
 
 /* ======================================================
-   LOAD CSV + BOTONES
+   LOAD + BOTONES
    ====================================================== */
 let TEAM_DATA = [];
 let VENDOR_DATA = [];
@@ -268,10 +277,5 @@ Papa.parse("vendors.csv", {
   complete: r => VENDOR_DATA = r.data
 });
 
-document.getElementById("btnTeams")?.addEventListener("click", () => {
-  buildTeam(TEAM_DATA);
-});
-
-document.getElementById("btnVendorsDept")?.addEventListener("click", () => {
-  buildVendors(VENDOR_DATA);
-});
+document.getElementById("btnTeams")?.onclick = () => buildTeam(TEAM_DATA);
+document.getElementById("btnVendorsDept")?.onclick = () => buildVendors(VENDOR_DATA);
