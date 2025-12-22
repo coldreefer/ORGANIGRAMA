@@ -1,7 +1,7 @@
 const $ = go.GraphObject.make;
 
 /* ======================================================
-   CONFIG
+   CONFIG GENERAL
    ====================================================== */
 const DEFAULT_AVATAR =
   "data:image/svg+xml;utf8," +
@@ -15,15 +15,12 @@ const DEFAULT_AVATAR =
 `);
 
 /* ======================================================
-   IMAGE RESOLVER (FIX REAL)
+   IMAGE RESOLVER (SOLO TEAMS)
    ====================================================== */
 function resolveImage(row) {
   if (!row || !row.ImageURL) return DEFAULT_AVATAR;
-
   const url = row.ImageURL.toString().trim();
-  if (!url) return DEFAULT_AVATAR;
-
-  return url; // URL directa desde CSV
+  return url || DEFAULT_AVATAR;
 }
 
 /* ======================================================
@@ -51,7 +48,7 @@ diagram.linkTemplate = $(
 );
 
 /* ======================================================
-   FOTO
+   FOTO (TEAMS)
    ====================================================== */
 function photo() {
   return $(
@@ -132,48 +129,48 @@ diagram.nodeTemplateMap.add("Worker",
 );
 
 /* ======================================================
-   VENDOR TEMPLATES (HORIZONTAL SIEMPRE)
+   VENDOR TEMPLATES
    ====================================================== */
-diagram.groupTemplateMap.add("VendorRoot",
-  $(go.Group, "Auto",
+
+// Root Vendors (cima)
+diagram.nodeTemplateMap.add("VendorRoot",
+  $(go.Node, "Auto",
     {
-      layout: $(go.TreeLayout, {
-        angle: 0,
-        nodeSpacing: 40,
-        layerSpacing: 120
-      })
+      isTreeExpanded: false,
+      cursor: "pointer",
+      click: (e, p) => {
+        diagram.startTransaction("toggleRoot");
+        p.isTreeExpanded = !p.isTreeExpanded;
+        diagram.commitTransaction("toggleRoot");
+      }
     },
-    $(go.Placeholder, { padding: 20 })
+    card("#64748b", false, true)
   )
 );
 
-diagram.groupTemplateMap.add("VendorDept",
-  $(go.Group, "Auto",
+// Área (Box / Inspección / Lavado / Reefer)
+diagram.nodeTemplateMap.add("VendorArea",
+  $(go.Node, "Auto",
     {
-      isSubGraphExpanded: false,
-      layout: $(go.TreeLayout, {
-        angle: 0,
-        nodeSpacing: 30,
-        layerSpacing: 40
-      })
+      isTreeExpanded: false,
+      cursor: "pointer",
+      click: (e, p) => {
+        diagram.startTransaction("toggleArea");
+        p.isTreeExpanded = !p.isTreeExpanded;
+        diagram.commitTransaction("toggleArea");
+      }
     },
-    $(go.Panel, "Auto",
-      {
-        cursor: "pointer",
-        click: (e, p) => {
-          diagram.startTransaction("toggleVendor");
-          p.part.isSubGraphExpanded = !p.part.isSubGraphExpanded;
-          diagram.commitTransaction("toggleVendor");
-        }
-      },
-      card("#7c3aed", false, true)
-    ),
-    $(go.Placeholder, { padding: 14 })
+    card("#7c3aed", false, true)
   )
+);
+
+// Vendor final (sin hijos)
+diagram.nodeTemplateMap.add("VendorItem",
+  $(go.Node, "Auto", card("#e5e7eb", false, false))
 );
 
 /* ======================================================
-   BUILD TEAM
+   BUILD TEAMS
    ====================================================== */
 function buildTeam(rows) {
   const nodes = [];
@@ -185,42 +182,42 @@ function buildTeam(rows) {
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
 
+  const supervisors = people.filter(p => p["SupervisorEmail (required)"] === leader.id);
+
   nodes.push({
     key: leader.id,
     category: "Leader",
     name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
     role: leader.Position || "",
     image: resolveImage(leader),
-    count: people.filter(p => p["SupervisorEmail (required)"] === leader.id).length
+    count: supervisors.length
   });
 
-  people.forEach(s => {
-    if (s["SupervisorEmail (required)"] === leader.id) {
-      const workers = people.filter(w => w["SupervisorEmail (required)"] === s.id);
+  supervisors.forEach(s => {
+    const workers = people.filter(w => w["SupervisorEmail (required)"] === s.id);
 
+    nodes.push({
+      key: s.id,
+      isGroup: true,
+      category: "Supervisor",
+      name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
+      role: s.Position || "",
+      image: resolveImage(s),
+      count: workers.length
+    });
+
+    links.push({ from: leader.id, to: s.id });
+
+    workers.forEach(w => {
       nodes.push({
-        key: s.id,
-        isGroup: true,
-        category: "Supervisor",
-        name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
-        role: s.Position || "",
-        image: resolveImage(s),
-        count: workers.length
+        key: w.id,
+        category: "Worker",
+        group: s.id,
+        name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
+        role: w.Position || "",
+        image: resolveImage(w)
       });
-
-      links.push({ from: leader.id, to: s.id });
-
-      workers.forEach(w => {
-        nodes.push({
-          key: w.id,
-          category: "Worker",
-          group: s.id,
-          name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
-          role: w.Position || "",
-          image: resolveImage(w)
-        });
-      });
-    }
+    });
   });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
@@ -228,45 +225,67 @@ function buildTeam(rows) {
 }
 
 /* ======================================================
-   BUILD VENDORS
+   BUILD VENDORS (HORIZONTAL + DOWNWARD)
    ====================================================== */
 function buildVendors(rows) {
   const nodes = [];
   const links = [];
 
+  // Root
   nodes.push({
-    key: "VENDORS_ROOT",
-    isGroup: true,
+    key: "VENDORS",
     category: "VendorRoot",
     name: "Vendors",
     count: rows.length
   });
 
-  const depts = {};
+  // Agrupar por área
+  const byDept = {};
   rows.forEach(v => {
     if (!v.Department) return;
-    if (!depts[v.Department]) depts[v.Department] = [];
-    depts[v.Department].push(v);
+    if (!byDept[v.Department]) byDept[v.Department] = [];
+    byDept[v.Department].push(v);
   });
 
-  Object.entries(depts).forEach(([dept, list], i) => {
-    const dk = `D_${i}`;
+  let areaIdx = 0;
+  let vendorIdx = 0;
+
+  Object.entries(byDept).forEach(([dept, vendors]) => {
+    const areaKey = `AREA_${areaIdx++}`;
+
     nodes.push({
-      key: dk,
-      isGroup: true,
-      group: "VENDORS_ROOT",
-      category: "VendorDept",
+      key: areaKey,
+      category: "VendorArea",
       name: dept,
-      count: list.length
+      count: vendors.length
     });
-    links.push({ from: "VENDORS_ROOT", to: dk });
+
+    links.push({ from: "VENDORS", to: areaKey });
+
+    vendors.forEach(v => {
+      const vendorKey = `V_${vendorIdx++}`;
+
+      nodes.push({
+        key: vendorKey,
+        category: "VendorItem",
+        name: `${v["First name (required)"]} ${v["Last name (required)"]}`.trim(),
+        role: v.Position || ""
+      });
+
+      links.push({ from: areaKey, to: vendorKey });
+    });
   });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
+  diagram.layout = $(go.TreeLayout, {
+    angle: 90,          // ARRIBA → ABAJO
+    layerSpacing: 70,
+    nodeSpacing: 30
+  });
 }
 
 /* ======================================================
-   LOAD
+   LOAD CSV
    ====================================================== */
 let TEAM_DATA = [];
 let VENDOR_DATA = [];
@@ -285,5 +304,8 @@ Papa.parse("vendors.csv", {
   complete: r => VENDOR_DATA = r.data
 });
 
+/* ======================================================
+   BUTTONS
+   ====================================================== */
 document.getElementById("btnTeams").onclick = () => buildTeam(TEAM_DATA);
 document.getElementById("btnVendorsDept").onclick = () => buildVendors(VENDOR_DATA);
