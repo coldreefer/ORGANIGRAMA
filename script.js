@@ -9,219 +9,221 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowCopy: false,
   allowSelect: false,
   mouseWheelBehavior: go.Diagram.Zoom,
-  minScale: 0.35,
-  maxScale: 2.5,
-  scrollMode: go.Diagram.InfiniteScroll,
-  "animationManager.isEnabled": true,
+  minScale: 0.4,
+  maxScale: 2,
   "undoManager.isEnabled": false
 });
 
 /* ======================================================
-   HELPERS
+   LINK TEMPLATE (SIN FLECHAS)
    ====================================================== */
-function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
-
-function goToNodeByKey(k){
-  const n = diagram.findNodeForKey(k);
-  if(n) diagram.centerRect(n.actualBounds);
-}
-
-function showOnlyRoot(rootKey){
-  diagram.startTransaction("view");
-  diagram.nodes.each(n=>{
-    let v=false;
-    if(n.key===rootKey) v=true;
-    else if(n.data.group===rootKey) v=true;
-    else if(n.containingGroup && n.containingGroup.key===rootKey) v=true;
-    n.visible=v;
-  });
-  diagram.commitTransaction("view");
-  setTimeout(()=>goToNodeByKey(rootKey),80);
-}
+diagram.linkTemplate = $(
+  go.Link,
+  { routing: go.Link.Orthogonal, corner: 6 },
+  $(go.Shape, { stroke: "#94a3b8", strokeWidth: 1.5 })
+);
 
 /* ======================================================
    CARD BASE
    ====================================================== */
-function card(stroke, showCount=true){
-  return $(go.Panel,"Auto",
-    $(go.Shape,"RoundedRectangle",{fill:"white",stroke,strokeWidth:2}),
-    $(go.Panel,"Vertical",{margin:10},
-      $(go.TextBlock,{font:"bold 13px sans-serif"},
-        new go.Binding("text","name")),
-      $(go.TextBlock,{font:"11px sans-serif",stroke:"#475569"},
-        new go.Binding("text","role")),
+function card(stroke, showCount = true) {
+  return $(
+    go.Panel,
+    "Auto",
+    $(go.Shape, "RoundedRectangle", {
+      fill: "white",
+      stroke,
+      strokeWidth: 2
+    }),
+    $(
+      go.Panel,
+      "Vertical",
+      { margin: 10 },
+      $(go.TextBlock, {
+        font: "bold 13px sans-serif",
+        stroke: "#0f172a",
+        alignment: go.Spot.Center
+      }, new go.Binding("text", "name")),
+      $(go.TextBlock, {
+        font: "11px sans-serif",
+        stroke: "#475569",
+        alignment: go.Spot.Center
+      }, new go.Binding("text", "role")),
       showCount
-        ? $(go.TextBlock,{font:"10px sans-serif",stroke:"#64748b",margin:new go.Margin(6,0,0,0)},
-            new go.Binding("text","count",c=>`👤 ${c||0}`))
+        ? $(go.TextBlock, {
+            margin: new go.Margin(6, 0, 0, 0),
+            font: "10px sans-serif",
+            stroke: "#64748b",
+            alignment: go.Spot.Center
+          }, new go.Binding("text", "count", c => `👤 ${c}`))
         : $(go.Panel)
     )
   );
 }
 
 /* ======================================================
-   TEAM TEMPLATES
+   NODE TEMPLATES
    ====================================================== */
 diagram.nodeTemplateMap.add("Leader",
-  $(go.Node,"Auto",card("#2563eb"))
+  $(go.Node, "Auto", card("#2563eb"))
+);
+
+diagram.nodeTemplateMap.add("Supervisor",
+  $(go.Node, "Auto", card("#14b8a6"))
 );
 
 diagram.nodeTemplateMap.add("Worker",
-  $(go.Node,"Auto",card("#e5e7eb",false))
+  $(go.Node, "Auto", card("#e5e7eb", false))
 );
 
-diagram.groupTemplateMap.add("Supervisor",
-  $(go.Group,"Vertical",
-    {
-      isSubGraphExpanded:false,
-      layout:$(go.TreeLayout,{angle:90,nodeSpacing:16,layerSpacing:30})
-    },
-    new go.Binding("isSubGraphExpanded").makeTwoWay(),
-    $(go.Panel,"Auto",{cursor:"pointer",click:(e,p)=>{
-      diagram.startTransaction("t");
-      p.part.isSubGraphExpanded=!p.part.isSubGraphExpanded;
-      diagram.commitTransaction("t");
-    }},card("#14b8a6")),
-    $(go.Placeholder,{padding:14})
-  )
+diagram.nodeTemplateMap.add("VendorRoot",
+  $(go.Node, "Auto", card("#7c3aed"))
 );
 
-diagram.groupTemplateMap.add("EMR_ROOT",
-  $(go.Group,"Auto",
-    { layout:$(go.TreeLayout,{angle:90,nodeSpacing:30,layerSpacing:90}) },
-    $(go.Placeholder,{padding:20})
-  )
+diagram.nodeTemplateMap.add("VendorDept",
+  $(go.Node, "Auto", card("#7c3aed"))
 );
 
 /* ======================================================
-   VENDORS TEMPLATES (CON LÍNEAS, SIN IMÁGENES)
+   TEAM LAYOUT (VERTICAL)
    ====================================================== */
-diagram.groupTemplateMap.add("VendorRoot",
-  $(go.Group,"Auto",
-    { layout:$(go.TreeLayout,{angle:90,nodeSpacing:30,layerSpacing:70}) },
-    $(go.Placeholder,{padding:20})
-  )
-);
+const teamLayout = $(go.TreeLayout, {
+  angle: 90,
+  nodeSpacing: 30,
+  layerSpacing: 90,
+  alignment: go.TreeLayout.AlignmentCenterChildren
+});
 
-diagram.groupTemplateMap.add("VendorDept",
-  $(go.Group,"Vertical",
-    {
-      isSubGraphExpanded:false,
-      layout:$(go.TreeLayout,{angle:90,nodeSpacing:14,layerSpacing:24})
-    },
-    new go.Binding("isSubGraphExpanded").makeTwoWay(),
-    $(go.Panel,"Auto",{cursor:"pointer",click:(e,p)=>{
-      diagram.startTransaction("t");
-      p.part.isSubGraphExpanded=!p.part.isSubGraphExpanded;
-      diagram.commitTransaction("t");
-    }},card("#7c3aed")),
-    $(go.Placeholder,{padding:12})
-  )
-);
-
-diagram.nodeTemplateMap.add("VendorCompany",
-  $(go.Node,"Auto",card("#e5e7eb",false))
-);
+/* ======================================================
+   VENDOR LAYOUT (HORIZONTAL)
+   ====================================================== */
+const vendorLayout = $(go.TreeLayout, {
+  angle: 0,
+  nodeSpacing: 40,
+  layerSpacing: 120,
+  alignment: go.TreeLayout.AlignmentCenterChildren
+});
 
 /* ======================================================
    BUILD TEAM
    ====================================================== */
-function buildTeam(rows){
-  const people=rows.filter(r=>r["First name (required)"]);
-  people.forEach((p,i)=>p.__id="T_"+i);
+function buildTeam(rows) {
+  const nodes = [];
+  const links = [];
 
-  const nodes=[],links=[];
-  const leader=people.find(p=>!p["SupervisorEmail (required)"]);
-  if(!leader) return;
+  const people = rows.filter(r => r["First name (required)"]);
+  people.forEach((p, i) => p.id = "T_" + i);
 
-  nodes.push({key:"EMR_ROOT",isGroup:true,category:"EMR_ROOT"});
+  const leader = people.find(p => !p["SupervisorEmail (required)"]);
+  if (!leader) return;
 
   nodes.push({
-    key:leader.__id,category:"Leader",group:"EMR_ROOT",
-    name:`${leader["First name (required)"]} ${leader["Last name (required)"]}`,
-    role:leader.Position||"",count:people.length-1
+    key: leader.id,
+    category: "Leader",
+    name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
+    role: leader.Position || "",
+    count: people.length - 1
   });
 
-  people.forEach(s=>{
-    if(s["SupervisorEmail (required)"]===leader["Email (required)"]){
-      const workers=people.filter(w=>w["SupervisorEmail (required)"]===s["Email (required)"]);
+  people.forEach(p => {
+    if (p["SupervisorEmail (required)"] === leader["Email (required)"]) {
+      const subs = people.filter(w => w["SupervisorEmail (required)"] === p["Email (required)"]);
+
       nodes.push({
-        key:s.__id,isGroup:true,category:"Supervisor",group:"EMR_ROOT",
-        name:`${s["First name (required)"]} ${s["Last name (required)"]}`,
-        role:s.Position||"",count:workers.length
+        key: p.id,
+        category: "Supervisor",
+        name: `${p["First name (required)"]} ${p["Last name (required)"]}`,
+        role: p.Position || "",
+        count: subs.length
       });
-      links.push({from:leader.__id,to:s.__id});
-      workers.forEach(w=>{
+
+      links.push({ from: leader.id, to: p.id });
+
+      subs.forEach(w => {
         nodes.push({
-          key:w.__id,category:"Worker",group:s.__id,
-          name:`${w["First name (required)"]} ${w["Last name (required)"]}`,
-          role:w.Position||""
+          key: w.id,
+          category: "Worker",
+          name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
+          role: w.Position || ""
         });
-        links.push({from:s.__id,to:w.__id});
+        links.push({ from: p.id, to: w.id });
       });
     }
   });
 
-  diagram.model=new go.GraphLinksModel(nodes,links);
+  diagram.model = new go.GraphLinksModel(nodes, links);
+  diagram.layout = teamLayout;
 }
 
 /* ======================================================
    BUILD VENDORS
    ====================================================== */
-function buildVendors(rows){
-  const m=diagram.model;
+function buildVendors(rows) {
+  const model = new go.GraphLinksModel();
+  const nodes = [];
+  const links = [];
 
-  m.addNodeData({
-    key:"VENDORS_ROOT",isGroup:true,category:"VendorRoot",
-    name:"Vendors",count:rows.length
+  nodes.push({
+    key: "VENDORS",
+    category: "VendorRoot",
+    name: "Vendors",
+    count: rows.length
   });
 
-  const d={};
-  rows.forEach(v=>{
-    if(!d[v.Department]) d[v.Department]=[];
-    d[v.Department].push(v);
+  const depts = {};
+  rows.forEach(v => {
+    if (!depts[v.Department]) depts[v.Department] = [];
+    depts[v.Department].push(v);
   });
 
-  Object.entries(d).forEach(([dept,list],i)=>{
-    const dk="VD_"+i;
-    m.addNodeData({
-      key:dk,isGroup:true,category:"VendorDept",
-      group:"VENDORS_ROOT",name:dept,count:list.length
+  Object.entries(depts).forEach(([dept, list], i) => {
+    const dk = "D_" + i;
+
+    nodes.push({
+      key: dk,
+      category: "VendorDept",
+      name: dept,
+      count: list.length
     });
-    m.addLinkData({from:"VENDORS_ROOT",to:dk});
-    list.forEach((v,j)=>{
-      const vk=`${dk}_${j}`;
-      m.addNodeData({
-        key:vk,category:"VendorCompany",group:dk,
-        name:`${v["First name (required)"]} ${v["Last name (required)"]}`,
-        role:v.Position||""
-      });
-      m.addLinkData({from:dk,to:vk});
-    });
+
+    links.push({ from: "VENDORS", to: dk });
   });
+
+  model.nodeDataArray = nodes;
+  model.linkDataArray = links;
+
+  diagram.model = model;
+  diagram.layout = vendorLayout;
 }
 
 /* ======================================================
-   LOAD
+   LOAD CSV
    ====================================================== */
-Papa.parse("team.csv",{download:true,header:true,complete:r=>{
-  buildTeam(r.data);
-  Papa.parse("vendors.csv",{download:true,header:true,complete:v=>{
-    buildVendors(v.data);
-    showOnlyRoot("EMR_ROOT");
-  }});
-}});
+Papa.parse("team.csv", {
+  download: true,
+  header: true,
+  complete: r => {
+    buildTeam(r.data);
+    Papa.parse("vendors.csv", {
+      download: true,
+      header: true,
+      complete: v => {
+        diagram._vendorsData = v.data;
+      }
+    });
+  }
+});
 
 /* ======================================================
    CONTROLS
    ====================================================== */
-const bt = id => document.getElementById(id);
+const btn = id => document.getElementById(id);
 
-if(bt("btnTeams")) bt("btnTeams").onclick=()=>showOnlyRoot("EMR_ROOT");
-if(bt("btnVendorsDept")) bt("btnVendorsDept").onclick=()=>showOnlyRoot("VENDORS_ROOT");
-if(bt("btnZoomIn")) bt("btnZoomIn").onclick=()=>diagram.scale=clamp(diagram.scale*1.12,diagram.minScale,diagram.maxScale);
-if(bt("btnZoomOut")) bt("btnZoomOut").onclick=()=>diagram.scale=clamp(diagram.scale/1.12,diagram.minScale,diagram.maxScale);
-if(bt("btnFit")) bt("btnFit").onclick=()=>diagram.zoomToFit();
-if(bt("btnFull")) bt("btnFull").onclick=()=>{
-  document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
-  setTimeout(()=>diagram.zoomToFit(),300);
+if (btn("btnTeams")) btn("btnTeams").onclick = () => buildTeam(diagram.model.nodeDataArray || []);
+if (btn("btnVendorsDept")) btn("btnVendorsDept").onclick = () => buildVendors(diagram._vendorsData || []);
+if (btn("btnZoomIn")) btn("btnZoomIn").onclick = () => diagram.scale *= 1.1;
+if (btn("btnZoomOut")) btn("btnZoomOut").onclick = () => diagram.scale /= 1.1;
+if (btn("btnFit")) btn("btnFit").onclick = () => diagram.zoomToFit();
+if (btn("btnFull")) btn("btnFull").onclick = () => {
+  document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
 };
