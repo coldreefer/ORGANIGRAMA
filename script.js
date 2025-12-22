@@ -283,8 +283,6 @@ function buildVendors(rows) {
     arrangement: go.TreeLayout.ArrangementFixedRoots
   });
 
-  const root = diagram.findNodeForKey("VENDORS");
-  if (root) diagram.commandHandler.expandTree(root);
 }
 
 /* ======================================================
@@ -297,7 +295,10 @@ Papa.parse("team.csv", {
   download: true,
   header: true,
   delimiter: ";",
-  complete: r => TEAM_DATA = r.data
+  complete: r => {
+    TEAM_DATA = r.data;
+    buildTeam(TEAM_DATA);   // 👈 TEAMS aparece al cargar la página
+  }
 });
 
 Papa.parse("vendors.csv", {
