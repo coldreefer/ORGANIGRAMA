@@ -1,5 +1,5 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL (WORKDAY-LIKE REAL — FINAL FIX)
+ *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL (WORKDAY-LIKE REAL — FINAL SIN ERRORES)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -102,24 +102,14 @@ function card(stroke, withPhoto, showCount) {
         $(go.TextBlock, { font: "bold 13px sans-serif" },
           new go.Binding("text", "name")),
         $(go.TextBlock, { font: "11px sans-serif", stroke: "#475569" },
-          new go.Binding("text", "role")),
-        showCount
-          ? $(go.TextBlock, {
-              margin: new go.Margin(6, 0, 0, 0),
-              font: "10px sans-serif",
-              stroke: "#64748b"
-            },
-            new go.Binding("visible", "count", c => c > 0),
-            new go.Binding("text", "count", c => `👤 ${c}`)
-          )
-          : $(go.Panel)
+          new go.Binding("text", "role"))
       )
     )
   );
 }
 
 /* ========================================================================================
-   TEAM OVERLAY (WORKDAY REAL)
+   TEAM OVERLAY
    ======================================================================================== */
 function hideTeamOverlay() {
   if (TEAM_OVERLAY) {
@@ -137,7 +127,7 @@ function buildTeamOverlay(supervisorGroup) {
     go.Panel,
     {
       itemTemplate:
-        $(go.Node, "Auto",
+        $(go.Panel, "Auto",   // ✅ PANEL, NO NODE
           card("#e5e7eb", true, false)
         ),
       itemArray: workers,
@@ -236,24 +226,6 @@ diagram.groupTemplateMap.add(
 );
 
 /* ========================================================================================
-   TEMPLATES VENDORS (SIN CAMBIOS)
-   ======================================================================================== */
-diagram.nodeTemplateMap.add(
-  "VendorRoot",
-  $(go.Node, "Auto", card("#64748b", false, true))
-);
-
-diagram.nodeTemplateMap.add(
-  "VendorArea",
-  $(go.Node, "Auto", card("#7c3aed", false, true))
-);
-
-diagram.nodeTemplateMap.add(
-  "VendorItem",
-  $(go.Node, "Auto", card("#e5e7eb", false, false))
-);
-
-/* ========================================================================================
    BUILD TEAMS
    ======================================================================================== */
 function buildTeam(rows) {
@@ -276,8 +248,7 @@ function buildTeam(rows) {
     category: "Leader",
     name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
     role: leader.Position || "",
-    image: resolveImage(leader),
-    count: supervisors.length
+    image: resolveImage(leader)
   });
 
   supervisors.forEach(s => {
@@ -291,7 +262,6 @@ function buildTeam(rows) {
       name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
       role: s.Position || "",
       image: resolveImage(s),
-      count: workers.length,
       hasChildren: workers.length > 0,
       workers: workers.map(w => ({
         name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
@@ -308,68 +278,6 @@ function buildTeam(rows) {
 }
 
 /* ========================================================================================
-   BUILD VENDORS
-   ======================================================================================== */
-function buildVendors(rows) {
-
-  hideTeamOverlay();
-
-  const nodes = [];
-  const links = [];
-
-  nodes.push({
-    key: "VENDORS",
-    category: "VendorRoot",
-    name: "Vendors",
-    count: rows.length
-  });
-
-  const byDept = {};
-
-  rows.forEach(v => {
-    if (!v.Department) return;
-    if (!byDept[v.Department]) byDept[v.Department] = [];
-    byDept[v.Department].push(v);
-  });
-
-  let areaIdx = 0;
-  let vendorIdx = 0;
-
-  Object.entries(byDept).forEach(([dept, vendors]) => {
-
-    const areaKey = `AREA_${areaIdx++}`;
-
-    nodes.push({
-      key: areaKey,
-      category: "VendorArea",
-      name: dept,
-      count: vendors.length
-    });
-
-    links.push({ from: "VENDORS", to: areaKey });
-
-    vendors.forEach(v => {
-      const vk = `V_${vendorIdx++}`;
-      nodes.push({
-        key: vk,
-        category: "VendorItem",
-        name: `${v["First name (required)"]} ${v["Last name (required)"]}`.trim(),
-        role: v.Position || ""
-      });
-      links.push({ from: areaKey, to: vk });
-    });
-  });
-
-  diagram.model = new go.GraphLinksModel(nodes, links);
-  diagram.layout = $(go.TreeLayout, {
-    angle: 90,
-    layerSpacing: 70,
-    nodeSpacing: 30,
-    arrangement: go.TreeLayout.ArrangementFixedRoots
-  });
-}
-
-/* ========================================================================================
    LOAD CSV
    ======================================================================================== */
 Papa.parse("team.csv", {
@@ -381,18 +289,3 @@ Papa.parse("team.csv", {
     buildTeam(TEAM_DATA);
   }
 });
-
-Papa.parse("vendors.csv", {
-  download: true,
-  header: true,
-  delimiter: ";",
-  complete: r => {
-    VENDOR_DATA = r.data;
-  }
-});
-
-/* ========================================================================================
-   BOTONES
-   ======================================================================================== */
-document.getElementById("btnTeams").onclick = () => buildTeam(TEAM_DATA);
-document.getElementById("btnVendorsDept").onclick = () => buildVendors(VENDOR_DATA);
