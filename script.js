@@ -1,31 +1,59 @@
+/******************************************************************************************
+ *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL
+ *  Versión explícita, extendida y mantenible
+ *  Incluye:
+ *   - Teams
+ *   - Vendors
+ *   - Vista foco por Supervisor
+ *   - Grilla horizontal de Workers (6 columnas)
+ *   - Restauración completa de estado
+ ******************************************************************************************/
+
+/* ========================================================================================
+   GOJS FACTORY
+   ======================================================================================== */
 const $ = go.GraphObject.make;
 
-/* ======================================================
-   CONFIG GENERAL
-   ====================================================== */
+/* ========================================================================================
+   CONSTANTES VISUALES Y CONFIGURACIÓN GLOBAL
+   ======================================================================================== */
+const UI_CONFIG = {
+  avatarSize: 42,
+  cardMargin: 12,
+  workerGridColumns: 6,
+  workerGridSpacing: 30,
+  focusZoom: 1.35,
+  animationDuration: 350
+};
+
+/* ========================================================================================
+   AVATAR POR DEFECTO (INLINE SVG)
+   ======================================================================================== */
 const DEFAULT_AVATAR =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(`
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-    <rect width="100" height="100" fill="#ffffff"/>
-    <circle cx="50" cy="50" r="46" fill="#f1f5f9"/>
-    <circle cx="50" cy="42" r="16" fill="#9ca3af"/>
-    <path d="M22 88c4-20 52-20 56 0" fill="#9ca3af"/>
-  </svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" fill="#ffffff"/>
+  <circle cx="50" cy="50" r="46" fill="#f1f5f9"/>
+  <circle cx="50" cy="42" r="16" fill="#9ca3af"/>
+  <path d="M22 88c4-20 52-20 56 0" fill="#9ca3af"/>
+</svg>
 `);
 
-/* ======================================================
-   IMAGE RESOLVER (SOLO TEAMS)
-   ====================================================== */
-function resolveImage(row) {
-  if (!row || !row.ImageURL) return DEFAULT_AVATAR;
-  const url = row.ImageURL.toString().trim();
-  return url || DEFAULT_AVATAR;
-}
+/* ========================================================================================
+   ESTADO GLOBAL DE LA APLICACIÓN
+   ======================================================================================== */
+const APP_STATE = {
+  focusedSupervisor: null,
+  savedDiagramPosition: null,
+  savedDiagramScale: null,
+  teamData: [],
+  vendorData: []
+};
 
-/* ======================================================
-   DIAGRAM
-   ====================================================== */
+/* ========================================================================================
+   DIAGRAM BASE
+   ======================================================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
   allowMove: false,
@@ -34,28 +62,40 @@ const diagram = $(go.Diagram, "diagramDiv", {
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.4,
   maxScale: 2.5,
+  padding: 40,
   "animationManager.isEnabled": true,
-  "animationManager.duration": 300
+  "animationManager.duration": UI_CONFIG.animationDuration
 });
 
-/* ======================================================
-   LINKS
-   ====================================================== */
+/* ========================================================================================
+   LINK TEMPLATE
+   ======================================================================================== */
 diagram.linkTemplate = $(
   go.Link,
   { routing: go.Link.Orthogonal, corner: 8 },
   $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.5 })
 );
 
-/* ======================================================
-   FOTO (TEAMS)
-   ====================================================== */
-function photo() {
+/* ========================================================================================
+   UTILIDADES DE IMAGEN
+   ======================================================================================== */
+function resolveImage(row) {
+  if (!row) return DEFAULT_AVATAR;
+  if (!row.ImageURL) return DEFAULT_AVATAR;
+  const url = row.ImageURL.toString().trim();
+  if (url.length === 0) return DEFAULT_AVATAR;
+  return url;
+}
+
+/* ========================================================================================
+   COMPONENTES VISUALES (PHOTO / CARD)
+   ======================================================================================== */
+function buildPhoto() {
   return $(
     go.Picture,
     {
-      width: 42,
-      height: 42,
+      width: UI_CONFIG.avatarSize,
+      height: UI_CONFIG.avatarSize,
       margin: new go.Margin(0, 10, 0, 0),
       imageStretch: go.GraphObject.UniformToFill
     },
@@ -63,27 +103,30 @@ function photo() {
   );
 }
 
-/* ======================================================
-   CARD
-   ====================================================== */
-function card(stroke, withPhoto, showCount) {
+function buildCard(strokeColor, withPhoto, showCount) {
   return $(
-    go.Panel, "Auto",
+    go.Panel,
+    "Auto",
     $(go.Shape, "RoundedRectangle", {
       fill: "white",
-      stroke,
+      stroke: strokeColor,
       strokeWidth: 2
     }),
     $(
-      go.Panel, "Horizontal",
-      { margin: 12 },
-      withPhoto ? photo() : $(go.Panel),
+      go.Panel,
+      "Horizontal",
+      { margin: UI_CONFIG.cardMargin },
+      withPhoto ? buildPhoto() : $(go.Panel),
       $(
-        go.Panel, "Vertical",
-        $(go.TextBlock, { font: "bold 13px sans-serif" },
-          new go.Binding("text", "name")),
-        $(go.TextBlock, { font: "11px sans-serif", stroke: "#475569" },
-          new go.Binding("text", "role")),
+        go.Panel,
+        "Vertical",
+        $(go.TextBlock, {
+          font: "bold 13px sans-serif"
+        }, new go.Binding("text", "name")),
+        $(go.TextBlock, {
+          font: "11px sans-serif",
+          stroke: "#475569"
+        }, new go.Binding("text", "role")),
         showCount
           ? $(go.TextBlock, {
               margin: new go.Margin(6, 0, 0, 0),
@@ -99,173 +142,153 @@ function card(stroke, withPhoto, showCount) {
   );
 }
 
-/* ======================================================
-   ESTADO DE FOCO
-   ====================================================== */
-let FOCUSED_SUPERVISOR = null;
-let SAVED_VIEW = null;
+/* ========================================================================================
+   LAYOUTS DEFINIDOS EXPLÍCITAMENTE
+   ======================================================================================== */
+const LAYOUT_SUPERVISOR_TREE = $(go.TreeLayout, {
+  angle: 90,
+  nodeSpacing: 20,
+  layerSpacing: 30
+});
 
-/* ======================================================
-   FOCO SUPERVISOR
-   ====================================================== */
-function focusSupervisor(group) {
-  diagram.startTransaction("focus");
+const LAYOUT_WORKER_GRID = $(go.GridLayout, {
+  wrappingColumn: UI_CONFIG.workerGridColumns,
+  spacing: new go.Size(
+    UI_CONFIG.workerGridSpacing,
+    UI_CONFIG.workerGridSpacing
+  ),
+  alignment: go.GridLayout.Position
+});
 
-  SAVED_VIEW = {
-    position: diagram.position.copy(),
-    scale: diagram.scale
-  };
+/* ========================================================================================
+   CONTROL DE FOCO — ENTRAR
+   ======================================================================================== */
+function enterSupervisorFocus(group) {
 
-  FOCUSED_SUPERVISOR = group;
+  diagram.startTransaction("enterSupervisorFocus");
 
-  diagram.nodes.each(n => {
-    n.visible =
-      n === group ||
-      n.containingGroup === group ||
-      n.data.key === group.data.key;
+  // Guardar cámara
+  APP_STATE.savedDiagramPosition = diagram.position.copy();
+  APP_STATE.savedDiagramScale = diagram.scale;
+  APP_STATE.focusedSupervisor = group;
+
+  // Ocultar todo lo que no pertenece al grupo
+  diagram.nodes.each(node => {
+    if (node === group) {
+      node.visible = true;
+    } else if (node.containingGroup === group) {
+      node.visible = true;
+    } else {
+      node.visible = false;
+    }
   });
 
-  diagram.links.each(l => {
-    l.visible =
-      l.fromNode === group ||
-      l.toNode === group ||
-      l.toNode?.containingGroup === group;
-  });
+  diagram.links.each(link => link.visible = false);
 
-  diagram.commitTransaction("focus");
+  // Cambiar layout del grupo
+  group.layout = LAYOUT_WORKER_GRID;
+  group.isSubGraphExpanded = true;
 
+  diagram.commitTransaction("enterSupervisorFocus");
+
+  // Ajustar cámara
   diagram.centerRect(group.actualBounds);
-  diagram.scale = Math.min(1.8, diagram.maxScale);
+  diagram.scale = UI_CONFIG.focusZoom;
 }
 
-/* ======================================================
-   RESTAURAR VISTA
-   ====================================================== */
-function restoreView() {
-  if (!SAVED_VIEW) return;
+/* ========================================================================================
+   CONTROL DE FOCO — SALIR
+   ======================================================================================== */
+function exitSupervisorFocus() {
 
-  diagram.startTransaction("restore");
+  if (!APP_STATE.focusedSupervisor) return;
 
-  diagram.nodes.each(n => n.visible = true);
-  diagram.links.each(l => l.visible = true);
+  diagram.startTransaction("exitSupervisorFocus");
 
-  diagram.position = SAVED_VIEW.position;
-  diagram.scale = SAVED_VIEW.scale;
+  // Restaurar visibilidad
+  diagram.nodes.each(node => node.visible = true);
+  diagram.links.each(link => link.visible = true);
 
-  FOCUSED_SUPERVISOR = null;
-  SAVED_VIEW = null;
+  // Restaurar layout del supervisor
+  APP_STATE.focusedSupervisor.layout = LAYOUT_SUPERVISOR_TREE;
+  APP_STATE.focusedSupervisor.isSubGraphExpanded = false;
 
-  diagram.commitTransaction("restore");
+  // Restaurar cámara
+  diagram.position = APP_STATE.savedDiagramPosition;
+  diagram.scale = APP_STATE.savedDiagramScale;
+
+  APP_STATE.focusedSupervisor = null;
+  APP_STATE.savedDiagramPosition = null;
+  APP_STATE.savedDiagramScale = null;
+
+  diagram.commitTransaction("exitSupervisorFocus");
 }
 
-/* ======================================================
-   TEAM TEMPLATES
-   ====================================================== */
-diagram.nodeTemplateMap.add("Leader",
-  $(go.Node, "Auto", card("#2563eb", true, true))
+/* ========================================================================================
+   NODE & GROUP TEMPLATES
+   ======================================================================================== */
+diagram.nodeTemplateMap.add(
+  "Leader",
+  $(go.Node, "Auto", buildCard("#2563eb", true, true))
 );
 
-diagram.groupTemplateMap.add("Supervisor",
+diagram.groupTemplateMap.add(
+  "Supervisor",
   $(go.Group, "Vertical",
-    new go.Binding("isSubGraphExpanded", "hasChildren", h => false),
-    new go.Binding("selectable", "hasChildren"),
-    new go.Binding("pickable", "hasChildren"),
     {
-      layout: $(go.TreeLayout, {
-        angle: 90,
-        nodeSpacing: 20,
-        layerSpacing: 30
-      })
+      layout: LAYOUT_SUPERVISOR_TREE
     },
     $(
-      go.Panel, "Auto",
+      go.Panel,
+      "Auto",
       {
         cursor: "pointer",
-        click: (e, p) => {
-          if (!p.part.data.hasChildren) return;
+        click: (e, panel) => {
+          const group = panel.part;
 
-          // Si ya está enfocado → volver arriba
-          if (FOCUSED_SUPERVISOR === p.part) {
-            restoreView();
-            return;
+          if (!group.data.hasChildren) return;
+
+          if (APP_STATE.focusedSupervisor === group) {
+            exitSupervisorFocus();
+          } else {
+            enterSupervisorFocus(group);
           }
-
-          // Expandir si estaba colapsado
-          if (!p.part.isSubGraphExpanded) {
-            diagram.startTransaction("expand");
-            p.part.isSubGraphExpanded = true;
-            diagram.commitTransaction("expand");
-          }
-
-          // Entrar en foco
-          focusSupervisor(p.part);
         }
       },
-      card("#14b8a6", true, true)
+      buildCard("#14b8a6", true, true)
     ),
-    $(go.Placeholder,
-      { padding: 14 },
-      new go.Binding("visible", "hasChildren")
-    )
+    $(go.Placeholder, { padding: 20 })
   )
 );
 
-/* ======================================================
-   WORKER TEMPLATE
-   ====================================================== */
-diagram.nodeTemplateMap.add("Worker",
-  $(go.Node, "Auto",
-    card("#e5e7eb", true, false)
-  )
+diagram.nodeTemplateMap.add(
+  "Worker",
+  $(go.Node, "Auto", buildCard("#e5e7eb", true, false))
 );
 
-/* ======================================================
+/* ========================================================================================
    VENDOR TEMPLATES
-   ====================================================== */
-
-// ROOT
-diagram.nodeTemplateMap.add("VendorRoot",
-  $(go.Node, "Auto",
-    {
-      cursor: "pointer",
-      click: (e, node) => {
-        if (node.isTreeExpanded) {
-          diagram.commandHandler.collapseTree(node);
-        } else {
-          diagram.commandHandler.expandTree(node);
-        }
-      }
-    },
-    card("#64748b", false, true)
-  )
+   ======================================================================================== */
+diagram.nodeTemplateMap.add(
+  "VendorRoot",
+  $(go.Node, "Auto", buildCard("#64748b", false, true))
 );
 
-// AREA
-diagram.nodeTemplateMap.add("VendorArea",
-  $(go.Node, "Auto",
-    {
-      cursor: "pointer",
-      click: (e, node) => {
-        if (node.isTreeExpanded) {
-          diagram.commandHandler.collapseTree(node);
-        } else {
-          diagram.commandHandler.expandTree(node);
-        }
-      }
-    },
-    card("#7c3aed", false, true)
-  )
+diagram.nodeTemplateMap.add(
+  "VendorArea",
+  $(go.Node, "Auto", buildCard("#7c3aed", false, true))
 );
 
-// ITEM FINAL
-diagram.nodeTemplateMap.add("VendorItem",
-  $(go.Node, "Auto", card("#e5e7eb", false, false))
+diagram.nodeTemplateMap.add(
+  "VendorItem",
+  $(go.Node, "Auto", buildCard("#e5e7eb", false, false))
 );
 
-/* ======================================================
-   BUILD TEAMS
-   ====================================================== */
+/* ========================================================================================
+   BUILD TEAM DATA
+   ======================================================================================== */
 function buildTeam(rows) {
+
   const nodes = [];
   const links = [];
 
@@ -287,6 +310,7 @@ function buildTeam(rows) {
   });
 
   supervisors.forEach(s => {
+
     const workers = people.filter(w => w["SupervisorEmail (required)"] === s.id);
 
     nodes.push({
@@ -318,10 +342,11 @@ function buildTeam(rows) {
   diagram.layout = $(go.TreeLayout, { angle: 90, layerSpacing: 90 });
 }
 
-/* ======================================================
-   BUILD VENDORS
-   ====================================================== */
+/* ========================================================================================
+   BUILD VENDORS DATA
+   ======================================================================================== */
 function buildVendors(rows) {
+
   const nodes = [];
   const links = [];
 
@@ -333,6 +358,7 @@ function buildVendors(rows) {
   });
 
   const byDept = {};
+
   rows.forEach(v => {
     if (!v.Department) return;
     if (!byDept[v.Department]) byDept[v.Department] = [];
@@ -343,6 +369,7 @@ function buildVendors(rows) {
   let vendorIdx = 0;
 
   Object.entries(byDept).forEach(([dept, vendors]) => {
+
     const areaKey = `AREA_${areaIdx++}`;
 
     nodes.push({
@@ -355,19 +382,18 @@ function buildVendors(rows) {
     links.push({ from: "VENDORS", to: areaKey });
 
     vendors.forEach(v => {
-      const vk = `V_${vendorIdx++}`;
+      const vendorKey = `V_${vendorIdx++}`;
       nodes.push({
-        key: vk,
+        key: vendorKey,
         category: "VendorItem",
         name: `${v["First name (required)"]} ${v["Last name (required)"]}`.trim(),
         role: v.Position || ""
       });
-      links.push({ from: areaKey, to: vk });
+      links.push({ from: areaKey, to: vendorKey });
     });
   });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
-
   diagram.layout = $(go.TreeLayout, {
     angle: 90,
     layerSpacing: 70,
@@ -376,19 +402,16 @@ function buildVendors(rows) {
   });
 }
 
-/* ======================================================
+/* ========================================================================================
    LOAD CSV
-   ====================================================== */
-let TEAM_DATA = [];
-let VENDOR_DATA = [];
-
+   ======================================================================================== */
 Papa.parse("team.csv", {
   download: true,
   header: true,
   delimiter: ";",
   complete: r => {
-    TEAM_DATA = r.data;
-    buildTeam(TEAM_DATA);
+    APP_STATE.teamData = r.data;
+    buildTeam(APP_STATE.teamData);
   }
 });
 
@@ -396,59 +419,13 @@ Papa.parse("vendors.csv", {
   download: true,
   header: true,
   delimiter: ";",
-  complete: r => VENDOR_DATA = r.data
+  complete: r => {
+    APP_STATE.vendorData = r.data;
+  }
 });
 
-/* ======================================================
-   BUTTONS
-   ====================================================== */
-document.getElementById("btnTeams").onclick = () => buildTeam(TEAM_DATA);
-document.getElementById("btnVendorsDept").onclick = () => buildVendors(VENDOR_DATA);
-
-/* ======================================================
-   CONTROLES UI
-   ====================================================== */
-
-// Zoom +
-const btnZoomIn = document.getElementById("btnZoomIn");
-if (btnZoomIn) {
-  btnZoomIn.addEventListener("click", () => {
-    if (diagram) diagram.commandHandler.increaseZoom();
-  });
-}
-
-// Zoom -
-const btnZoomOut = document.getElementById("btnZoomOut");
-if (btnZoomOut) {
-  btnZoomOut.addEventListener("click", () => {
-    if (diagram) diagram.commandHandler.decreaseZoom();
-  });
-}
-
-// Ajustar a pantalla
-const btnFit = document.getElementById("btnFit");
-if (btnFit) {
-  btnFit.addEventListener("click", () => {
-    if (!diagram) return;
-    diagram.commandHandler.zoomToFit();
-    diagram.alignDocument(go.Spot.Center, go.Spot.Center);
-  });
-}
-
-// Pantalla completa
-const btnFull = document.getElementById("btnFull");
-const wrapper = document.getElementById("diagramWrapper");
-
-if (btnFull && wrapper) {
-  btnFull.addEventListener("click", () => {
-    if (!document.fullscreenElement) {
-      wrapper.requestFullscreen()
-        .then(() => {
-          if (diagram) diagram.commandHandler.zoomToFit();
-        })
-        .catch(err => console.error("Fullscreen error:", err));
-    } else {
-      document.exitFullscreen();
-    }
-  });
-}
+/* ========================================================================================
+   BOTONES
+   ======================================================================================== */
+document.getElementById("btnTeams").onclick = () => buildTeam(APP_STATE.teamData);
+document.getElementById("btnVendorsDept").onclick = () => buildVendors(APP_STATE.vendorData);
