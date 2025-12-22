@@ -312,3 +312,48 @@ Papa.parse("vendors.csv", {
    ====================================================== */
 document.getElementById("btnTeams").onclick = () => buildTeam(TEAM_DATA);
 document.getElementById("btnVendorsDept").onclick = () => buildVendors(VENDOR_DATA);
+
+/* ======================================================
+   CONTROLES UI (ZOOM / FIT / FULLSCREEN)
+   ====================================================== */
+
+// Zoom +
+const btnZoomIn = document.getElementById("btnZoomIn");
+if (btnZoomIn) {
+  btnZoomIn.onclick = () => {
+    diagram.commandHandler.increaseZoom();
+  };
+}
+
+// Zoom -
+const btnZoomOut = document.getElementById("btnZoomOut");
+if (btnZoomOut) {
+  btnZoomOut.onclick = () => {
+    diagram.commandHandler.decreaseZoom();
+  };
+}
+
+// Ajustar a pantalla (Fit)
+const btnFit = document.getElementById("btnFit");
+if (btnFit) {
+  btnFit.onclick = () => {
+    diagram.commandHandler.zoomToFit();
+    diagram.alignDocument(go.Spot.Center, go.Spot.Center);
+  };
+}
+
+// Pantalla completa (HTML Fullscreen API)
+const btnFull = document.getElementById("btnFull");
+const wrapper = document.getElementById("diagramWrapper");
+
+if (btnFull && wrapper) {
+  btnFull.onclick = () => {
+    if (!document.fullscreenElement) {
+      wrapper.requestFullscreen().catch(err => {
+        console.error("Error al entrar en pantalla completa:", err);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+}
