@@ -147,6 +147,15 @@ diagram.groupTemplateMap.add("Supervisor",
 );
 
 /* ======================================================
+   WORKER TEMPLATE (FALTANTE)
+   ====================================================== */
+diagram.nodeTemplateMap.add("Worker",
+  $(go.Node, "Auto",
+    card("#e5e7eb", true, false)
+  )
+);
+
+/* ======================================================
    VENDOR TEMPLATES (FIX REAL)
    ====================================================== */
 
