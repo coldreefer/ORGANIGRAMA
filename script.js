@@ -18,7 +18,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ======================================================
-   LINK TEMPLATE (SIN FLECHAS)
+   LINK (SIN FLECHAS)
    ====================================================== */
 diagram.linkTemplate = $(
   go.Link,
@@ -29,10 +29,10 @@ diagram.linkTemplate = $(
 /* ======================================================
    FOTO CUADRADA
    ====================================================== */
-function photo(size = 42) {
+function photo() {
   return $(go.Picture, {
-    width: size,
-    height: size,
+    width: 40,
+    height: 40,
     margin: new go.Margin(0, 8, 0, 0),
     imageStretch: go.GraphObject.UniformToFill
   }, new go.Binding("source", "image"));
@@ -41,36 +41,29 @@ function photo(size = 42) {
 /* ======================================================
    CARD BASE
    ====================================================== */
-function personCard(stroke, showCount = true, withPhoto = true) {
+function card(stroke, withPhoto, showCount) {
   return $(
-    go.Panel,
-    "Auto",
+    go.Panel, "Auto",
     $(go.Shape, "RoundedRectangle", {
       fill: "white",
       stroke,
       strokeWidth: 2
     }),
     $(
-      go.Panel,
-      "Horizontal",
+      go.Panel, "Horizontal",
       { margin: 10 },
       withPhoto ? photo() : $(go.Panel),
       $(
-        go.Panel,
-        "Vertical",
-        $(go.TextBlock, {
-          font: "bold 13px sans-serif",
-          stroke: "#0f172a"
-        }, new go.Binding("text", "name")),
-        $(go.TextBlock, {
-          font: "11px sans-serif",
-          stroke: "#475569"
-        }, new go.Binding("text", "role")),
+        go.Panel, "Vertical",
+        $(go.TextBlock, { font: "bold 13px sans-serif" },
+          new go.Binding("text", "name")),
+        $(go.TextBlock, { font: "11px sans-serif", stroke: "#475569" },
+          new go.Binding("text", "role")),
         showCount
           ? $(go.TextBlock, {
-              margin: new go.Margin(6, 0, 0, 0),
               font: "10px sans-serif",
-              stroke: "#64748b"
+              stroke: "#64748b",
+              margin: new go.Margin(6, 0, 0, 0)
             }, new go.Binding("text", "count", c => `👤 ${c}`))
           : $(go.Panel)
       )
@@ -82,7 +75,7 @@ function personCard(stroke, showCount = true, withPhoto = true) {
    TEAM TEMPLATES
    ====================================================== */
 diagram.nodeTemplateMap.add("Leader",
-  $(go.Node, "Auto", personCard("#2563eb", true, true))
+  $(go.Node, "Auto", card("#2563eb", true, true))
 );
 
 diagram.groupTemplateMap.add("Supervisor",
@@ -104,40 +97,27 @@ diagram.groupTemplateMap.add("Supervisor",
           diagram.commitTransaction("toggle");
         }
       },
-      personCard("#14b8a6", true, true)
+      card("#14b8a6", true, true)
     ),
     $(go.Placeholder, { padding: 14 })
   )
 );
 
 diagram.nodeTemplateMap.add("Worker",
-  $(go.Node, "Auto", personCard("#e5e7eb", false, true))
+  $(go.Node, "Auto", card("#e5e7eb", true, false))
 );
 
 /* ======================================================
-   VENDORS TEMPLATES (SIN IMÁGENES)
+   VENDOR TEMPLATES (SIN FOTO)
    ====================================================== */
-diagram.groupTemplateMap.add("VendorRoot",
-  $(go.Group, "Auto",
-    {
-      layout: $(go.TreeLayout, {
-        angle: 0,
-        nodeSpacing: 40,
-        layerSpacing: 90
-      })
-    },
-    $(go.Placeholder, { padding: 20 })
-  )
-);
-
 diagram.groupTemplateMap.add("VendorDept",
   $(go.Group, "Vertical",
     {
       isSubGraphExpanded: false,
       layout: $(go.TreeLayout, {
         angle: 90,
-        nodeSpacing: 16,
-        layerSpacing: 24
+        nodeSpacing: 14,
+        layerSpacing: 22
       })
     },
     $(go.Panel, "Auto",
@@ -149,31 +129,31 @@ diagram.groupTemplateMap.add("VendorDept",
           diagram.commitTransaction("toggleVendor");
         }
       },
-      personCard("#7c3aed", true, false)
+      card("#7c3aed", false, true)
     ),
     $(go.Placeholder, { padding: 12 })
   )
 );
 
 diagram.nodeTemplateMap.add("VendorPerson",
-  $(go.Node, "Auto", personCard("#e5e7eb", false, false))
+  $(go.Node, "Auto", card("#e5e7eb", false, false))
 );
 
 /* ======================================================
-   BUILD TEAM
+   BUILD TEAM (MODELO A)
    ====================================================== */
 function buildTeam(rows) {
   const nodes = [];
   const links = [];
 
   const people = rows.filter(r => r["First name (required)"]);
-  people.forEach((p, i) => p._id = "T_" + i);
+  people.forEach((p, i) => p.id = "T_" + i);
 
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
 
   nodes.push({
-    key: leader._id,
+    key: leader.id,
     category: "Leader",
     name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
     role: leader.Position || "",
@@ -186,7 +166,7 @@ function buildTeam(rows) {
       const workers = people.filter(w => w["SupervisorEmail (required)"] === s["Email (required)"]);
 
       nodes.push({
-        key: s._id,
+        key: s.id,
         isGroup: true,
         category: "Supervisor",
         name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
@@ -195,13 +175,13 @@ function buildTeam(rows) {
         count: workers.length
       });
 
-      links.push({ from: leader._id, to: s._id });
+      links.push({ from: leader.id, to: s.id });
 
       workers.forEach(w => {
         nodes.push({
-          key: w._id,
+          key: w.id,
           category: "Worker",
-          group: s._id,
+          group: s.id,
           name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
           role: w.Position || "",
           image: w.Image || ""
@@ -211,21 +191,26 @@ function buildTeam(rows) {
   });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
-  diagram.layout = $(go.TreeLayout, { angle: 90, layerSpacing: 90 });
+  diagram.layout = $(go.TreeLayout, {
+    angle: 90,
+    layerSpacing: 90
+  });
 }
 
 /* ======================================================
-   BUILD VENDORS
+   BUILD VENDORS (MODELO B)
    ====================================================== */
 function buildVendors(rows) {
-  const model = diagram.model;
+  const nodes = [];
+  const links = [];
 
-  model.addNodeData({
-    key: "VENDORS_ROOT",
-    isGroup: true,
-    category: "VendorRoot",
+  const root = "VENDORS";
+  nodes.push({
+    key: root,
+    category: "VendorDept",
     name: "Vendors",
-    count: rows.length
+    count: rows.length,
+    isGroup: true
   });
 
   const depts = {};
@@ -235,43 +220,56 @@ function buildVendors(rows) {
   });
 
   Object.entries(depts).forEach(([dept, list], i) => {
-    const dk = "VD_" + i;
-
-    model.addNodeData({
+    const dk = `D_${i}`;
+    nodes.push({
       key: dk,
       isGroup: true,
-      group: "VENDORS_ROOT",
       category: "VendorDept",
       name: dept,
       count: list.length
     });
-
-    model.addLinkData({ from: "VENDORS_ROOT", to: dk });
+    links.push({ from: root, to: dk });
 
     list.forEach((v, j) => {
-      model.addNodeData({
+      nodes.push({
         key: `${dk}_${j}`,
-        group: dk,
         category: "VendorPerson",
+        group: dk,
         name: `${v["First name (required)"]} ${v["Last name (required)"]}`,
         role: v.Position || ""
       });
     });
   });
+
+  diagram.model = new go.GraphLinksModel(nodes, links);
+  diagram.layout = $(go.TreeLayout, {
+    angle: 0,
+    layerSpacing: 120
+  });
 }
 
 /* ======================================================
-   LOAD CSV
+   LOAD + BOTONES
    ====================================================== */
+let TEAM_DATA = [];
+let VENDOR_DATA = [];
+
 Papa.parse("team.csv", {
   download: true,
   header: true,
-  complete: r => {
-    buildTeam(r.data);
-    Papa.parse("vendors.csv", {
-      download: true,
-      header: true,
-      complete: v => buildVendors(v.data)
-    });
-  }
+  complete: r => TEAM_DATA = r.data
+});
+
+Papa.parse("vendors.csv", {
+  download: true,
+  header: true,
+  complete: r => VENDOR_DATA = r.data
+});
+
+document.getElementById("btnTeams")?.addEventListener("click", () => {
+  buildTeam(TEAM_DATA);
+});
+
+document.getElementById("btnVendorsDept")?.addEventListener("click", () => {
+  buildVendors(VENDOR_DATA);
 });
