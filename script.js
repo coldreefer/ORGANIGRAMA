@@ -41,11 +41,9 @@ function showOnlyRoot(rootKey) {
 
   diagram.nodes.each(n => {
     let visible = false;
-
     if (n.key === rootKey) visible = true;
     else if (n.data.group === rootKey) visible = true;
     else if (n.containingGroup && n.containingGroup.key === rootKey) visible = true;
-
     n.visible = visible;
   });
 
@@ -56,18 +54,6 @@ function showOnlyRoot(rootKey) {
 /* ======================================================
    4. TEMPLATES TEAM
    ====================================================== */
-function photo(size, strokeColor) {
-  return $(go.Panel, "Auto",
-    { width: size, height: size },
-    $(go.Shape, "RoundedRectangle", {
-      fill: "white",
-      stroke: strokeColor,
-      strokeWidth: 2,
-      parameter1: 6
-    })
-  );
-}
-
 function personCard(border, roleColor) {
   return $(go.Node, "Vertical",
     $(go.Panel, "Auto",
@@ -78,17 +64,22 @@ function personCard(border, roleColor) {
         strokeWidth: 2
       }),
       $(go.Panel, "Vertical", { margin: 12 },
-        photo(64, border),
-        $(go.TextBlock, {
-          margin: new go.Margin(10, 6, 2, 6),
-          font: "bold 12.5px sans-serif",
-          textAlign: "center"
-        }, new go.Binding("text", "name")),
-        $(go.TextBlock, {
-          font: "11.5px sans-serif",
-          stroke: roleColor,
-          textAlign: "center"
-        }, new go.Binding("text", "role"))
+        $(go.TextBlock,
+          {
+            margin: new go.Margin(10, 6, 2, 6),
+            font: "bold 12.5px sans-serif",
+            textAlign: "center"
+          },
+          new go.Binding("text", "name")
+        ),
+        $(go.TextBlock,
+          {
+            font: "11.5px sans-serif",
+            stroke: roleColor,
+            textAlign: "center"
+          },
+          new go.Binding("text", "role")
+        )
       )
     )
   );
@@ -166,11 +157,12 @@ diagram.groupTemplateMap.add("VendorDept",
       }),
       $(go.Panel, "Vertical", { margin: 10 },
         $(go.TextBlock, { font: "bold 13px sans-serif" },
-          new go.Binding("text", "name")),
-        $(go.TextBlock({
-          font: "10px sans-serif",
-          stroke: "#64748b"
-        }, new go.Binding("text", "count", c => `${c} vendors`)))
+          new go.Binding("text", "name")
+        ),
+        $(go.TextBlock,
+          { font: "10px sans-serif", stroke: "#64748b" },
+          new go.Binding("text", "count", c => `${c} vendors`)
+        )
       )
     ),
 
@@ -186,12 +178,14 @@ diagram.nodeTemplateMap.add("VendorCompany",
       strokeWidth: 1.5
     }),
     $(go.Panel, "Vertical", { margin: 8 },
-      $(go.TextBlock({ font: "bold 12px sans-serif" },
-        new go.Binding("text", "name")),
-      $(go.TextBlock({
-        font: "10px sans-serif",
-        stroke: "#64748b"
-      }, new go.Binding("text", "info")))
+      $(go.TextBlock,
+        { font: "bold 12px sans-serif" },
+        new go.Binding("text", "name")
+      ),
+      $(go.TextBlock,
+        { font: "10px sans-serif", stroke: "#64748b" },
+        new go.Binding("text", "info")
+      )
     )
   )
 );
