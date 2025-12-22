@@ -1,7 +1,7 @@
 const $ = go.GraphObject.make;
 
 /* ======================================================
-   AVATAR DEFAULT “tipo Instagram” (silueta en círculo)
+   AVATAR DEFAULT
    ====================================================== */
 const DEFAULT_AVATAR =
   "data:image/svg+xml;utf8," +
@@ -31,81 +31,62 @@ const diagram = $(go.Diagram, "diagramDiv", {
   scrollMode: go.Diagram.InfiniteScroll,
 
   "animationManager.isEnabled": true,
-  "animationManager.duration": 320,
-
+  "animationManager.duration": 300,
   "undoManager.isEnabled": false
-
-  // 🚫 NO layout aquí
 });
 
-
 /* ======================================================
-   CONTROLES UI (Zoom/Fit/Fullscreen)
+   CONTROLES UI
    ====================================================== */
 function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
 
 document.addEventListener("DOMContentLoaded", () => {
 
-  const btnZoomIn  = document.getElementById("btnZoomIn");
-  const btnZoomOut = document.getElementById("btnZoomOut");
-  const btnFit     = document.getElementById("btnFit");
-  const btnFull    = document.getElementById("btnFull");
+  btnZoomIn.onclick  = () => diagram.scale = clamp(diagram.scale * 1.12, diagram.minScale, diagram.maxScale);
+  btnZoomOut.onclick = () => diagram.scale = clamp(diagram.scale / 1.12, diagram.minScale, diagram.maxScale);
+  btnFit.onclick     = () => diagram.zoomToFit();
 
-  if (btnZoomIn) {
-    btnZoomIn.addEventListener("click", () => {
-      diagram.scale = clamp(diagram.scale * 1.12, diagram.minScale, diagram.maxScale);
-    });
-  }
-
-  if (btnZoomOut) {
-    btnZoomOut.addEventListener("click", () => {
-      diagram.scale = clamp(diagram.scale / 1.12, diagram.minScale, diagram.maxScale);
-    });
-  }
-
-  if (btnFit) {
-    btnFit.addEventListener("click", () => {
+  btnFull.onclick = async () => {
+    const el = document.getElementById("diagramWrapper");
+    try {
+      if (!document.fullscreenElement) await el.requestFullscreen();
+      else await document.exitFullscreen();
+    } catch {
       diagram.zoomToFit();
-    });
-  }
+    }
+  };
 
-  if (btnFull) {
-    btnFull.addEventListener("click", async () => {
-      const el = document.getElementById("diagramWrapper");
-      try {
-        if (!document.fullscreenElement) await el.requestFullscreen();
-        else await document.exitFullscreen();
-      } catch {
-        diagram.zoomToFit();
-      }
-    });
-  }
-
+  // 🔁 Navegación por secciones
+  btnEMR.onclick     = () => goToSection("EMR_ROOT");
+  btnVendors.onclick = () => goToSection("VENDORS_ROOT");
 });
 
-
 /* ======================================================
-   IMAGE RESOLVE (proxy + fallback)
+   NAVEGACIÓN ENTRE SECCIONES
    ====================================================== */
-function resolveImage(url) {
-  if (!url || String(url).trim() === "") return DEFAULT_AVATAR;
-  return "https://images.weserv.nl/?url=" + encodeURIComponent(url);
+function goToSection(key){
+  const node = diagram.findNodeForKey(key);
+  if (!node) return;
+  diagram.centerRect(node.actualBounds);
 }
 
 /* ======================================================
-   FOTO CUADRADA + BORDE CUADRADO (coherente)
+   IMAGE
    ====================================================== */
+function resolveImage(url) {
+  if (!url || !url.trim()) return DEFAULT_AVATAR;
+  return "https://images.weserv.nl/?url=" + encodeURIComponent(url);
+}
+
 function photo(size, strokeColor) {
   return $(go.Panel, "Auto",
     { width: size, height: size },
-
     $(go.Shape, "RoundedRectangle", {
       fill: "white",
       stroke: strokeColor,
       strokeWidth: 2,
       parameter1: 6
     }),
-
     $(go.Picture, {
       width: size - 6,
       height: size - 6,
@@ -115,9 +96,6 @@ function photo(size, strokeColor) {
   );
 }
 
-/* ======================================================
-   “A cargo: N” (solo si teamCount > 0)
-   ====================================================== */
 function countLine() {
   return $(go.TextBlock, {
     margin: new go.Margin(6, 0, 0, 0),
@@ -125,19 +103,19 @@ function countLine() {
     stroke: "#64748b",
     textAlign: "center"
   },
-  new go.Binding("visible", "teamCount", n => Number(n || 0) > 0),
-  new go.Binding("text", "teamCount", n => `A cargo: ${Number(n || 0)}`));
+  new go.Binding("visible", "teamCount", n => n > 0),
+  new go.Binding("text", "teamCount", n => `A cargo: ${n}`));
 }
 
 /* ======================================================
-   PERSON CARD (Leader/Worker)
+   LEADER / WORKER
    ====================================================== */
 function personCard(border, roleColor, photoBorder) {
   return $(go.Node, "Vertical",
-    { selectable: false, selectionAdorned: false },
+    { selectable: false },
 
     $(go.Panel, "Auto",
-      { desiredSize: new go.Size(210, 265) },
+      { desiredSize: new go.Size(210, 260) },
 
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
@@ -145,76 +123,42 @@ function personCard(border, roleColor, photoBorder) {
         strokeWidth: 2
       }),
 
-      $(go.Panel, "Vertical",
-        { margin: 12 },
-
+      $(go.Panel, "Vertical", { margin: 12 },
         photo(64, photoBorder),
 
         $(go.TextBlock, {
-          margin: new go.Margin(10, 6, 2, 6),
+          margin: new go.Margin(10,6,2,6),
           font: "bold 12.5px sans-serif",
           textAlign: "center",
-          wrap: go.TextBlock.WrapFit,
-          maxLines: 3
+          wrap: go.TextBlock.WrapFit
         }, new go.Binding("text", "name")),
 
         $(go.TextBlock, {
-          margin: new go.Margin(2, 6, 0, 6),
+          margin: new go.Margin(2,6,0,6),
           font: "11.5px sans-serif",
           stroke: roleColor,
           textAlign: "center",
-          wrap: go.TextBlock.WrapFit,
-          maxLines: 2
+          wrap: go.TextBlock.WrapFit
         }, new go.Binding("text", "role")),
 
-        // ✅ solo aparece si teamCount > 0 (Leader sí, Worker no)
         countLine()
       )
     )
   );
 }
 
-/* ======================================================
-   NODE TEMPLATES
-   ====================================================== */
 diagram.nodeTemplateMap.add("Leader", personCard("#2563eb", "#2563eb", "#2563eb"));
 diagram.nodeTemplateMap.add("Worker", personCard("#e5e7eb", "#475569", "#94a3b8"));
-diagram.nodeTemplate = personCard("#e5e7eb", "#475569", "#94a3b8");
 
 /* ======================================================
-   SUPERVISOR GROUP (click en la tarjeta para toggle)
+   SUPERVISOR (TREE NODE)
    ====================================================== */
-diagram.groupTemplate =
-  $(go.Group, "Vertical",
-    {
-      selectable: false,
-      selectionAdorned: false,
+diagram.nodeTemplateMap.add("Supervisor",
+  $(go.Node, "Vertical",
+    { selectable: false },
 
-      // ✅ EXPANDIDO POR DEFECTO
-      isSubGraphExpanded: true,
-
-      layout: $(go.GridLayout, {
-        wrappingColumn: 2,
-        spacing: new go.Size(20, 20)
-      })
-    },
-    new go.Binding("isSubGraphExpanded").makeTwoWay(),
-
-    // TARJETA DEL SUPERVISOR (CLICKABLE)
     $(go.Panel, "Auto",
-      {
-        cursor: "pointer",
-        click: (e, panel) => {
-          const group = panel.part;
-          if (!(group instanceof go.Group)) return;
-
-          e.diagram.startTransaction("toggleSupervisor");
-          group.isSubGraphExpanded = !group.isSubGraphExpanded;
-          e.diagram.commitTransaction("toggleSupervisor");
-        }
-      },
-
-      { desiredSize: new go.Size(210, 300) },
+      { desiredSize: new go.Size(210, 120) },
 
       $(go.Shape, "RoundedRectangle", {
         fill: "white",
@@ -222,43 +166,32 @@ diagram.groupTemplate =
         strokeWidth: 2
       }),
 
-      $(go.Panel, "Vertical",
-        { margin: 12 },
+      $(go.Panel, "Horizontal", { margin: 10 },
 
-        photo(64, "#14b8a6"),
+        photo(52, "#14b8a6"),
 
-        $(go.TextBlock, {
-          margin: new go.Margin(10, 6, 2, 6),
-          font: "bold 13px sans-serif",
-          textAlign: "center",
-          wrap: go.TextBlock.WrapFit,
-          maxLines: 3
-        }, new go.Binding("text", "name")),
+        $(go.Panel, "Vertical",
+          { margin: new go.Margin(0,8,0,8), width: 120 },
 
-        $(go.TextBlock, {
-          margin: new go.Margin(0, 6, 0, 6),
-          font: "11.5px sans-serif",
-          stroke: "#0f766e",
-          textAlign: "center",
-          wrap: go.TextBlock.WrapFit,
-          maxLines: 2
-        }, new go.Binding("text", "role")),
+          $(go.TextBlock, {
+            font: "bold 12.5px sans-serif",
+            wrap: go.TextBlock.WrapFit
+          }, new go.Binding("text", "name")),
 
-        countLine(),
+          $(go.TextBlock, {
+            font: "11px sans-serif",
+            stroke: "#0f766e",
+            wrap: go.TextBlock.WrapFit
+          }, new go.Binding("text", "role")),
 
-        $(go.TextBlock, {
-          margin: new go.Margin(6, 0, 0, 0),
-          font: "10px sans-serif",
-          stroke: "#64748b"
-        }, new go.Binding("text", "isSubGraphExpanded",
-          e => e ? "▲ Ocultar equipo" : "▼ Ver equipo"
-        ).ofObject())
+          countLine()
+        ),
+
+        $("TreeExpanderButton")
       )
-    ),
-
-    // ⬇️ AQUÍ APARECEN LOS WORKERS
-    $(go.Placeholder, { padding: 18 })
-  );
+    )
+  )
+);
 
 /* ======================================================
    LINKS
@@ -269,38 +202,48 @@ diagram.linkTemplate =
   );
 
 /* ======================================================
-   LOAD CSV
+   EMR ROOT (TREE LAYOUT)
+   ====================================================== */
+diagram.groupTemplateMap.add("EMR_ROOT",
+  $(go.Group, "Auto",
+    {
+      selectable: false,
+      layout: $(go.TreeLayout, {
+        angle: 90,
+        arrangement: go.TreeLayout.ArrangementHorizontal,
+        alignment: go.TreeLayout.AlignmentCenterChildren,
+        nodeSpacing: 30,
+        layerSpacing: 80
+      })
+    },
+    $(go.Placeholder, { padding: 20 })
+  )
+);
+
+/* ======================================================
+   LOAD TEAM
    ====================================================== */
 Papa.parse("team.csv", {
   download: true,
   header: true,
   skipEmptyLines: true,
-  complete: res => buildModel(res.data)
+  complete: r => buildEMR(r.data)
 });
 
-/* ======================================================
-   BUILD MODEL + COUNTS
-   ====================================================== */
-function buildModel(rows) {
+function buildEMR(rows) {
   const people = rows.filter(r => r["First name (required)"]);
-  people.forEach((p, i) => p.__id = "P_" + i);
+  people.forEach((p,i) => p.__id = "P_" + i);
 
   const nodes = [];
   const links = [];
 
-  // Root (Team Leader)
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
   if (!leader) return;
-
-  // Total a cargo Team Leader = todos menos él
-  const leaderTotal = Math.max(0, people.length - 1);
 
   nodes.push({
     key: "EMR_ROOT",
     isGroup: true,
-    category: "EMR_ROOT",
-    loc: "0 0",
-    isLayoutPositioned: false
+    category: "EMR_ROOT"
   });
 
   nodes.push({
@@ -309,26 +252,23 @@ function buildModel(rows) {
     name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
     role: leader.Position || "",
     image: leader.ImageURL || "",
-    teamCount: leaderTotal
+    teamCount: people.length - 1
   });
 
-  // Supervisores directos del líder
   const leaderEmail = leader["Email (required)"];
 
   people.forEach(sup => {
     if (sup["SupervisorEmail (required)"] === leaderEmail) {
 
-      const supEmail = sup["Email (required)"];
-      const workers = people.filter(w => w["SupervisorEmail (required)"] === supEmail);
-      const supCount = workers.length;
+      const workers = people.filter(w => w["SupervisorEmail (required)"] === sup["Email (required)"]);
 
       nodes.push({
         key: sup.__id,
-        isGroup: true,
+        category: "Supervisor",
         name: `${sup["First name (required)"]} ${sup["Last name (required)"]}`,
         role: sup.Position || "",
         image: sup.ImageURL || "",
-        teamCount: supCount
+        teamCount: workers.length
       });
 
       links.push({ from: leader.__id, to: sup.__id });
@@ -336,135 +276,42 @@ function buildModel(rows) {
       workers.forEach(w => {
         nodes.push({
           key: w.__id,
-          group: sup.__id,
           category: "Worker",
           name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
           role: w.Position || "",
           image: w.ImageURL || "",
-          teamCount: 0 // ✅ no muestra “A cargo”
+          teamCount: 0
         });
+        links.push({ from: sup.__id, to: w.__id });
       });
     }
   });
 
-  const model = new go.GraphLinksModel(nodes, links);
-  model.nodeKeyProperty = "key";
-  diagram.model = model;
-
-  // Al cargar, ajusta a pantalla (ideal para presentación)
+  diagram.model = new go.GraphLinksModel(nodes, links);
   setTimeout(() => diagram.zoomToFit(), 50);
 }
+
 /* ======================================================
-   ==================== VENDORS =========================
-   (MISMO DIAGRAM – NO SE TOCA EMR)
+   VENDORS (SECCIÓN APARTE)
    ====================================================== */
-
-/* ---------- Templates Vendors ---------- */
-
-// Root Vendors
 diagram.groupTemplateMap.add("VendorRoot",
   $(go.Group, "Vertical",
     {
-      isSubGraphExpanded: true,
       selectable: false,
-
-      // ✅ layout horizontal REAL
       layout: $(go.GridLayout, {
         wrappingColumn: Infinity,
-        spacing: new go.Size(60, 20),
-        alignment: go.GridLayout.Position
+        spacing: new go.Size(60, 30)
       })
     },
-
-    $(go.Shape, "RoundedRectangle", {
-      fill: "#f5f3ff",
-      stroke: "#7c3aed",
-      strokeWidth: 2
-    }),
-
     $(go.TextBlock, {
-      margin: 14,
-      font: "bold 14px sans-serif",
-      stroke: "#4c1d95"
+      margin: 16,
+      font: "bold 16px sans-serif"
     }, new go.Binding("text", "name")),
 
-    $(go.Placeholder, { padding: 18 })
-  )
-);
-
-
-// Department (visible siempre)
-diagram.groupTemplateMap.add("VendorDepartment",
-  $(go.Group, "Vertical",
-    {
-      isSubGraphExpanded: true,
-      selectable: false,
-      cursor: "pointer",
-      click: (e, group) => {
-        const diagram = group.diagram;
-        diagram.startTransaction("toggleDept");
-        group.isSubGraphExpanded = !group.isSubGraphExpanded;
-        diagram.commitTransaction("toggleDept");
-      }
-    },
-
-    $(go.Panel, "Auto",
-      $(go.Shape, "RoundedRectangle", {
-        fill: "#ffffff",
-        stroke: "#94a3b8",
-        strokeWidth: 2
-      }),
-      $(go.Panel, "Vertical", { margin: 12 },
-        $(go.TextBlock, {
-          font: "bold 13px sans-serif",
-          stroke: "#0f172a",
-          textAlign: "center"
-        }, new go.Binding("text", "name")),
-
-        $(go.TextBlock, {
-          margin: new go.Margin(6,0,0,0),
-          font: "10px sans-serif",
-          stroke: "#475569"
-        }, new go.Binding("text", "count", n => `${n} proveedores`)),
-
-        $(go.TextBlock, {
-          margin: new go.Margin(6,0,0,0),
-          font: "10px sans-serif",
-          stroke: "#64748b"
-        }, new go.Binding("text", "isSubGraphExpanded",
-          e => e ? "▲ Ocultar" : "▼ Ver"
-        ).ofObject())
-      )
-    ),
-
-    // 🔑 ESTO ES OBLIGATORIO
-    $(go.Placeholder, { padding: 12 })
-  )
-);
-
-/* ======================================================
-   ROOT EMR (CONTENEDOR DEL ORGANIGRAMA PRINCIPAL)
-   ====================================================== */
-diagram.groupTemplateMap.add("EMR_ROOT",
-  $(go.Group, "Vertical",
-    {
-      selectable: false,
-      isSubGraphExpanded: true,
-
-      // ✅ ESTE layout SOLO AFECTA AL EMR
-      layout: $(go.TreeLayout, {
-        angle: 90,
-        alignment: go.TreeLayout.AlignmentCenterChildren,
-        nodeSpacing: 26,
-        layerSpacing: 70
-      })
-    },
     $(go.Placeholder, { padding: 20 })
   )
 );
 
-
-// Company
 diagram.nodeTemplateMap.add("VendorCompany",
   $(go.Node, "Auto",
     $(go.Shape, "RoundedRectangle", {
@@ -487,70 +334,37 @@ diagram.nodeTemplateMap.add("VendorCompany",
   )
 );
 
-/* ---------- Carga CSV Vendors ---------- */
-
 Papa.parse("vendors.csv", {
   download: true,
   header: true,
   skipEmptyLines: true,
-  complete: res => buildVendors(res.data)
+  complete: r => buildVendors(r.data)
 });
 
-/* ---------- Build Vendors ---------- */
-
 function buildVendors(rows) {
-
-  const vendors = rows.filter(r => r.Department);
-
   const model = diagram.model;
   if (!model) return;
 
-  diagram.startTransaction("addVendors");
-
-  // Root Vendors (posición a la derecha del EMR)
-  const vendorsRootKey = "VENDORS_ROOT";
+  diagram.startTransaction("vendors");
 
   model.addNodeData({
-    key: vendorsRootKey,
-    category: "VendorRoot",
+    key: "VENDORS_ROOT",
     isGroup: true,
+    category: "VendorRoot",
     name: "Vendors",
-    isLayoutPositioned: false,
-    loc: "1700 200"
+    loc: "2200 0",
+    isLayoutPositioned: false
   });
 
-  const departments = {};
-
-  vendors.forEach(v => {
-    if (!departments[v.Department]) departments[v.Department] = [];
-    departments[v.Department].push(v);
-  });
-
-  Object.entries(departments).forEach(([dept, list], i) => {
-
-    const deptKey = `VEND_DEPT_${i}`;
-
+  rows.forEach((v, i) => {
     model.addNodeData({
-      key: deptKey,
-      group: vendorsRootKey,
-      isGroup: true,
-      category: "VendorDepartment",
-      name: dept,
-      count: list.length
-    });
-
-    list.forEach((c, j) => {
-      model.addNodeData({
-        key: `${deptKey}_C_${j}`,
-        group: deptKey,
-        category: "VendorCompany",
-        name: `${c["First name (required)"]} ${c["Last name (required)"]}`.trim(),
-        info: c.Position || ""
-      });
+      key: "V_" + i,
+      group: "VENDORS_ROOT",
+      category: "VendorCompany",
+      name: `${v["First name (required)"]} ${v["Last name (required)"]}`,
+      info: v.Position || ""
     });
   });
 
-  diagram.commitTransaction("addVendors");
-
-  // NO tocamos zoom si ya lo manejas tú
+  diagram.commitTransaction("vendors");
 }
