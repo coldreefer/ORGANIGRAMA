@@ -15,8 +15,8 @@ const DEFAULT_AVATAR =
 `);
 
 function resolveImage(row) {
-  if (!row.ImageID) return DEFAULT_AVATAR;
-  return `./images/${row.ImageID}.jpg`; // ← AJUSTA RUTA SI ES NECESARIO
+  if (!row || !row.ImageID) return DEFAULT_AVATAR;
+  return `./images/${row.ImageID}.jpg`; // ajusta ruta si aplica
 }
 
 /* ======================================================
@@ -36,7 +36,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ======================================================
-   LINKS LIMPIOS
+   LINKS
    ====================================================== */
 diagram.linkTemplate = $(
   go.Link,
@@ -126,7 +126,7 @@ diagram.nodeTemplateMap.add("Worker",
 );
 
 /* ======================================================
-   VENDOR TEMPLATES (GROUP ROOT)
+   VENDOR TEMPLATES
    ====================================================== */
 diagram.groupTemplateMap.add("VendorRoot",
   $(go.Group, "Auto",
@@ -222,7 +222,7 @@ function buildTeam(rows) {
 }
 
 /* ======================================================
-   BUILD VENDORS (HORIZONTAL REAL)
+   BUILD VENDORS
    ====================================================== */
 function buildVendors(rows) {
   const nodes = [];
@@ -260,7 +260,7 @@ function buildVendors(rows) {
 }
 
 /* ======================================================
-   LOAD + BOTONES
+   LOAD + EVENTS
    ====================================================== */
 let TEAM_DATA = [];
 let VENDOR_DATA = [];
@@ -277,5 +277,8 @@ Papa.parse("vendors.csv", {
   complete: r => VENDOR_DATA = r.data
 });
 
-document.getElementById("btnTeams")?.onclick = () => buildTeam(TEAM_DATA);
-document.getElementById("btnVendorsDept")?.onclick = () => buildVendors(VENDOR_DATA);
+const btnTeams = document.getElementById("btnTeams");
+if (btnTeams) btnTeams.onclick = () => buildTeam(TEAM_DATA);
+
+const btnVendors = document.getElementById("btnVendorsDept");
+if (btnVendors) btnVendors.onclick = () => buildVendors(VENDOR_DATA);
