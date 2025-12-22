@@ -336,18 +336,30 @@ function buildModel(rows) {
    ==================== VENDORS =========================
    ====================================================== */
 
-diagram.nodeTemplateMap.add("VendorRoot",
-  $(go.Node, "Auto",
-    $(go.Shape, "RoundedRectangle", {
-      fill: "#f5f3ff",
-      stroke: "#7c3aed",
-      strokeWidth: 2
-    }),
-    $(go.TextBlock, {
-      margin: 14,
-      font: "bold 14px sans-serif",
-      stroke: "#4c1d95"
-    }, new go.Binding("text", "name"))
+diagram.groupTemplateMap.add("VendorRoot",
+  $(go.Group, "Vertical",
+    {
+      selectable: false,
+      isSubGraphExpanded: true,
+      layout: $(go.TreeLayout, {
+        angle: 90,
+        nodeSpacing: 30,
+        layerSpacing: 40
+      })
+    },
+    $(go.Panel, "Auto",
+      $(go.Shape, "RoundedRectangle", {
+        fill: "#f5f3ff",
+        stroke: "#7c3aed",
+        strokeWidth: 2
+      }),
+      $(go.TextBlock, {
+        margin: 14,
+        font: "bold 14px sans-serif",
+        stroke: "#4c1d95"
+      }, new go.Binding("text", "name"))
+    ),
+    $(go.Placeholder, { padding: 20 })
   )
 );
 
@@ -442,7 +454,7 @@ function buildVendors(rows) {
 
     model.addNodeData({
       key: deptKey,
-      parent: "VENDORS_ROOT",
+      group: "VENDORS_ROOT",
       category: "VendorDepartment",
       name: dept,
       count: list.length
@@ -451,7 +463,7 @@ function buildVendors(rows) {
     list.forEach((c,j) => {
       model.addNodeData({
         key: `${deptKey}_C_${j}`,
-        parent: deptKey,
+        group: deptKey,
         category: "VendorCompany",
         name: `${c["First name (required)"]} ${c["Last name (required)"]}`.trim(),
         info: c.Position || ""
