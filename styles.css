@@ -10,7 +10,7 @@ html, body {
 body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: #f8fafc;
-  overflow: hidden; /* 🔑 el scroll lo maneja GoJS */
+  overflow: hidden; /* GoJS maneja el desplazamiento */
 }
 
 /* ===============================
@@ -21,8 +21,8 @@ header {
   text-align: center;
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
-  z-index: 10;
   position: relative;
+  z-index: 20;
 }
 
 header h1 {
@@ -38,13 +38,25 @@ header p {
 }
 
 /* ===============================
-   LIENZO ÚNICO (GoJS)
+   WRAPPER PRINCIPAL (FULLSCREEN)
+   =============================== */
+#diagramWrapper {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 72px); /* debajo del header */
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+/* ===============================
+   LIENZO GoJS
    =============================== */
 #diagramDiv {
-  width: 100%;
-  height: calc(100vh - 72px); /* 🔑 ocupa todo bajo el header */
+  position: absolute;
+  inset: 0;
   background: #f8fafc;
   cursor: grab;
+  z-index: 1; /* debajo de los controles */
 }
 
 #diagramDiv:active {
@@ -52,16 +64,17 @@ header p {
 }
 
 /* ===============================
-   CONTROLES DE ZOOM (FIJOS)
+   CONTROLES DE ZOOM / ACCIONES
    =============================== */
 .controls {
-  position: fixed;          /* 🔑 NO se mueven con el diagrama */
+  position: absolute;       /* relativo al wrapper */
   right: 16px;
   bottom: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  z-index: 9999;
+  z-index: 10;              /* encima del canvas */
+  pointer-events: auto;
 }
 
 .controls button {
@@ -76,6 +89,7 @@ header p {
   line-height: 44px;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.10);
   transition: transform 0.08s ease, box-shadow 0.08s ease;
+  pointer-events: auto;
 }
 
 .controls button:hover {
