@@ -1,10 +1,10 @@
 /* ======================================================
-   1. CONSTANTES
+   0. SHORTCUT
    ====================================================== */
 const $ = go.GraphObject.make;
 
 /* ======================================================
-   2. DIAGRAM
+   1. DIAGRAM
    ====================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
@@ -20,20 +20,20 @@ const diagram = $(go.Diagram, "diagramDiv", {
   scrollMode: go.Diagram.InfiniteScroll,
 
   "animationManager.isEnabled": true,
-  "animationManager.duration": 300,
+  "animationManager.duration": 280,
   "undoManager.isEnabled": false
 });
 
 /* ======================================================
-   3. HELPERS
+   2. HELPERS
    ====================================================== */
 function clamp(v, a, b) {
   return Math.max(a, Math.min(b, v));
 }
 
 function goToNodeByKey(key) {
-  const node = diagram.findNodeForKey(key);
-  if (node) diagram.centerRect(node.actualBounds);
+  const n = diagram.findNodeForKey(key);
+  if (n) diagram.centerRect(n.actualBounds);
 }
 
 function showOnlyRoot(rootKey) {
@@ -52,50 +52,136 @@ function showOnlyRoot(rootKey) {
 }
 
 /* ======================================================
-   4. TEMPLATES TEAM
+   3. CARD BASE (MISMO ESTILO PARA TODO)
    ====================================================== */
-function personCard(border, roleColor) {
-  return $(go.Node, "Vertical",
-    $(go.Panel, "Auto",
-      { desiredSize: new go.Size(210, 265) },
-      $(go.Shape, "RoundedRectangle", {
-        fill: "white",
-        stroke: border,
-        strokeWidth: 2
-      }),
-      $(go.Panel, "Vertical", { margin: 12 },
-        $(go.TextBlock,
-          {
-            margin: new go.Margin(10, 6, 2, 6),
-            font: "bold 12.5px sans-serif",
-            textAlign: "center"
-          },
-          new go.Binding("text", "name")
-        ),
-        $(go.TextBlock,
-          {
-            font: "11.5px sans-serif",
-            stroke: roleColor,
-            textAlign: "center"
-          },
-          new go.Binding("text", "role")
+function cardBase({
+  stroke = "#cbd5e1",
+  headerBg = "#ffffff",
+  footer = true,
+  expandable = false,
+  avatar = false
+}) {
+  return $(go.Panel, "Auto",
+    $(go.Shape, "RoundedRectangle", {
+      fill: headerBg,
+      stroke,
+      strokeWidth: 2
+    }),
+    $(go.Panel, "Vertical", { margin: 10 },
+
+      // HEADER
+      $(go.Panel, "Horizontal",
+        avatar
+          ? $(go.Shape, "Circle", {
+              width: 34, height: 34, fill: "#e5e7eb", margin: new go.Margin(0, 8, 0, 0)
+            })
+          : $(go.Panel), // vacío
+
+        $(go.Panel, "Vertical",
+          $(go.TextBlock, {
+            font: "bold 13px sans-serif",
+            stroke: "#0f172a"
+          }, new go.Binding("text", "name")),
+
+          $(go.TextBlock, {
+            font: "11px sans-serif",
+            stroke: "#475569"
+          }, new go.Binding("text", "role"))
         )
-      )
+      ),
+
+      // FOOTER
+      footer
+        ? $(go.Panel, "Horizontal",
+            { margin: new go.Margin(8, 0, 0, 0) },
+            $(go.TextBlock, {
+              font: "10px sans-serif",
+              stroke: "#64748b"
+            }, new go.Binding("text", "count", c => `👤 ${c || 0}`)),
+
+            expandable
+              ? $(go.TextBlock, {
+                  margin: new go.Margin(0, 0, 0, 10),
+                  cursor: "pointer",
+                  font: "10px sans-serif",
+                  stroke: "#64748b"
+                },
+                new go.Binding("text", "isSubGraphExpanded",
+                  e => e ? "⌃" : "⌄").ofObject()
+              )
+              : $(go.Panel)
+          )
+        : $(go.Panel)
     )
   );
 }
 
-diagram.nodeTemplateMap.add("Leader", personCard("#2563eb", "#2563eb"));
-diagram.nodeTemplateMap.add("Worker", personCard("#e5e7eb", "#475569"));
+/* ======================================================
+   4. TEAM TEMPLATES
+   ====================================================== */
+// LEADER
+diagram.nodeTemplateMap.add("Leader",
+  $(go.Node, "Auto",
+    cardBase({
+      stroke: "#2563eb",
+      avatar: true,
+      footer: false
+    })
+  )
+);
 
+// WORKER
+diagram.nodeTemplateMap.add("Worker",
+  $(go.Node, "Auto",
+    cardBase({
+      stroke: "#e5e7eb",
+      avatar: true,
+      footer: false
+    })
+  )
+);
+
+// SUPERVISOR (GROUP)
+diagram.groupTemplateMap.add("Supervisor",
+  $(go.Group, "Vertical",
+    {
+      isSubGraphExpanded: false,
+      layout: $(go.GridLayout, {
+        wrappingColumn: 3,
+        spacing: new go.Size(16, 16)
+      })
+    },
+    new go.Binding("isSubGraphExpanded").makeTwoWay(),
+
+    $(go.Panel, "Auto",
+      {
+        cursor: "pointer",
+        click: (e, p) => {
+          diagram.startTransaction("toggle");
+          p.part.isSubGraphExpanded = !p.part.isSubGraphExpanded;
+          diagram.commitTransaction("toggle");
+        }
+      },
+      cardBase({
+        stroke: "#14b8a6",
+        avatar: true,
+        expandable: true
+      })
+    ),
+
+    $(go.Placeholder, { padding: 14 })
+  )
+);
+
+// ROOT TEAM
 diagram.groupTemplateMap.add("EMR_ROOT",
   $(go.Group, "Auto",
     {
       layout: $(go.TreeLayout, {
         angle: 90,
         alignment: go.TreeLayout.AlignmentCenterChildren,
-        nodeSpacing: 26,
-        layerSpacing: 70
+        nodeSpacing: 28,
+        layerSpacing: 80
       })
     },
     $(go.Placeholder, { padding: 20 })
@@ -103,40 +189,35 @@ diagram.groupTemplateMap.add("EMR_ROOT",
 );
 
 /* ======================================================
-   5. TEMPLATES VENDORS
+   5. VENDORS TEMPLATES (MISMO ESTILO)
    ====================================================== */
+// ROOT
 diagram.groupTemplateMap.add("VendorRoot",
   $(go.Group, "Vertical",
     {
-      layout: $(go.TreeLayout, {
-        angle: 90,
-        nodeSpacing: 30,
-        layerSpacing: 40
+      layout: $(go.GridLayout, {
+        wrappingColumn: 4,
+        spacing: new go.Size(30, 30)
       })
     },
     $(go.Panel, "Auto",
-      $(go.Shape, "RoundedRectangle", {
-        fill: "#f5f3ff",
+      cardBase({
         stroke: "#7c3aed",
-        strokeWidth: 2
-      }),
-      $(go.TextBlock, {
-        margin: 14,
-        font: "bold 14px sans-serif",
-        stroke: "#4c1d95"
-      }, "VENDORS")
+        footer: true
+      })
     ),
     $(go.Placeholder, { padding: 20 })
   )
 );
 
+// DEPARTMENT
 diagram.groupTemplateMap.add("VendorDept",
   $(go.Group, "Vertical",
     {
       isSubGraphExpanded: false,
       layout: $(go.GridLayout, {
         wrappingColumn: 2,
-        spacing: new go.Size(20, 20)
+        spacing: new go.Size(12, 12)
       })
     },
     new go.Binding("isSubGraphExpanded").makeTwoWay(),
@@ -150,43 +231,23 @@ diagram.groupTemplateMap.add("VendorDept",
           diagram.commitTransaction("toggleDept");
         }
       },
-      $(go.Shape, "RoundedRectangle", {
-        fill: "white",
+      cardBase({
         stroke: "#7c3aed",
-        strokeWidth: 2
-      }),
-      $(go.Panel, "Vertical", { margin: 10 },
-        $(go.TextBlock, { font: "bold 13px sans-serif" },
-          new go.Binding("text", "name")
-        ),
-        $(go.TextBlock,
-          { font: "10px sans-serif", stroke: "#64748b" },
-          new go.Binding("text", "count", c => `${c} vendors`)
-        )
-      )
+        expandable: true
+      })
     ),
 
-    $(go.Placeholder, { padding: 14 })
+    $(go.Placeholder, { padding: 12 })
   )
 );
 
+// VENDOR COMPANY
 diagram.nodeTemplateMap.add("VendorCompany",
   $(go.Node, "Auto",
-    $(go.Shape, "RoundedRectangle", {
-      fill: "white",
+    cardBase({
       stroke: "#e5e7eb",
-      strokeWidth: 1.5
-    }),
-    $(go.Panel, "Vertical", { margin: 8 },
-      $(go.TextBlock,
-        { font: "bold 12px sans-serif" },
-        new go.Binding("text", "name")
-      ),
-      $(go.TextBlock,
-        { font: "10px sans-serif", stroke: "#64748b" },
-        new go.Binding("text", "info")
-      )
-    )
+      footer: false
+    })
   )
 );
 
@@ -217,26 +278,29 @@ function buildTeam(rows) {
 
   people.forEach(s => {
     if (s["SupervisorEmail (required)"] === leaderEmail) {
+      const workers = people.filter(w => w["SupervisorEmail (required)"] === s["Email (required)"]);
+
       nodes.push({
         key: s.__id,
         isGroup: true,
+        category: "Supervisor",
         group: "EMR_ROOT",
         name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
-        role: s.Position || ""
+        role: s.Position || "",
+        count: workers.length
       });
+
       links.push({ from: leader.__id, to: s.__id });
 
-      people
-        .filter(w => w["SupervisorEmail (required)"] === s["Email (required)"])
-        .forEach(w => {
-          nodes.push({
-            key: w.__id,
-            category: "Worker",
-            group: s.__id,
-            name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
-            role: w.Position || ""
-          });
+      workers.forEach(w => {
+        nodes.push({
+          key: w.__id,
+          category: "Worker",
+          group: s.__id,
+          name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
+          role: w.Position || ""
         });
+      });
     }
   });
 
@@ -255,35 +319,36 @@ function buildVendors(rows) {
   model.addNodeData({
     key: "VENDORS_ROOT",
     isGroup: true,
-    category: "VendorRoot"
+    category: "VendorRoot",
+    name: "Vendors",
+    count: rows.length
   });
 
   const depts = {};
-
   rows.forEach(v => {
     if (!depts[v.Department]) depts[v.Department] = [];
     depts[v.Department].push(v);
   });
 
   Object.entries(depts).forEach(([dept, list], i) => {
-    const deptKey = `V_DEPT_${i}`;
+    const dk = `V_DEPT_${i}`;
 
     model.addNodeData({
-      key: deptKey,
+      key: dk,
       isGroup: true,
-      group: "VENDORS_ROOT",
       category: "VendorDept",
+      group: "VENDORS_ROOT",
       name: dept,
       count: list.length
     });
 
     list.forEach((v, j) => {
       model.addNodeData({
-        key: `${deptKey}_C_${j}`,
-        group: deptKey,
+        key: `${dk}_C_${j}`,
         category: "VendorCompany",
-        name: `${v["First name (required)"]} ${v["Last name (required)"]}`.trim(),
-        info: v.Position || ""
+        group: dk,
+        name: `${v["First name (required)"]} ${v["Last name (required)"]}`,
+        role: v.Position || ""
       });
     });
   });
