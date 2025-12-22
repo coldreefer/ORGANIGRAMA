@@ -100,6 +100,65 @@ function card(stroke, withPhoto, showCount) {
 }
 
 /* ======================================================
+   ESTADO DE FOCO
+   ====================================================== */
+let FOCUSED_SUPERVISOR = null;
+let SAVED_VIEW = null;
+
+/* ======================================================
+   FOCO SUPERVISOR
+   ====================================================== */
+function focusSupervisor(group) {
+  diagram.startTransaction("focus");
+
+  SAVED_VIEW = {
+    position: diagram.position.copy(),
+    scale: diagram.scale
+  };
+
+  FOCUSED_SUPERVISOR = group;
+
+  diagram.nodes.each(n => {
+    n.visible =
+      n === group ||
+      n.containingGroup === group ||
+      n.data.key === group.data.key;
+  });
+
+  diagram.links.each(l => {
+    l.visible =
+      l.fromNode === group ||
+      l.toNode === group ||
+      l.toNode?.containingGroup === group;
+  });
+
+  diagram.commitTransaction("focus");
+
+  diagram.centerRect(group.actualBounds);
+  diagram.scale = Math.min(1.8, diagram.maxScale);
+}
+
+/* ======================================================
+   RESTAURAR VISTA
+   ====================================================== */
+function restoreView() {
+  if (!SAVED_VIEW) return;
+
+  diagram.startTransaction("restore");
+
+  diagram.nodes.each(n => n.visible = true);
+  diagram.links.each(l => l.visible = true);
+
+  diagram.position = SAVED_VIEW.position;
+  diagram.scale = SAVED_VIEW.scale;
+
+  FOCUSED_SUPERVISOR = null;
+  SAVED_VIEW = null;
+
+  diagram.commitTransaction("restore");
+}
+
+/* ======================================================
    TEAM TEMPLATES
    ====================================================== */
 diagram.nodeTemplateMap.add("Leader",
@@ -111,7 +170,6 @@ diagram.groupTemplateMap.add("Supervisor",
     new go.Binding("isSubGraphExpanded", "hasChildren", h => false),
     new go.Binding("selectable", "hasChildren"),
     new go.Binding("pickable", "hasChildren"),
-
     {
       layout: $(go.TreeLayout, {
         angle: 90,
@@ -119,26 +177,32 @@ diagram.groupTemplateMap.add("Supervisor",
         layerSpacing: 30
       })
     },
-
     $(
       go.Panel, "Auto",
       {
-        cursor: "pointer"
-      },
-      // CLICK SOLO SI TIENE HIJOS
-      new go.Binding("cursor", "hasChildren", h => h ? "pointer" : "default"),
-      {
+        cursor: "pointer",
         click: (e, p) => {
           if (!p.part.data.hasChildren) return;
-          diagram.startTransaction("toggle");
-          p.part.isSubGraphExpanded = !p.part.isSubGraphExpanded;
-          diagram.commitTransaction("toggle");
+
+          // Si ya está enfocado → volver arriba
+          if (FOCUSED_SUPERVISOR === p.part) {
+            restoreView();
+            return;
+          }
+
+          // Expandir si estaba colapsado
+          if (!p.part.isSubGraphExpanded) {
+            diagram.startTransaction("expand");
+            p.part.isSubGraphExpanded = true;
+            diagram.commitTransaction("expand");
+          }
+
+          // Entrar en foco
+          focusSupervisor(p.part);
         }
       },
       card("#14b8a6", true, true)
     ),
-
-    // PLACEHOLDER SOLO SI TIENE HIJOS
     $(go.Placeholder,
       { padding: 14 },
       new go.Binding("visible", "hasChildren")
@@ -147,7 +211,7 @@ diagram.groupTemplateMap.add("Supervisor",
 );
 
 /* ======================================================
-   WORKER TEMPLATE (FALTANTE)
+   WORKER TEMPLATE
    ====================================================== */
 diagram.nodeTemplateMap.add("Worker",
   $(go.Node, "Auto",
@@ -156,7 +220,7 @@ diagram.nodeTemplateMap.add("Worker",
 );
 
 /* ======================================================
-   VENDOR TEMPLATES (FIX REAL)
+   VENDOR TEMPLATES
    ====================================================== */
 
 // ROOT
@@ -227,13 +291,13 @@ function buildTeam(rows) {
 
     nodes.push({
       key: s.id,
-      isGroup: true,   // 👈 SOLO es grupo si tiene hijos
+      isGroup: true,
       category: "Supervisor",
       name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
       role: s.Position || "",
       image: resolveImage(s),
       count: workers.length,
-      hasChildren: workers.length > 0 // 👈 flag explícito
+      hasChildren: workers.length > 0
     });
 
     links.push({ from: leader.id, to: s.id });
@@ -255,7 +319,7 @@ function buildTeam(rows) {
 }
 
 /* ======================================================
-   BUILD VENDORS (DEFINITIVO)
+   BUILD VENDORS
    ====================================================== */
 function buildVendors(rows) {
   const nodes = [];
@@ -310,7 +374,6 @@ function buildVendors(rows) {
     nodeSpacing: 30,
     arrangement: go.TreeLayout.ArrangementFixedRoots
   });
-
 }
 
 /* ======================================================
@@ -325,7 +388,7 @@ Papa.parse("team.csv", {
   delimiter: ";",
   complete: r => {
     TEAM_DATA = r.data;
-    buildTeam(TEAM_DATA);   // 👈 TEAMS aparece al cargar la página
+    buildTeam(TEAM_DATA);
   }
 });
 
@@ -343,7 +406,7 @@ document.getElementById("btnTeams").onclick = () => buildTeam(TEAM_DATA);
 document.getElementById("btnVendorsDept").onclick = () => buildVendors(VENDOR_DATA);
 
 /* ======================================================
-   CONTROLES UI (ZOOM / FIT / FULLSCREEN) — DEFINITIVO
+   CONTROLES UI
    ====================================================== */
 
 // Zoom +
