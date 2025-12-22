@@ -74,6 +74,9 @@ document.getElementById("btnFull").addEventListener("click", async () => {
     diagram.zoomToFit();
   }
 });
+document.getElementById("btnVendorsDept")?.addEventListener("click", () => {
+  goToNodeByKey("VEND_DEPT_0"); // primer departamento
+});
 
 /* ======================================================
    IMAGE RESOLVE (proxy + fallback)
@@ -487,4 +490,9 @@ function buildVendors(rows) {
   diagram.commitTransaction("addVendors");
 
   // NO tocamos zoom si ya lo manejas tú
+}
+function goToNodeByKey(key) {
+  const node = diagram.findNodeForKey(key);
+  if (!node) return;
+  diagram.centerRect(node.actualBounds);
 }
