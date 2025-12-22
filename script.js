@@ -129,42 +129,44 @@ diagram.nodeTemplateMap.add("Worker",
 );
 
 /* ======================================================
-   VENDOR TEMPLATES
+   VENDOR TEMPLATES (FIX REAL)
    ====================================================== */
 
-// Root Vendors (cima)
+// ROOT
 diagram.nodeTemplateMap.add("VendorRoot",
   $(go.Node, "Auto",
     {
-      isTreeExpanded: false,
       cursor: "pointer",
-      click: (e, p) => {
-        diagram.startTransaction("toggleRoot");
-        p.isTreeExpanded = !p.isTreeExpanded;
-        diagram.commitTransaction("toggleRoot");
+      click: (e, node) => {
+        if (node.isTreeExpanded) {
+          diagram.commandHandler.collapseTree(node);
+        } else {
+          diagram.commandHandler.expandTree(node);
+        }
       }
     },
     card("#64748b", false, true)
   )
 );
 
-// Área (Box / Inspección / Lavado / Reefer)
+// AREA
 diagram.nodeTemplateMap.add("VendorArea",
   $(go.Node, "Auto",
     {
-      isTreeExpanded: false,
       cursor: "pointer",
-      click: (e, p) => {
-        diagram.startTransaction("toggleArea");
-        p.isTreeExpanded = !p.isTreeExpanded;
-        diagram.commitTransaction("toggleArea");
+      click: (e, node) => {
+        if (node.isTreeExpanded) {
+          diagram.commandHandler.collapseTree(node);
+        } else {
+          diagram.commandHandler.expandTree(node);
+        }
       }
     },
     card("#7c3aed", false, true)
   )
 );
 
-// Vendor final (sin hijos)
+// ITEM FINAL
 diagram.nodeTemplateMap.add("VendorItem",
   $(go.Node, "Auto", card("#e5e7eb", false, false))
 );
@@ -225,13 +227,12 @@ function buildTeam(rows) {
 }
 
 /* ======================================================
-   BUILD VENDORS (HORIZONTAL + DOWNWARD)
+   BUILD VENDORS (DEFINITIVO)
    ====================================================== */
 function buildVendors(rows) {
   const nodes = [];
   const links = [];
 
-  // Root
   nodes.push({
     key: "VENDORS",
     category: "VendorRoot",
@@ -239,7 +240,6 @@ function buildVendors(rows) {
     count: rows.length
   });
 
-  // Agrupar por área
   const byDept = {};
   rows.forEach(v => {
     if (!v.Department) return;
@@ -263,25 +263,28 @@ function buildVendors(rows) {
     links.push({ from: "VENDORS", to: areaKey });
 
     vendors.forEach(v => {
-      const vendorKey = `V_${vendorIdx++}`;
-
+      const vk = `V_${vendorIdx++}`;
       nodes.push({
-        key: vendorKey,
+        key: vk,
         category: "VendorItem",
         name: `${v["First name (required)"]} ${v["Last name (required)"]}`.trim(),
         role: v.Position || ""
       });
-
-      links.push({ from: areaKey, to: vendorKey });
+      links.push({ from: areaKey, to: vk });
     });
   });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
+
   diagram.layout = $(go.TreeLayout, {
-    angle: 90,          // ARRIBA → ABAJO
+    angle: 90,
     layerSpacing: 70,
-    nodeSpacing: 30
+    nodeSpacing: 30,
+    arrangement: go.TreeLayout.ArrangementFixedRoots
   });
+
+  const root = diagram.findNodeForKey("VENDORS");
+  if (root) diagram.commandHandler.expandTree(root);
 }
 
 /* ======================================================
