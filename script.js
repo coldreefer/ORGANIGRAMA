@@ -22,13 +22,14 @@ const diagram = $(go.Diagram, "diagramDiv", {
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.4,
   maxScale: 2.5,
+  scrollMode: go.Diagram.InfiniteScroll,
   "animationManager.isEnabled": true,
-  "animationManager.duration": 300,
+  "animationManager.duration": 250,
   "undoManager.isEnabled": false
 });
 
 /* ======================================================
-   LINKS (SIN FLECHAS)
+   LINKS LIMPIOS (SIN FLECHAS)
    ====================================================== */
 diagram.linkTemplate = $(
   go.Link,
@@ -41,8 +42,8 @@ diagram.linkTemplate = $(
    ====================================================== */
 function photo() {
   return $(go.Picture, {
-    width: 42,
-    height: 42,
+    width: 40,
+    height: 40,
     margin: new go.Margin(0, 10, 0, 0),
     imageStretch: go.GraphObject.UniformToFill
   }, new go.Binding("source", "image"));
@@ -86,7 +87,7 @@ function card(stroke, withPhoto, showCount) {
 }
 
 /* ======================================================
-   TEAM TEMPLATES (CON FOTO)
+   TEAM TEMPLATES
    ====================================================== */
 diagram.nodeTemplateMap.add("Leader",
   $(go.Node, "Auto", card("#2563eb", true, true))
@@ -98,7 +99,7 @@ diagram.groupTemplateMap.add("Supervisor",
       isSubGraphExpanded: false,
       layout: $(go.TreeLayout, {
         angle: 90,
-        nodeSpacing: 22,
+        nodeSpacing: 20,
         layerSpacing: 30
       })
     },
@@ -113,7 +114,7 @@ diagram.groupTemplateMap.add("Supervisor",
       },
       card("#14b8a6", true, true)
     ),
-    $(go.Placeholder, { padding: 16 })
+    $(go.Placeholder, { padding: 14 })
   )
 );
 
@@ -122,14 +123,31 @@ diagram.nodeTemplateMap.add("Worker",
 );
 
 /* ======================================================
-   VENDOR TEMPLATES (SIN FOTO)
+   VENDOR TEMPLATES (GROUP + ANIMACIÓN)
    ====================================================== */
-diagram.nodeTemplateMap.add("VendorRoot",
-  $(go.Node, "Auto", card("#7c3aed", false, true))
-);
-
-diagram.nodeTemplateMap.add("VendorDept",
-  $(go.Node, "Auto", card("#7c3aed", false, true))
+diagram.groupTemplateMap.add("VendorDept",
+  $(go.Group, "Vertical",
+    {
+      isSubGraphExpanded: false,
+      layout: $(go.TreeLayout, {
+        angle: 90,
+        nodeSpacing: 14,
+        layerSpacing: 22
+      })
+    },
+    $(go.Panel, "Auto",
+      {
+        cursor: "pointer",
+        click: (e, p) => {
+          diagram.startTransaction("toggleVendor");
+          p.part.isSubGraphExpanded = !p.part.isSubGraphExpanded;
+          diagram.commitTransaction("toggleVendor");
+        }
+      },
+      card("#7c3aed", false, true)
+    ),
+    $(go.Placeholder, { padding: 12 })
+  )
 );
 
 /* ======================================================
@@ -191,7 +209,7 @@ function buildTeam(rows) {
 }
 
 /* ======================================================
-   BUILD VENDORS (HORIZONTAL)
+   BUILD VENDORS (HORIZONTAL + EXPAND)
    ====================================================== */
 function buildVendors(rows) {
   const nodes = [];
@@ -199,22 +217,24 @@ function buildVendors(rows) {
 
   nodes.push({
     key: "VENDORS",
-    category: "VendorRoot",
+    isGroup: true,
+    category: "VendorDept",
     name: "Vendors",
     count: rows.length
   });
 
   const depts = {};
   rows.forEach(v => {
-    const d = v.Department || "Sin área";
-    if (!depts[d]) depts[d] = [];
-    depts[d].push(v);
+    if (!v.Department) return; // ❌ no inventamos áreas
+    if (!depts[v.Department]) depts[v.Department] = [];
+    depts[v.Department].push(v);
   });
 
   Object.entries(depts).forEach(([dept, list], i) => {
     const dk = `D_${i}`;
     nodes.push({
       key: dk,
+      isGroup: true,
       category: "VendorDept",
       name: dept,
       count: list.length
@@ -224,7 +244,7 @@ function buildVendors(rows) {
 
   diagram.model = new go.GraphLinksModel(nodes, links);
   diagram.layout = $(go.TreeLayout, {
-    angle: 0,               // 👈 HORIZONTAL
+    angle: 0,               // 👈 HORIZONTAL REAL
     nodeSpacing: 40,
     layerSpacing: 120
   });
