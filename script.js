@@ -218,7 +218,7 @@ function buildTeam(rows) {
 
     nodes.push({
       key: s.id,
-      isGroup: workers.length > 0,   // 👈 SOLO es grupo si tiene hijos
+      isGroup: true,   // 👈 SOLO es grupo si tiene hijos
       category: "Supervisor",
       name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
       role: s.Position || "",
