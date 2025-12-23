@@ -1,11 +1,11 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — WORKDAY PRO (PULIDO FINAL)
+ *  ORGANIGRAMA EMR — WORKDAY PRO (FIX TRANSACTION)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
 
 /* ========================================================================================
-   CONFIG UI — PRO
+   CONFIG UI
    ======================================================================================== */
 const UI = {
   avatarSize: 52,
@@ -34,7 +34,7 @@ let CURRENT_PERSON_ID = null;
 let NAV_STACK = [];
 
 /* ========================================================================================
-   DIAGRAM — SETUP PRO
+   DIAGRAM
    ======================================================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
@@ -45,12 +45,10 @@ const diagram = $(go.Diagram, "diagramDiv", {
   minScale: 0.7,
   maxScale: 2.2,
   padding: 120,
-
   animationManager: {
     isEnabled: true,
     duration: 450
   },
-
   layout: $(go.TreeLayout, {
     angle: 90,
     layerSpacing: 160,
@@ -59,7 +57,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ========================================================================================
-   LINKS — SUAVES
+   LINKS
    ======================================================================================== */
 diagram.linkTemplate = $(
   go.Link,
@@ -68,7 +66,7 @@ diagram.linkTemplate = $(
 );
 
 /* ========================================================================================
-   HELPERS VISUALES
+   HELPERS
    ======================================================================================== */
 function resolveImage(row) {
   if (!row || !row.ImageURL) return DEFAULT_AVATAR;
@@ -119,8 +117,8 @@ function personCard(stroke, clickable, isFocus) {
       avatar(),
       $(go.TextBlock, {
         font: "bold 14px sans-serif",
-        textAlign: "center",
         stroke: "#0f172a",
+        textAlign: "center",
         margin: new go.Margin(2, 0, 4, 0)
       }, new go.Binding("text", "name")),
       $(go.TextBlock, {
@@ -146,7 +144,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   CORE — RENDER PERSON (PRO)
+   CORE — RENDER PERSON (FIXED)
    ======================================================================================== */
 function renderPerson(personId, animate = true) {
   const person = TEAM_DATA.find(p => p.id === personId);
@@ -180,9 +178,8 @@ function renderPerson(personId, animate = true) {
       links.push({ from: person.id, to: r.id });
     });
 
-  diagram.startTransaction("render");
+  // 🔹 CAMBIO CLAVE: asignar modelo SIN transacción
   diagram.model = new go.GraphLinksModel(nodes, links);
-  diagram.commitTransaction("render");
 
   if (animate) {
     requestAnimationFrame(() => {
