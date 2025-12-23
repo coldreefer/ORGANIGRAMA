@@ -1,5 +1,5 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — WORKDAY REAL (PERSON-CENTERED)
+ *  ORGANIGRAMA EMR — WORKDAY REAL + ANIMACIÓN + HISTORIAL
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -8,8 +8,8 @@ const $ = go.GraphObject.make;
    CONFIG UI
    ======================================================================================== */
 const UI = {
-  avatarSize: 46,
-  cardMargin: 14
+  avatarSize: 48,
+  cardMargin: 16
 };
 
 /* ========================================================================================
@@ -31,6 +31,7 @@ const DEFAULT_AVATAR =
    ======================================================================================== */
 let TEAM_DATA = [];
 let CURRENT_PERSON_ID = null;
+let NAV_STACK = [];
 
 /* ========================================================================================
    DIAGRAM
@@ -41,13 +42,17 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowCopy: false,
   allowSelect: false,
   mouseWheelBehavior: go.Diagram.Zoom,
-  minScale: 0.5,
+  minScale: 0.6,
   maxScale: 2.5,
-  padding: 40,
+  padding: 80,
+  animationManager: {
+    isEnabled: true,
+    duration: 350
+  },
   layout: $(go.TreeLayout, {
     angle: 90,
-    layerSpacing: 80,
-    nodeSpacing: 30
+    layerSpacing: 120,
+    nodeSpacing: 60
   })
 });
 
@@ -56,7 +61,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
    ======================================================================================== */
 diagram.linkTemplate = $(
   go.Link,
-  { routing: go.Link.Orthogonal, corner: 8 },
+  { routing: go.Link.Orthogonal, corner: 10 },
   $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.5 })
 );
 
@@ -65,8 +70,7 @@ diagram.linkTemplate = $(
    ======================================================================================== */
 function resolveImage(row) {
   if (!row || !row.ImageURL) return DEFAULT_AVATAR;
-  const url = row.ImageURL.toString().trim();
-  return url || DEFAULT_AVATAR;
+  return row.ImageURL.toString().trim() || DEFAULT_AVATAR;
 }
 
 function avatar() {
@@ -76,23 +80,27 @@ function avatar() {
       width: UI.avatarSize,
       height: UI.avatarSize,
       imageStretch: go.GraphObject.UniformToFill,
-      margin: new go.Margin(0, 0, 8, 0)
+      margin: new go.Margin(0, 0, 10, 0)
     },
     new go.Binding("source", "image")
   );
 }
 
-function personCard(stroke, clickable) {
+function personCard(stroke, isClickable, isFocus) {
   return $(
     go.Panel, "Auto",
     {
-      cursor: clickable ? "pointer" : "default",
-      click: clickable
-        ? (e, panel) => {
-            const data = panel.part.data;
-            renderPerson(data.id);
-          }
-        : null
+      cursor: isClickable ? "pointer" : "default",
+      click: (e, panel) => {
+        const data = panel.part.data;
+        if (isFocus && NAV_STACK.length > 0) {
+          const prev = NAV_STACK.pop();
+          renderPerson(prev, false);
+        } else if (isClickable && data.id !== CURRENT_PERSON_ID) {
+          NAV_STACK.push(CURRENT_PERSON_ID);
+          renderPerson(data.id, true);
+        }
+      }
     },
     $(go.Shape, "RoundedRectangle", {
       fill: "white",
@@ -105,9 +113,7 @@ function personCard(stroke, clickable) {
       avatar(),
       $(go.TextBlock, {
         font: "bold 13px sans-serif",
-        stroke: "#0f172a",
-        textAlign: "center",
-        margin: new go.Margin(4, 0, 2, 0)
+        textAlign: "center"
       }, new go.Binding("text", "name")),
       $(go.TextBlock, {
         font: "12px sans-serif",
@@ -123,18 +129,18 @@ function personCard(stroke, clickable) {
    ======================================================================================== */
 diagram.nodeTemplateMap.add(
   "Focus",
-  $(go.Node, "Auto", personCard("#2563eb", false))
+  $(go.Node, "Auto", personCard("#2563eb", true, true))
 );
 
 diagram.nodeTemplateMap.add(
   "Report",
-  $(go.Node, "Auto", personCard("#14b8a6", true))
+  $(go.Node, "Auto", personCard("#14b8a6", true, false))
 );
 
 /* ========================================================================================
-   CORE — RENDER PERSON (WORKDAY REAL)
+   CORE — RENDER PERSON (CON ANIMACIÓN)
    ======================================================================================== */
-function renderPerson(personId) {
+function renderPerson(personId, animate = true) {
   const person = TEAM_DATA.find(p => p.id === personId);
   if (!person) return;
 
@@ -143,7 +149,6 @@ function renderPerson(personId) {
   const nodes = [];
   const links = [];
 
-  // Persona foco (arriba)
   nodes.push({
     key: person.id,
     id: person.id,
@@ -153,7 +158,6 @@ function renderPerson(personId) {
     image: person.image
   });
 
-  // Reportes directos (abajo)
   const reports = TEAM_DATA.filter(p => p.supervisorId === person.id);
 
   reports.forEach(r => {
@@ -165,12 +169,19 @@ function renderPerson(personId) {
       role: r.role,
       image: r.image
     });
-
     links.push({ from: person.id, to: r.id });
   });
 
+  diagram.startTransaction("render-person");
   diagram.model = new go.GraphLinksModel(nodes, links);
-  diagram.zoomToFit();
+  diagram.commitTransaction("render-person");
+
+  if (animate) {
+    setTimeout(() => {
+      const node = diagram.findNodeForKey(person.id);
+      if (node) diagram.centerRect(node.actualBounds);
+    }, 50);
+  }
 }
 
 /* ========================================================================================
@@ -193,9 +204,8 @@ Papa.parse("team.csv", {
         image: resolveImage(p)
       }));
 
-    // Persona raíz (sin supervisor)
     const root = TEAM_DATA.find(p => !p.supervisorId);
-    if (root) renderPerson(root.id);
+    if (root) renderPerson(root.id, false);
   }
 });
 
@@ -204,5 +214,6 @@ Papa.parse("team.csv", {
    ======================================================================================== */
 document.getElementById("btnTeams").onclick = () => {
   const root = TEAM_DATA.find(p => !p.supervisorId);
-  if (root) renderPerson(root.id);
+  NAV_STACK = [];
+  if (root) renderPerson(root.id, true);
 };
