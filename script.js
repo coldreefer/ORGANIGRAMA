@@ -1,15 +1,15 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — WORKDAY PRO (FIX TRANSACTION)
+ *  ORGANIGRAMA EMR — WORKDAY PRO (AJUSTE UI + CONTROLES)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
 
 /* ========================================================================================
-   CONFIG UI
+   CONFIG UI (AJUSTADO)
    ======================================================================================== */
 const UI = {
-  avatarSize: 52,
-  cardMargin: 18
+  avatarSize: 40,
+  cardMargin: 12
 };
 
 /* ========================================================================================
@@ -42,27 +42,30 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowCopy: false,
   allowSelect: false,
   mouseWheelBehavior: go.Diagram.Zoom,
-  minScale: 0.7,
-  maxScale: 2.2,
-  padding: 120,
+  minScale: 0.4,
+  maxScale: 2,
+  padding: 60,
   animationManager: {
     isEnabled: true,
-    duration: 450
+    duration: 350
   },
   layout: $(go.TreeLayout, {
     angle: 90,
-    layerSpacing: 160,
-    nodeSpacing: 90
+    layerSpacing: 90,
+    nodeSpacing: 40
   })
 });
+
+// escala inicial cómoda (CLAVE)
+diagram.scale = 0.85;
 
 /* ========================================================================================
    LINKS
    ======================================================================================== */
 diagram.linkTemplate = $(
   go.Link,
-  { routing: go.Link.Orthogonal, corner: 14 },
-  $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.4 })
+  { routing: go.Link.Orthogonal, corner: 10 },
+  $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.3 })
 );
 
 /* ========================================================================================
@@ -80,7 +83,7 @@ function avatar() {
       width: UI.avatarSize,
       height: UI.avatarSize,
       imageStretch: go.GraphObject.UniformToFill,
-      margin: new go.Margin(0, 0, 12, 0)
+      margin: new go.Margin(0, 0, 8, 0)
     },
     new go.Binding("source", "image")
   );
@@ -116,13 +119,11 @@ function personCard(stroke, clickable, isFocus) {
       { margin: UI.cardMargin, alignment: go.Spot.Center },
       avatar(),
       $(go.TextBlock, {
-        font: "bold 14px sans-serif",
-        stroke: "#0f172a",
-        textAlign: "center",
-        margin: new go.Margin(2, 0, 4, 0)
+        font: "bold 12.5px sans-serif",
+        textAlign: "center"
       }, new go.Binding("text", "name")),
       $(go.TextBlock, {
-        font: "12px sans-serif",
+        font: "11px sans-serif",
         stroke: "#475569",
         textAlign: "center"
       }, new go.Binding("text", "role"))
@@ -144,7 +145,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   CORE — RENDER PERSON (FIXED)
+   CORE — RENDER PERSON
    ======================================================================================== */
 function renderPerson(personId, animate = true) {
   const person = TEAM_DATA.find(p => p.id === personId);
@@ -178,7 +179,6 @@ function renderPerson(personId, animate = true) {
       links.push({ from: person.id, to: r.id });
     });
 
-  // 🔹 CAMBIO CLAVE: asignar modelo SIN transacción
   diagram.model = new go.GraphLinksModel(nodes, links);
 
   if (animate) {
@@ -213,6 +213,30 @@ Papa.parse("team.csv", {
     if (root) renderPerson(root.id, false);
   }
 });
+
+/* ========================================================================================
+   CONTROLES UI (ZOOM / FIT / FULLSCREEN)
+   ======================================================================================== */
+document.getElementById("btnZoomIn").onclick = () => {
+  diagram.scale = Math.min(diagram.scale + 0.1, diagram.maxScale);
+};
+
+document.getElementById("btnZoomOut").onclick = () => {
+  diagram.scale = Math.max(diagram.scale - 0.1, diagram.minScale);
+};
+
+document.getElementById("btnFit").onclick = () => {
+  diagram.zoomToFit();
+};
+
+document.getElementById("btnFull").onclick = () => {
+  const el = document.getElementById("diagramWrapper");
+  if (!document.fullscreenElement) {
+    el.requestFullscreen();
+  } else {
+    document.exitFullscreen();
+  }
+};
 
 /* ========================================================================================
    BOTÓN ROOT
