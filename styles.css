@@ -104,22 +104,25 @@ header p {
    TEAM OVERLAY (WORKDAY STYLE)
    =============================== */
 
+/* ===============================
+   WORKDAY TEAM OVERLAY
+   =============================== */
+
 .team-overlay {
   position: fixed;
   inset: 0;
   background: #f1f5f9;
-  z-index: 9999; /* más alto que header, canvas y controles */
+  z-index: 9999;
   display: none;
   padding: 24px;
   overflow-y: auto;
 }
 
-/* visible cuando JS lo activa */
 .team-overlay.visible {
   display: block;
 }
 
-/* header del overlay */
+/* header overlay */
 .team-overlay-header {
   display: flex;
   justify-content: space-between;
@@ -133,7 +136,6 @@ header p {
   color: #0f172a;
 }
 
-/* botón cerrar */
 #btnCloseTeam {
   background: none;
   border: none;
@@ -142,14 +144,36 @@ header p {
   color: #0f172a;
 }
 
-/* grilla de trabajadores */
-.team-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 20px;
+/* ===============================
+   SUPERVISOR (ARRIBA)
+   =============================== */
+
+.team-supervisor {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 36px;
 }
 
-/* tarjeta trabajador */
+.team-supervisor-card {
+  max-width: 260px;
+  padding: 18px;
+}
+
+/* ===============================
+   WORKERS GRID
+   =============================== */
+
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 20px;
+  justify-content: center;
+}
+
+/* ===============================
+   CARD BASE
+   =============================== */
+
 .team-card {
   background: #ffffff;
   border-radius: 12px;
@@ -176,6 +200,7 @@ header p {
   font-size: 12px;
   color: #475569;
 }
+
 /* ===============================
    WORKDAY TEAM OVERLAY
    =============================== */
