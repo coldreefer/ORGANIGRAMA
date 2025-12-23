@@ -1,15 +1,13 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL (WORKDAY REAL)
- *  ✔ GoJS SOLO para el organigrama
- *  ✔ Overlay HTML externo (no GoJS)
- *  ✔ Click Supervisor → vista workers
- *  ✔ Click volver → organigrama
+ * ORGANIGRAMA EMR — SCRIPT PRINCIPAL (WORKDAY REAL)
+ * GoJS = organigrama
+ * HTML = vista de equipo
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
 
 /* =========================================================================
-   CONFIG
+   AVATAR DEFAULT
    ========================================================================= */
 const DEFAULT_AVATAR =
   "data:image/svg+xml;utf8," +
@@ -22,7 +20,7 @@ const DEFAULT_AVATAR =
 </svg>`);
 
 /* =========================================================================
-   STATE
+   ESTADO GLOBAL
    ========================================================================= */
 let TEAM_DATA = [];
 let VENDOR_DATA = [];
@@ -58,7 +56,8 @@ diagram.linkTemplate = $(
    ========================================================================= */
 function resolveImage(row) {
   if (!row || !row.ImageURL) return DEFAULT_AVATAR;
-  return row.ImageURL.toString().trim() || DEFAULT_AVATAR;
+  const url = row.ImageURL.toString().trim();
+  return url || DEFAULT_AVATAR;
 }
 
 function photo() {
@@ -156,7 +155,7 @@ diagram.nodeTemplateMap.add("VendorItem",
 );
 
 /* =========================================================================
-   BUILD TEAM (WORKDAY REAL)
+   BUILD TEAM
    ========================================================================= */
 function buildTeam(rows) {
 
@@ -263,7 +262,7 @@ function buildVendors(rows) {
 }
 
 /* =========================================================================
-   OVERLAY HTML (WORKDAY REAL)
+   OVERLAY HTML — WORKDAY REAL
    ========================================================================= */
 function openTeamOverlay(data) {
 
@@ -272,6 +271,11 @@ function openTeamOverlay(data) {
   const overlay = document.getElementById("teamOverlay");
   const title = document.getElementById("teamTitle");
   const grid = document.getElementById("teamGrid");
+
+  if (!overlay || !title || !grid) {
+    console.error("Overlay HTML no encontrado");
+    return;
+  }
 
   title.textContent = data.name;
   grid.innerHTML = "";
@@ -292,7 +296,8 @@ function openTeamOverlay(data) {
 
 function closeTeamOverlay() {
   ACTIVE_SUPERVISOR = null;
-  document.getElementById("teamOverlay").classList.remove("visible");
+  const overlay = document.getElementById("teamOverlay");
+  if (overlay) overlay.classList.remove("visible");
 }
 
 /* =========================================================================
@@ -316,7 +321,7 @@ Papa.parse("vendors.csv", {
 });
 
 /* =========================================================================
-   BUTTONS
+   BOTONES
    ========================================================================= */
 document.getElementById("btnTeams").onclick = () => buildTeam(TEAM_DATA);
 document.getElementById("btnVendorsDept").onclick = () => buildVendors(VENDOR_DATA);
