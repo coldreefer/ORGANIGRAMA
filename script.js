@@ -1,11 +1,11 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — WORKDAY REAL (OVERLAY ESTABLE)
+ *  ORGANIGRAMA EMR — WORKDAY REAL (OVERLAY ESTABLE Y CORRECTO)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
 
 /* ========================================================================================
-   CONFIG UI
+   CONFIG
    ======================================================================================== */
 const UI = {
   avatar: 42,
@@ -65,7 +65,7 @@ diagram.linkTemplate = $(
 /* ========================================================================================
    HELPERS
    ======================================================================================== */
-function safeText(v) {
+function safe(v) {
   return v === undefined || v === null ? "" : String(v);
 }
 
@@ -136,29 +136,35 @@ function removeOverlay() {
 }
 
 function buildWorkerCell(worker) {
-  return $(
+  const p = $(
     go.Panel,
     "Auto",
     { margin: UI.cellPadding },
-    card("#e5e7eb", true, false),
-    { data: worker }
+    card("#e5e7eb", true, false)
   );
+  p.data = worker;
+  return p;
 }
 
 function buildWorkerGrid(workers) {
   const table = $(go.Panel, "Table");
 
-  let row = 0;
-  let col = 0;
+  let r = 0;
+  let c = 0;
 
   workers.forEach(w => {
-    const cell = buildWorkerCell(w);
-    table.add(cell, row, col);
+    if (!w || !w.name) return;
 
-    col++;
-    if (col >= UI.workerCols) {
-      col = 0;
-      row++;
+    const cell = buildWorkerCell(w);
+    cell.row = r;
+    cell.column = c;
+
+    table.add(cell);
+
+    c++;
+    if (c >= UI.workerCols) {
+      c = 0;
+      r++;
     }
   });
 
@@ -166,8 +172,7 @@ function buildWorkerGrid(workers) {
 }
 
 function buildOverlay(node) {
-  const workers = (node.data.workers || [])
-    .filter(w => w && w.name);
+  const workers = (node.data.workers || []);
 
   return $(
     go.Part,
@@ -182,7 +187,7 @@ function buildOverlay(node) {
       go.Panel,
       "Vertical",
       { margin: 16 },
-      $(go.TextBlock, safeText(node.data.name), {
+      $(go.TextBlock, safe(node.data.name), {
         font: "bold 14px sans-serif",
         margin: new go.Margin(0, 0, 12, 0)
       }),
@@ -230,7 +235,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   BUILD TEAMS
+   BUILD TEAM
    ======================================================================================== */
 function buildTeam(rows) {
 
