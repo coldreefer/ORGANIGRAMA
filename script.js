@@ -1,15 +1,15 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — WORKDAY REAL + ANIMACIÓN + HISTORIAL
+ *  ORGANIGRAMA EMR — WORKDAY PRO (PULIDO FINAL)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
 
 /* ========================================================================================
-   CONFIG UI
+   CONFIG UI — PRO
    ======================================================================================== */
 const UI = {
-  avatarSize: 48,
-  cardMargin: 16
+  avatarSize: 52,
+  cardMargin: 18
 };
 
 /* ========================================================================================
@@ -34,7 +34,7 @@ let CURRENT_PERSON_ID = null;
 let NAV_STACK = [];
 
 /* ========================================================================================
-   DIAGRAM
+   DIAGRAM — SETUP PRO
    ======================================================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
@@ -42,31 +42,33 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowCopy: false,
   allowSelect: false,
   mouseWheelBehavior: go.Diagram.Zoom,
-  minScale: 0.6,
-  maxScale: 2.5,
-  padding: 80,
+  minScale: 0.7,
+  maxScale: 2.2,
+  padding: 120,
+
   animationManager: {
     isEnabled: true,
-    duration: 350
+    duration: 450
   },
+
   layout: $(go.TreeLayout, {
     angle: 90,
-    layerSpacing: 120,
-    nodeSpacing: 60
+    layerSpacing: 160,
+    nodeSpacing: 90
   })
 });
 
 /* ========================================================================================
-   LINKS
+   LINKS — SUAVES
    ======================================================================================== */
 diagram.linkTemplate = $(
   go.Link,
-  { routing: go.Link.Orthogonal, corner: 10 },
-  $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.5 })
+  { routing: go.Link.Orthogonal, corner: 14 },
+  $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.4 })
 );
 
 /* ========================================================================================
-   HELPERS
+   HELPERS VISUALES
    ======================================================================================== */
 function resolveImage(row) {
   if (!row || !row.ImageURL) return DEFAULT_AVATAR;
@@ -80,23 +82,27 @@ function avatar() {
       width: UI.avatarSize,
       height: UI.avatarSize,
       imageStretch: go.GraphObject.UniformToFill,
-      margin: new go.Margin(0, 0, 10, 0)
+      margin: new go.Margin(0, 0, 12, 0)
     },
     new go.Binding("source", "image")
   );
 }
 
-function personCard(stroke, isClickable, isFocus) {
+function personCard(stroke, clickable, isFocus) {
   return $(
     go.Panel, "Auto",
     {
-      cursor: isClickable ? "pointer" : "default",
+      cursor: clickable ? "pointer" : "default",
       click: (e, panel) => {
         const data = panel.part.data;
+
         if (isFocus && NAV_STACK.length > 0) {
           const prev = NAV_STACK.pop();
-          renderPerson(prev, false);
-        } else if (isClickable && data.id !== CURRENT_PERSON_ID) {
+          renderPerson(prev, true);
+          return;
+        }
+
+        if (clickable && data.id !== CURRENT_PERSON_ID) {
           NAV_STACK.push(CURRENT_PERSON_ID);
           renderPerson(data.id, true);
         }
@@ -112,8 +118,10 @@ function personCard(stroke, isClickable, isFocus) {
       { margin: UI.cardMargin, alignment: go.Spot.Center },
       avatar(),
       $(go.TextBlock, {
-        font: "bold 13px sans-serif",
-        textAlign: "center"
+        font: "bold 14px sans-serif",
+        textAlign: "center",
+        stroke: "#0f172a",
+        margin: new go.Margin(2, 0, 4, 0)
       }, new go.Binding("text", "name")),
       $(go.TextBlock, {
         font: "12px sans-serif",
@@ -138,7 +146,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   CORE — RENDER PERSON (CON ANIMACIÓN)
+   CORE — RENDER PERSON (PRO)
    ======================================================================================== */
 function renderPerson(personId, animate = true) {
   const person = TEAM_DATA.find(p => p.id === personId);
@@ -158,29 +166,29 @@ function renderPerson(personId, animate = true) {
     image: person.image
   });
 
-  const reports = TEAM_DATA.filter(p => p.supervisorId === person.id);
-
-  reports.forEach(r => {
-    nodes.push({
-      key: r.id,
-      id: r.id,
-      category: "Report",
-      name: `${r.firstName} ${r.lastName}`,
-      role: r.role,
-      image: r.image
+  TEAM_DATA
+    .filter(p => p.supervisorId === person.id)
+    .forEach(r => {
+      nodes.push({
+        key: r.id,
+        id: r.id,
+        category: "Report",
+        name: `${r.firstName} ${r.lastName}`,
+        role: r.role,
+        image: r.image
+      });
+      links.push({ from: person.id, to: r.id });
     });
-    links.push({ from: person.id, to: r.id });
-  });
 
-  diagram.startTransaction("render-person");
+  diagram.startTransaction("render");
   diagram.model = new go.GraphLinksModel(nodes, links);
-  diagram.commitTransaction("render-person");
+  diagram.commitTransaction("render");
 
   if (animate) {
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       const node = diagram.findNodeForKey(person.id);
       if (node) diagram.centerRect(node.actualBounds);
-    }, 50);
+    });
   }
 }
 
@@ -210,7 +218,7 @@ Papa.parse("team.csv", {
 });
 
 /* ========================================================================================
-   BOTÓN VOLVER A ROOT
+   BOTÓN ROOT
    ======================================================================================== */
 document.getElementById("btnTeams").onclick = () => {
   const root = TEAM_DATA.find(p => !p.supervisorId);
