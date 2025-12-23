@@ -126,39 +126,53 @@ btnClose.addEventListener("click", closeTeamOverlay);
 function openTeamOverlay(supervisorData) {
   ACTIVE_SUPERVISOR = supervisorData;
 
-  overlayTitle.textContent = supervisorData.name;
+  if (!overlay || !overlayGrid || !overlayTitle) return;
+
+  overlayTitle.textContent = supervisorData.name || "";
   overlayGrid.innerHTML = "";
 
-  /* --- SUPERVISOR CARD (CENTRADO ARRIBA) --- */
-  const supCard = document.createElement("div");
-  supCard.className = "team-card";
-  supCard.style.margin = "0 auto 24px";
-  supCard.style.maxWidth = "260px";
+  /* ================= SUPERVISOR ARRIBA ================= */
+  const supervisorWrap = document.createElement("div");
+  supervisorWrap.className = "team-header";
 
-  supCard.innerHTML = `
+  const supervisorCard = document.createElement("div");
+  supervisorCard.className = "team-card";
+  supervisorCard.style.maxWidth = "260px";
+
+  supervisorCard.innerHTML = `
     <img src="${supervisorData.image || DEFAULT_AVATAR}">
     <div>${supervisorData.name}</div>
     <div>${supervisorData.role || ""}</div>
   `;
 
-  overlayGrid.appendChild(supCard);
+  supervisorWrap.appendChild(supervisorCard);
+  overlayGrid.appendChild(supervisorWrap);
 
-  /* --- WORKERS GRID --- */
+  /* ================= WORKERS GRID ================= */
+  const workersSection = document.createElement("div");
+  workersSection.className = "team-workers";
+
   const grid = document.createElement("div");
   grid.className = "team-grid";
 
-  supervisorData.workers.forEach(w => {
-    const card = document.createElement("div");
-    card.className = "team-card";
-    card.innerHTML = `
-      <img src="${w.image || DEFAULT_AVATAR}">
-      <div>${w.name}</div>
-      <div>${w.role || ""}</div>
-    `;
-    grid.appendChild(card);
-  });
+  if (Array.isArray(supervisorData.workers)) {
+    supervisorData.workers.forEach(w => {
+      const workerCard = document.createElement("div");
+      workerCard.className = "team-card";
 
-  overlayGrid.appendChild(grid);
+      workerCard.innerHTML = `
+        <img src="${w.image || DEFAULT_AVATAR}">
+        <div>${w.name}</div>
+        <div>${w.role || ""}</div>
+      `;
+
+      grid.appendChild(workerCard);
+    });
+  }
+
+  workersSection.appendChild(grid);
+  overlayGrid.appendChild(workersSection);
+
   overlay.classList.add("visible");
 }
 
