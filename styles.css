@@ -176,3 +176,23 @@ header p {
   font-size: 12px;
   color: #475569;
 }
+/* ===============================
+   WORKDAY TEAM OVERLAY
+   =============================== */
+
+.team-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+
+.team-workers {
+  width: 100%;
+}
+
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(160px, 1fr));
+  gap: 20px;
+  justify-content: center;
+}
