@@ -1,17 +1,15 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL (WORKDAY-LIKE FINAL)
+ *  ORGANIGRAMA EMR — WORKDAY REAL (PERSON-CENTERED)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
 
 /* ========================================================================================
-   CONFIGURACIÓN UI
+   CONFIG UI
    ======================================================================================== */
 const UI = {
-  avatarSize: 42,
-  cardMargin: 12,
-  workerColumns: 6,
-  workerGap: 20
+  avatarSize: 46,
+  cardMargin: 14
 };
 
 /* ========================================================================================
@@ -32,8 +30,7 @@ const DEFAULT_AVATAR =
    ESTADO GLOBAL
    ======================================================================================== */
 let TEAM_DATA = [];
-let VENDOR_DATA = [];
-let ACTIVE_SUPERVISOR = null;
+let CURRENT_PERSON_ID = null;
 
 /* ========================================================================================
    DIAGRAM
@@ -44,9 +41,14 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowCopy: false,
   allowSelect: false,
   mouseWheelBehavior: go.Diagram.Zoom,
-  minScale: 0.4,
+  minScale: 0.5,
   maxScale: 2.5,
-  padding: 40
+  padding: 40,
+  layout: $(go.TreeLayout, {
+    angle: 90,
+    layerSpacing: 80,
+    nodeSpacing: 30
+  })
 });
 
 /* ========================================================================================
@@ -59,7 +61,7 @@ diagram.linkTemplate = $(
 );
 
 /* ========================================================================================
-   HELPERS VISUALES
+   HELPERS
    ======================================================================================== */
 function resolveImage(row) {
   if (!row || !row.ImageURL) return DEFAULT_AVATAR;
@@ -67,275 +69,108 @@ function resolveImage(row) {
   return url || DEFAULT_AVATAR;
 }
 
-function photo() {
+function avatar() {
   return $(
     go.Picture,
     {
       width: UI.avatarSize,
       height: UI.avatarSize,
-      margin: new go.Margin(0, 10, 0, 0),
-      imageStretch: go.GraphObject.UniformToFill
+      imageStretch: go.GraphObject.UniformToFill,
+      margin: new go.Margin(0, 0, 8, 0)
     },
     new go.Binding("source", "image")
   );
 }
 
-function card(stroke, withPhoto, showCount) {
+function personCard(stroke, clickable) {
   return $(
     go.Panel, "Auto",
+    {
+      cursor: clickable ? "pointer" : "default",
+      click: clickable
+        ? (e, panel) => {
+            const data = panel.part.data;
+            renderPerson(data.id);
+          }
+        : null
+    },
     $(go.Shape, "RoundedRectangle", {
       fill: "white",
       stroke,
       strokeWidth: 2
     }),
     $(
-      go.Panel, "Horizontal",
-      { margin: UI.cardMargin },
-      withPhoto ? photo() : $(go.Panel),
-      $(
-        go.Panel, "Vertical",
-        $(go.TextBlock, { font: "bold 13px sans-serif" },
-          new go.Binding("text", "name")),
-        $(go.TextBlock, { font: "11px sans-serif", stroke: "#475569" },
-          new go.Binding("text", "role")),
-        showCount
-          ? $(go.TextBlock, {
-              margin: new go.Margin(6, 0, 0, 0),
-              font: "10px sans-serif",
-              stroke: "#64748b"
-            },
-            new go.Binding("visible", "count", c => c > 0),
-            new go.Binding("text", "count", c => `👤 ${c}`)
-          )
-          : $(go.Panel)
-      )
+      go.Panel, "Vertical",
+      { margin: UI.cardMargin, alignment: go.Spot.Center },
+      avatar(),
+      $(go.TextBlock, {
+        font: "bold 13px sans-serif",
+        stroke: "#0f172a",
+        textAlign: "center",
+        margin: new go.Margin(4, 0, 2, 0)
+      }, new go.Binding("text", "name")),
+      $(go.TextBlock, {
+        font: "12px sans-serif",
+        stroke: "#475569",
+        textAlign: "center"
+      }, new go.Binding("text", "role"))
     )
   );
 }
 
 /* ========================================================================================
-   OVERLAY WORKDAY (HTML)
-   ======================================================================================== */
-const overlay = document.getElementById("teamOverlay");
-const overlayTitle = document.getElementById("teamTitle");
-const overlayGrid = document.getElementById("teamGrid");
-const btnClose = document.getElementById("btnCloseTeam");
-
-btnClose.addEventListener("click", closeTeamOverlay);
-
-function openTeamOverlay(supervisorData) {
-  ACTIVE_SUPERVISOR = supervisorData;
-
-  // Seguridad básica
-  if (!overlay || !overlayGrid || !overlayTitle) {
-    console.warn("Overlay HTML no encontrado");
-    return;
-  }
-
-  // Reset overlay
-  overlayTitle.textContent = supervisorData.name || "";
-  overlayGrid.innerHTML = "";
-
-  /* =====================================================
-     SUPERVISOR (ARRIBA, CENTRADO, COMO WORKDAY)
-     ===================================================== */
-  const supervisorWrap = document.createElement("div");
-  supervisorWrap.className = "team-supervisor";
-
-  const supervisorCard = document.createElement("div");
-  supervisorCard.className = "team-card team-supervisor-card";
-
-  supervisorCard.innerHTML = `
-    <img src="${supervisorData.image || DEFAULT_AVATAR}">
-    <div>${supervisorData.name || ""}</div>
-    <div>${supervisorData.role || ""}</div>
-  `;
-
-  supervisorWrap.appendChild(supervisorCard);
-  overlayGrid.appendChild(supervisorWrap);
-
-  /* =====================================================
-     WORKERS GRID (6 COLUMNAS)
-     ===================================================== */
-  const grid = document.createElement("div");
-  grid.className = "team-grid";
-
-  if (Array.isArray(supervisorData.workers)) {
-    supervisorData.workers.forEach(w => {
-      const workerCard = document.createElement("div");
-      workerCard.className = "team-card";
-
-      workerCard.innerHTML = `
-        <img src="${w.image || DEFAULT_AVATAR}">
-        <div>${w.name || ""}</div>
-        <div>${w.role || ""}</div>
-      `;
-
-      grid.appendChild(workerCard);
-    });
-  }
-
-  overlayGrid.appendChild(grid);
-
-  /* =====================================================
-     MOSTRAR OVERLAY
-     ===================================================== */
-  overlay.classList.add("visible");
-}
-
-
-function closeTeamOverlay() {
-  overlay.classList.remove("visible");
-  overlayGrid.innerHTML = "";
-  ACTIVE_SUPERVISOR = null;
-}
-
-/* ========================================================================================
-   TEMPLATES TEAMS
+   NODE TEMPLATES
    ======================================================================================== */
 diagram.nodeTemplateMap.add(
-  "Leader",
-  $(go.Node, "Auto", card("#2563eb", true, true))
+  "Focus",
+  $(go.Node, "Auto", personCard("#2563eb", false))
 );
 
-diagram.groupTemplateMap.add(
-  "Supervisor",
-  $(go.Group, "Vertical",
-    {
-      layout: $(go.TreeLayout, { angle: 90, nodeSpacing: 20, layerSpacing: 30 })
-    },
-    $(
-      go.Panel,
-      "Auto",
-      {
-        cursor: "pointer",
-        click: (e, panel) => {
-          const g = panel.part;
-          if (!g.data.hasChildren) return;
-          openTeamOverlay(g.data);
-        }
-      },
-      card("#14b8a6", true, true)
-    ),
-    $(go.Placeholder, { padding: 10 })
-  )
+diagram.nodeTemplateMap.add(
+  "Report",
+  $(go.Node, "Auto", personCard("#14b8a6", true))
 );
 
 /* ========================================================================================
-   TEMPLATES VENDORS (SIN CAMBIOS)
+   CORE — RENDER PERSON (WORKDAY REAL)
    ======================================================================================== */
-diagram.nodeTemplateMap.add("VendorRoot",
-  $(go.Node, "Auto", card("#64748b", false, true))
-);
-diagram.nodeTemplateMap.add("VendorArea",
-  $(go.Node, "Auto", card("#7c3aed", false, true))
-);
-diagram.nodeTemplateMap.add("VendorItem",
-  $(go.Node, "Auto", card("#e5e7eb", false, false))
-);
+function renderPerson(personId) {
+  const person = TEAM_DATA.find(p => p.id === personId);
+  if (!person) return;
 
-/* ========================================================================================
-   BUILD TEAMS
-   ======================================================================================== */
-function buildTeam(rows) {
+  CURRENT_PERSON_ID = personId;
 
   const nodes = [];
   const links = [];
 
-  const people = rows.filter(r => r["First name (required)"]);
-  people.forEach(p => p.id = p["Email (required)"]);
-
-  const leader = people.find(p => !p["SupervisorEmail (required)"]);
-  if (!leader) return;
-
-  const supervisors = people.filter(p => p["SupervisorEmail (required)"] === leader.id);
-
+  // Persona foco (arriba)
   nodes.push({
-    key: leader.id,
-    category: "Leader",
-    name: `${leader["First name (required)"]} ${leader["Last name (required)"]}`,
-    role: leader.Position || "",
-    image: resolveImage(leader),
-    count: supervisors.length
+    key: person.id,
+    id: person.id,
+    category: "Focus",
+    name: `${person.firstName} ${person.lastName}`,
+    role: person.role,
+    image: person.image
   });
 
-  supervisors.forEach(s => {
+  // Reportes directos (abajo)
+  const reports = TEAM_DATA.filter(p => p.supervisorId === person.id);
 
-    const workers = people.filter(w => w["SupervisorEmail (required)"] === s.id);
-
+  reports.forEach(r => {
     nodes.push({
-      key: s.id,
-      isGroup: true,
-      category: "Supervisor",
-      name: `${s["First name (required)"]} ${s["Last name (required)"]}`,
-      role: s.Position || "",
-      image: resolveImage(s),
-      count: workers.length,
-      hasChildren: workers.length > 0,
-      workers: workers.map(w => ({
-        name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
-        role: w.Position || "",
-        image: resolveImage(w)
-      }))
+      key: r.id,
+      id: r.id,
+      category: "Report",
+      name: `${r.firstName} ${r.lastName}`,
+      role: r.role,
+      image: r.image
     });
 
-    links.push({ from: leader.id, to: s.id });
+    links.push({ from: person.id, to: r.id });
   });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
-  diagram.layout = $(go.TreeLayout, { angle: 90, layerSpacing: 90 });
-}
-
-/* ========================================================================================
-   BUILD VENDORS
-   ======================================================================================== */
-function buildVendors(rows) {
-
-  closeTeamOverlay();
-
-  const nodes = [];
-  const links = [];
-
-  nodes.push({
-    key: "VENDORS",
-    category: "VendorRoot",
-    name: "Vendors",
-    count: rows.length
-  });
-
-  const byDept = {};
-  rows.forEach(v => {
-    if (!v.Department) return;
-    (byDept[v.Department] ||= []).push(v);
-  });
-
-  let a = 0, i = 0;
-
-  Object.entries(byDept).forEach(([dept, vendors]) => {
-    const areaKey = `AREA_${a++}`;
-
-    nodes.push({
-      key: areaKey,
-      category: "VendorArea",
-      name: dept,
-      count: vendors.length
-    });
-
-    links.push({ from: "VENDORS", to: areaKey });
-
-    vendors.forEach(v => {
-      nodes.push({
-        key: `V_${i++}`,
-        category: "VendorItem",
-        name: `${v["First name (required)"]} ${v["Last name (required)"]}`.trim(),
-        role: v.Position || ""
-      });
-      links.push({ from: areaKey, to: `V_${i - 1}` });
-    });
-  });
-
-  diagram.model = new go.GraphLinksModel(nodes, links);
-  diagram.layout = $(go.TreeLayout, { angle: 90, layerSpacing: 70 });
+  diagram.zoomToFit();
 }
 
 /* ========================================================================================
@@ -346,22 +181,28 @@ Papa.parse("team.csv", {
   header: true,
   delimiter: ";",
   complete: r => {
-    TEAM_DATA = r.data;
-    buildTeam(TEAM_DATA);
-  }
-});
 
-Papa.parse("vendors.csv", {
-  download: true,
-  header: true,
-  delimiter: ";",
-  complete: r => {
-    VENDOR_DATA = r.data;
+    TEAM_DATA = r.data
+      .filter(p => p["Email (required)"])
+      .map(p => ({
+        id: p["Email (required)"],
+        supervisorId: p["SupervisorEmail (required)"] || null,
+        firstName: p["First name (required)"] || "",
+        lastName: p["Last name (required)"] || "",
+        role: p.Position || "",
+        image: resolveImage(p)
+      }));
+
+    // Persona raíz (sin supervisor)
+    const root = TEAM_DATA.find(p => !p.supervisorId);
+    if (root) renderPerson(root.id);
   }
 });
 
 /* ========================================================================================
-   BOTONES
+   BOTÓN VOLVER A ROOT
    ======================================================================================== */
-document.getElementById("btnTeams").onclick = () => buildTeam(TEAM_DATA);
-document.getElementById("btnVendorsDept").onclick = () => buildVendors(VENDOR_DATA);
+document.getElementById("btnTeams").onclick = () => {
+  const root = TEAM_DATA.find(p => !p.supervisorId);
+  if (root) renderPerson(root.id);
+};
