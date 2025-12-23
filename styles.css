@@ -100,3 +100,79 @@ header p {
 .controls button:active {
   transform: translateY(0);
 }
+/* ===============================
+   TEAM OVERLAY (WORKDAY STYLE)
+   =============================== */
+
+.team-overlay {
+  position: fixed;
+  inset: 0;
+  background: #f1f5f9;
+  z-index: 9999; /* más alto que header, canvas y controles */
+  display: none;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+/* visible cuando JS lo activa */
+.team-overlay.visible {
+  display: block;
+}
+
+/* header del overlay */
+.team-overlay-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+#teamTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* botón cerrar */
+#btnCloseTeam {
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: #0f172a;
+}
+
+/* grilla de trabajadores */
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 20px;
+}
+
+/* tarjeta trabajador */
+.team-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 14px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.team-card img {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 8px;
+}
+
+.team-card div:first-of-type {
+  font-weight: 600;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.team-card div:last-of-type {
+  font-size: 12px;
+  color: #475569;
+}
