@@ -1,5 +1,5 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — WORKDAY REAL (ESTABLE + FIX DEFINITIVO)
+ *  ORGANIGRAMA EMR — WORKDAY REAL (OVERLAY ESTABLE)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -31,10 +31,9 @@ const DEFAULT_AVATAR =
 `);
 
 /* ========================================================================================
-   ESTADO
+   STATE
    ======================================================================================== */
 let TEAM_DATA = [];
-let VENDOR_DATA = [];
 let ACTIVE_OVERLAY = null;
 let ACTIVE_SUPERVISOR_KEY = null;
 
@@ -67,25 +66,13 @@ diagram.linkTemplate = $(
    HELPERS
    ======================================================================================== */
 function safeText(v) {
-  if (v === null || v === undefined) return "";
-  return String(v);
+  return v === undefined || v === null ? "" : String(v);
 }
 
 function resolveImage(row) {
   if (!row || !row.ImageURL) return DEFAULT_AVATAR;
   const u = String(row.ImageURL).trim();
   return u || DEFAULT_AVATAR;
-}
-
-function sanitizeWorker(w) {
-  if (!w) return null;
-  if (!w.name) return null;
-
-  return {
-    name: safeText(w.name),
-    role: safeText(w.role),
-    image: w.image || DEFAULT_AVATAR
-  };
 }
 
 /* ========================================================================================
@@ -160,22 +147,27 @@ function buildWorkerCell(worker) {
 
 function buildWorkerGrid(workers) {
   const table = $(go.Panel, "Table");
-  let r = 0, c = 0;
+
+  let row = 0;
+  let col = 0;
 
   workers.forEach(w => {
-    table.add(buildWorkerCell(w), { row: r, column: c });
-    c++;
-    if (c >= UI.workerCols) { c = 0; r++; }
+    const cell = buildWorkerCell(w);
+    table.add(cell, row, col);
+
+    col++;
+    if (col >= UI.workerCols) {
+      col = 0;
+      row++;
+    }
   });
 
   return table;
 }
 
 function buildOverlay(node) {
-  const workers =
-    (node.data.workers || [])
-      .map(sanitizeWorker)
-      .filter(Boolean);
+  const workers = (node.data.workers || [])
+    .filter(w => w && w.name);
 
   return $(
     go.Part,
