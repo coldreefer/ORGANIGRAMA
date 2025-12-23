@@ -126,36 +126,37 @@ btnClose.addEventListener("click", closeTeamOverlay);
 function openTeamOverlay(supervisorData) {
   ACTIVE_SUPERVISOR = supervisorData;
 
-  if (!overlay || !overlayGrid || !overlayTitle) return;
+  // Seguridad básica
+  if (!overlay || !overlayGrid || !overlayTitle) {
+    console.warn("Overlay HTML no encontrado");
+    return;
+  }
 
+  // Reset overlay
   overlayTitle.textContent = supervisorData.name || "";
   overlayGrid.innerHTML = "";
 
-  /* ================= SUPERVISOR ARRIBA ================= */
+  /* =====================================================
+     SUPERVISOR (ARRIBA, CENTRADO, COMO WORKDAY)
+     ===================================================== */
   const supervisorWrap = document.createElement("div");
-  supervisorWrap.className = "team-header";
-  supervisorWrap.style.width = "100%";
-  supervisorWrap.style.display = "flex";
-  supervisorWrap.style.justifyContent = "center";
+  supervisorWrap.className = "team-supervisor";
 
   const supervisorCard = document.createElement("div");
-  supervisorCard.className = "team-card";
-  supervisorCard.style.maxWidth = "260px";
+  supervisorCard.className = "team-card team-supervisor-card";
 
   supervisorCard.innerHTML = `
     <img src="${supervisorData.image || DEFAULT_AVATAR}">
-    <div>${supervisorData.name}</div>
+    <div>${supervisorData.name || ""}</div>
     <div>${supervisorData.role || ""}</div>
   `;
 
   supervisorWrap.appendChild(supervisorCard);
   overlayGrid.appendChild(supervisorWrap);
 
-  /* ================= WORKERS GRID ================= */
-  const workersSection = document.createElement("div");
-  workersSection.className = "team-workers";
-  workersSection.style.width = "100%";
-
+  /* =====================================================
+     WORKERS GRID (6 COLUMNAS)
+     ===================================================== */
   const grid = document.createElement("div");
   grid.className = "team-grid";
 
@@ -166,7 +167,7 @@ function openTeamOverlay(supervisorData) {
 
       workerCard.innerHTML = `
         <img src="${w.image || DEFAULT_AVATAR}">
-        <div>${w.name}</div>
+        <div>${w.name || ""}</div>
         <div>${w.role || ""}</div>
       `;
 
@@ -174,11 +175,14 @@ function openTeamOverlay(supervisorData) {
     });
   }
 
-  workersSection.appendChild(grid);
-  overlayGrid.appendChild(workersSection);
+  overlayGrid.appendChild(grid);
 
+  /* =====================================================
+     MOSTRAR OVERLAY
+     ===================================================== */
   overlay.classList.add("visible");
 }
+
 
 function closeTeamOverlay() {
   overlay.classList.remove("visible");
