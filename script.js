@@ -1,24 +1,29 @@
 /******************************************************************************************
  *  ORGANIGRAMA EMR — SCRIPT PRINCIPAL (WORKDAY-LIKE REAL)
- *  - GoJS SOLO para organigrama (Leader + Supervisors + Vendors)
- *  - Teams renderizados en HTML flotante (NO GoJS overlay)
- *  - Grid 6 columnas
- *  - Zoom y cámara intactos
+ *  ✔ GoJS solo para organigrama (Leader / Supervisors / Vendors)
+ *  ✔ Teams en overlay HTML (NO GoJS Parts)
+ *  ✔ Grid horizontal 6 columnas
+ *  ✔ Zoom del diagrama NO se rompe
+ *  ✔ Vendors intactos
  ******************************************************************************************/
 
+/* ======================================================================================
+   GOJS FACTORY
+   ====================================================================================== */
 const $ = go.GraphObject.make;
 
-/* ========================================================================================
-   CONFIGURACIÓN GLOBAL
-   ======================================================================================== */
+/* ======================================================================================
+   CONFIGURACIÓN UI
+   ====================================================================================== */
 const UI = {
   avatarSize: 42,
-  cardMargin: 12
+  cardMargin: 12,
+  workerColumns: 6
 };
 
-/* ========================================================================================
+/* ======================================================================================
    AVATAR DEFAULT
-   ======================================================================================== */
+   ====================================================================================== */
 const DEFAULT_AVATAR =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(`
@@ -30,16 +35,16 @@ const DEFAULT_AVATAR =
 </svg>
 `);
 
-/* ========================================================================================
+/* ======================================================================================
    ESTADO GLOBAL
-   ======================================================================================== */
+   ====================================================================================== */
 let TEAM_DATA = [];
 let VENDOR_DATA = [];
 let ACTIVE_SUPERVISOR_KEY = null;
 
-/* ========================================================================================
+/* ======================================================================================
    DIAGRAM
-   ======================================================================================== */
+   ====================================================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
   allowMove: false,
@@ -53,18 +58,18 @@ const diagram = $(go.Diagram, "diagramDiv", {
   "animationManager.duration": 300
 });
 
-/* ========================================================================================
+/* ======================================================================================
    LINKS
-   ======================================================================================== */
+   ====================================================================================== */
 diagram.linkTemplate = $(
   go.Link,
   { routing: go.Link.Orthogonal, corner: 8 },
   $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.5 })
 );
 
-/* ========================================================================================
+/* ======================================================================================
    HELPERS VISUALES
-   ======================================================================================== */
+   ====================================================================================== */
 function resolveImage(row) {
   if (!row || !row.ImageURL) return DEFAULT_AVATAR;
   const url = row.ImageURL.toString().trim();
@@ -117,17 +122,32 @@ function card(stroke, withPhoto, showCount) {
   );
 }
 
-/* ========================================================================================
-   HTML TEAM OVERLAY (DOM, NO GoJS)
-   ======================================================================================== */
+/* ======================================================================================
+   TEAM OVERLAY (HTML)
+   ====================================================================================== */
 const overlay = document.getElementById("teamOverlay");
 const overlayTitle = document.getElementById("teamOverlayTitle");
 const overlayGrid = document.getElementById("teamOverlayGrid");
 const overlayClose = document.getElementById("teamOverlayClose");
 
-overlayClose.addEventListener("click", hideTeamOverlay);
+function hideTeamOverlay() {
+  if (!overlay) return;
+  overlay.classList.add("hidden");
+  overlayGrid.innerHTML = "";
+  overlayTitle.textContent = "";
+  ACTIVE_SUPERVISOR_KEY = null;
+}
 
+if (overlayClose) {
+  overlayClose.addEventListener("click", hideTeamOverlay);
+}
+
+/* ======================================================================================
+   RENDER TEAM (WORKDAY-LIKE)
+   ====================================================================================== */
 function showTeamOverlay(supervisorData) {
+
+  if (!overlay || !overlayGrid || !overlayTitle) return;
 
   // Toggle
   if (ACTIVE_SUPERVISOR_KEY === supervisorData.key) {
@@ -136,16 +156,10 @@ function showTeamOverlay(supervisorData) {
   }
 
   ACTIVE_SUPERVISOR_KEY = supervisorData.key;
-
-  // Título
   overlayTitle.textContent = supervisorData.name;
-
-  // Limpiar grid
   overlayGrid.innerHTML = "";
 
-  // Workers
-  (supervisorData.workers || []).forEach(w => {
-
+  supervisorData.workers.forEach(w => {
     const card = document.createElement("div");
     card.className = "team-worker";
 
@@ -153,36 +167,22 @@ function showTeamOverlay(supervisorData) {
     img.src = w.image || DEFAULT_AVATAR;
 
     const info = document.createElement("div");
-
-    const name = document.createElement("div");
-    name.className = "team-worker-name";
-    name.textContent = w.name;
-
-    const role = document.createElement("div");
-    role.className = "team-worker-role";
-    role.textContent = w.role || "";
-
-    info.appendChild(name);
-    info.appendChild(role);
+    info.innerHTML = `
+      <div class="team-worker-name">${w.name}</div>
+      <div class="team-worker-role">${w.role || ""}</div>
+    `;
 
     card.appendChild(img);
     card.appendChild(info);
-
     overlayGrid.appendChild(card);
   });
 
   overlay.classList.remove("hidden");
 }
 
-function hideTeamOverlay() {
-  overlay.classList.add("hidden");
-  overlayGrid.innerHTML = "";
-  ACTIVE_SUPERVISOR_KEY = null;
-}
-
-/* ========================================================================================
-   TEMPLATES TEAMS (GoJS)
-   ======================================================================================== */
+/* ======================================================================================
+   TEMPLATES TEAMS
+   ====================================================================================== */
 diagram.nodeTemplateMap.add(
   "Leader",
   $(go.Node, "Auto", card("#2563eb", true, true))
@@ -205,6 +205,7 @@ diagram.groupTemplateMap.add(
         cursor: "pointer",
         click: (e, panel) => {
           const group = panel.part;
+          if (!group.data.hasChildren) return;
           showTeamOverlay(group.data);
         }
       },
@@ -214,9 +215,9 @@ diagram.groupTemplateMap.add(
   )
 );
 
-/* ========================================================================================
+/* ======================================================================================
    TEMPLATES VENDORS (SIN CAMBIOS)
-   ======================================================================================== */
+   ====================================================================================== */
 diagram.nodeTemplateMap.add(
   "VendorRoot",
   $(go.Node, "Auto", card("#64748b", false, true))
@@ -232,9 +233,9 @@ diagram.nodeTemplateMap.add(
   $(go.Node, "Auto", card("#e5e7eb", false, false))
 );
 
-/* ========================================================================================
+/* ======================================================================================
    BUILD TEAMS
-   ======================================================================================== */
+   ====================================================================================== */
 function buildTeam(rows) {
 
   hideTeamOverlay();
@@ -271,6 +272,7 @@ function buildTeam(rows) {
       role: s.Position || "",
       image: resolveImage(s),
       count: workers.length,
+      hasChildren: workers.length > 0,
       workers: workers.map(w => ({
         name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
         role: w.Position || "",
@@ -285,9 +287,9 @@ function buildTeam(rows) {
   diagram.layout = $(go.TreeLayout, { angle: 90, layerSpacing: 90 });
 }
 
-/* ========================================================================================
-   BUILD VENDORS (IGUAL AL TUYO)
-   ======================================================================================== */
+/* ======================================================================================
+   BUILD VENDORS
+   ====================================================================================== */
 function buildVendors(rows) {
 
   hideTeamOverlay();
@@ -347,9 +349,9 @@ function buildVendors(rows) {
   });
 }
 
-/* ========================================================================================
+/* ======================================================================================
    LOAD CSV
-   ======================================================================================== */
+   ====================================================================================== */
 Papa.parse("team.csv", {
   download: true,
   header: true,
@@ -369,8 +371,8 @@ Papa.parse("vendors.csv", {
   }
 });
 
-/* ========================================================================================
+/* ======================================================================================
    BOTONES
-   ======================================================================================== */
+   ====================================================================================== */
 document.getElementById("btnTeams").onclick = () => buildTeam(TEAM_DATA);
 document.getElementById("btnVendorsDept").onclick = () => buildVendors(VENDOR_DATA);
