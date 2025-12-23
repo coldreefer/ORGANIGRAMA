@@ -1,15 +1,11 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — WORKDAY-LIKE REAL (ESTABLE Y DEFINITIVO)
- *  - Organigrama NO se modifica
- *  - Click supervisor abre overlay flotante
- *  - Overlay con grid 6 columnas (Table Panel)
- *  - Zoom y pan intactos
+ *  ORGANIGRAMA EMR — WORKDAY REAL (ESTABLE + FIX DEFINITIVO)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
 
 /* ========================================================================================
-   CONFIGURACIÓN UI
+   CONFIG UI
    ======================================================================================== */
 const UI = {
   avatar: 42,
@@ -35,16 +31,15 @@ const DEFAULT_AVATAR =
 `);
 
 /* ========================================================================================
-   ESTADO GLOBAL
+   ESTADO
    ======================================================================================== */
 let TEAM_DATA = [];
 let VENDOR_DATA = [];
-
 let ACTIVE_OVERLAY = null;
 let ACTIVE_SUPERVISOR_KEY = null;
 
 /* ========================================================================================
-   DIAGRAM BASE
+   DIAGRAM
    ======================================================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
@@ -69,14 +64,33 @@ diagram.linkTemplate = $(
 );
 
 /* ========================================================================================
-   HELPERS VISUALES
+   HELPERS
    ======================================================================================== */
+function safeText(v) {
+  if (v === null || v === undefined) return "";
+  return String(v);
+}
+
 function resolveImage(row) {
   if (!row || !row.ImageURL) return DEFAULT_AVATAR;
-  const u = row.ImageURL.toString().trim();
+  const u = String(row.ImageURL).trim();
   return u || DEFAULT_AVATAR;
 }
 
+function sanitizeWorker(w) {
+  if (!w) return null;
+  if (!w.name) return null;
+
+  return {
+    name: safeText(w.name),
+    role: safeText(w.role),
+    image: w.image || DEFAULT_AVATAR
+  };
+}
+
+/* ========================================================================================
+   CARD
+   ======================================================================================== */
 function photo() {
   return $(
     go.Picture,
@@ -104,13 +118,10 @@ function card(stroke, withPhoto, showCount) {
       withPhoto ? photo() : $(go.Panel),
       $(
         go.Panel, "Vertical",
-        $(go.TextBlock, {
-          font: "bold 13px sans-serif"
-        }, new go.Binding("text", "name")),
-        $(go.TextBlock, {
-          font: "11px sans-serif",
-          stroke: "#475569"
-        }, new go.Binding("text", "role")),
+        $(go.TextBlock, { font: "bold 13px sans-serif" },
+          new go.Binding("text", "name")),
+        $(go.TextBlock, { font: "11px sans-serif", stroke: "#475569" },
+          new go.Binding("text", "role")),
         showCount
           ? $(go.TextBlock, {
               margin: new go.Margin(6, 0, 0, 0),
@@ -127,7 +138,7 @@ function card(stroke, withPhoto, showCount) {
 }
 
 /* ========================================================================================
-   OVERLAY — WORKDAY REAL
+   OVERLAY
    ======================================================================================== */
 function removeOverlay() {
   if (ACTIVE_OVERLAY) {
@@ -143,52 +154,33 @@ function buildWorkerCell(worker) {
     "Auto",
     { margin: UI.cellPadding },
     card("#e5e7eb", true, false),
-    {
-      data: {
-        name: worker.name,
-        role: worker.role,
-        image: worker.image
-      }
-    }
+    { data: worker }
   );
 }
 
 function buildWorkerGrid(workers) {
-
   const table = $(go.Panel, "Table");
-
-  let row = 0;
-  let col = 0;
+  let r = 0, c = 0;
 
   workers.forEach(w => {
-    table.add(
-      buildWorkerCell(w),
-      { row, column: col }
-    );
-
-    col++;
-    if (col >= UI.workerCols) {
-      col = 0;
-      row++;
-    }
+    table.add(buildWorkerCell(w), { row: r, column: c });
+    c++;
+    if (c >= UI.workerCols) { c = 0; r++; }
   });
 
   return table;
 }
 
-function buildOverlay(supervisorNode) {
-
-  const data = supervisorNode.data;
-  const workers = data.workers || [];
+function buildOverlay(node) {
+  const workers =
+    (node.data.workers || [])
+      .map(sanitizeWorker)
+      .filter(Boolean);
 
   return $(
     go.Part,
     "Auto",
-    {
-      layerName: "Foreground",
-      selectable: false,
-      locationSpot: go.Spot.Top
-    },
+    { layerName: "Foreground", selectable: false },
     $(go.Shape, "RoundedRectangle", {
       fill: "white",
       stroke: "#14b8a6",
@@ -198,13 +190,11 @@ function buildOverlay(supervisorNode) {
       go.Panel,
       "Vertical",
       { margin: 16 },
-      $(go.TextBlock, data.name, {
+      $(go.TextBlock, safeText(node.data.name), {
         font: "bold 14px sans-serif",
         margin: new go.Margin(0, 0, 12, 0)
       }),
-      $(
-        go.Panel,
-        "Auto",
+      $(go.Panel, "Auto",
         { maxSize: new go.Size(UI.overlayMaxWidth, UI.overlayMaxHeight) },
         buildWorkerGrid(workers)
       )
@@ -213,25 +203,20 @@ function buildOverlay(supervisorNode) {
 }
 
 function toggleOverlay(node) {
-
   if (ACTIVE_SUPERVISOR_KEY === node.data.key) {
     removeOverlay();
     return;
   }
 
   removeOverlay();
-
   ACTIVE_OVERLAY = buildOverlay(node);
   diagram.add(ACTIVE_OVERLAY);
-
-  ACTIVE_OVERLAY.location =
-    node.getDocumentPoint(go.Spot.Bottom);
-
+  ACTIVE_OVERLAY.location = node.getDocumentPoint(go.Spot.Bottom);
   ACTIVE_SUPERVISOR_KEY = node.data.key;
 }
 
 /* ========================================================================================
-   TEMPLATES TEAMS
+   TEMPLATES
    ======================================================================================== */
 diagram.nodeTemplateMap.add(
   "Leader",
@@ -253,25 +238,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   TEMPLATES VENDORS (SIN CAMBIOS)
-   ======================================================================================== */
-diagram.nodeTemplateMap.add(
-  "VendorRoot",
-  $(go.Node, "Auto", card("#64748b", false, true))
-);
-
-diagram.nodeTemplateMap.add(
-  "VendorArea",
-  $(go.Node, "Auto", card("#7c3aed", false, true))
-);
-
-diagram.nodeTemplateMap.add(
-  "VendorItem",
-  $(go.Node, "Auto", card("#e5e7eb", false, false))
-);
-
-/* ========================================================================================
-   BUILD TEAMS — WORKDAY
+   BUILD TEAMS
    ======================================================================================== */
 function buildTeam(rows) {
 
@@ -280,7 +247,7 @@ function buildTeam(rows) {
   const nodes = [];
   const links = [];
 
-  const people = rows.filter(r => r["First name (required)"]);
+  const people = rows.filter(r => r && r["First name (required)"]);
   people.forEach(p => p.id = p["Email (required)"]);
 
   const leader = people.find(p => !p["SupervisorEmail (required)"]);
@@ -302,7 +269,6 @@ function buildTeam(rows) {
     const workers = people
       .filter(w => w["SupervisorEmail (required)"] === s.id)
       .map(w => ({
-        key: w.id,
         name: `${w["First name (required)"]} ${w["Last name (required)"]}`,
         role: w.Position || "",
         image: resolveImage(w)
@@ -326,68 +292,6 @@ function buildTeam(rows) {
 }
 
 /* ========================================================================================
-   BUILD VENDORS
-   ======================================================================================== */
-function buildVendors(rows) {
-
-  removeOverlay();
-
-  const nodes = [];
-  const links = [];
-
-  nodes.push({
-    key: "VENDORS",
-    category: "VendorRoot",
-    name: "Vendors",
-    count: rows.length
-  });
-
-  const byDept = {};
-
-  rows.forEach(v => {
-    if (!v.Department) return;
-    if (!byDept[v.Department]) byDept[v.Department] = [];
-    byDept[v.Department].push(v);
-  });
-
-  let areaIdx = 0;
-  let vendorIdx = 0;
-
-  Object.entries(byDept).forEach(([dept, vendors]) => {
-
-    const areaKey = `AREA_${areaIdx++}`;
-
-    nodes.push({
-      key: areaKey,
-      category: "VendorArea",
-      name: dept,
-      count: vendors.length
-    });
-
-    links.push({ from: "VENDORS", to: areaKey });
-
-    vendors.forEach(v => {
-      const vk = `V_${vendorIdx++}`;
-      nodes.push({
-        key: vk,
-        category: "VendorItem",
-        name: `${v["First name (required)"]} ${v["Last name (required)"]}`.trim(),
-        role: v.Position || ""
-      });
-      links.push({ from: areaKey, to: vk });
-    });
-  });
-
-  diagram.model = new go.GraphLinksModel(nodes, links);
-  diagram.layout = $(go.TreeLayout, {
-    angle: 90,
-    layerSpacing: 70,
-    nodeSpacing: 30,
-    arrangement: go.TreeLayout.ArrangementFixedRoots
-  });
-}
-
-/* ========================================================================================
    LOAD CSV
    ======================================================================================== */
 Papa.parse("team.csv", {
@@ -395,22 +299,7 @@ Papa.parse("team.csv", {
   header: true,
   delimiter: ";",
   complete: r => {
-    TEAM_DATA = r.data;
+    TEAM_DATA = r.data || [];
     buildTeam(TEAM_DATA);
   }
 });
-
-Papa.parse("vendors.csv", {
-  download: true,
-  header: true,
-  delimiter: ";",
-  complete: r => {
-    VENDOR_DATA = r.data;
-  }
-});
-
-/* ========================================================================================
-   BOTONES
-   ======================================================================================== */
-document.getElementById("btnTeams").onclick = () => buildTeam(TEAM_DATA);
-document.getElementById("btnVendorsDept").onclick = () => buildVendors(VENDOR_DATA);
