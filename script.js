@@ -135,12 +135,12 @@ function openTeamOverlay(supervisorData) {
   const supervisorWrap = document.createElement("div");
   supervisorWrap.className = "team-header";
   supervisorWrap.style.width = "100%";
-  supervisorCard.style.maxWidth = "260px";
   supervisorWrap.style.display = "flex";
   supervisorWrap.style.justifyContent = "center";
 
   const supervisorCard = document.createElement("div");
   supervisorCard.className = "team-card";
+  supervisorCard.style.maxWidth = "260px";
 
   supervisorCard.innerHTML = `
     <img src="${supervisorData.image || DEFAULT_AVATAR}">
