@@ -134,10 +134,13 @@ function openTeamOverlay(supervisorData) {
   /* ================= SUPERVISOR ARRIBA ================= */
   const supervisorWrap = document.createElement("div");
   supervisorWrap.className = "team-header";
+  supervisorWrap.style.width = "100%";
+  supervisorCard.style.maxWidth = "260px";
+  supervisorWrap.style.display = "flex";
+  supervisorWrap.style.justifyContent = "center";
 
   const supervisorCard = document.createElement("div");
   supervisorCard.className = "team-card";
-  supervisorCard.style.maxWidth = "260px";
 
   supervisorCard.innerHTML = `
     <img src="${supervisorData.image || DEFAULT_AVATAR}">
@@ -151,6 +154,7 @@ function openTeamOverlay(supervisorData) {
   /* ================= WORKERS GRID ================= */
   const workersSection = document.createElement("div");
   workersSection.className = "team-workers";
+  workersSection.style.width = "100%";
 
   const grid = document.createElement("div");
   grid.className = "team-grid";
