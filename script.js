@@ -1,13 +1,12 @@
 /******************************************************************************************
  *  ORGCHART EMR — PEOPLE + VENDORS
- *  Workday-style:
  *  - Cards de tamaño fijo (todas iguales)
  *  - Solo un supervisor expandido a la vez
- *  - Click supervisor = muestra SOLO trabajadores (2 filas)
- *  - Click otra vez = colapsa
+ *  - Click SOLO si tiene gente a cargo
  *  - Blur visual del resto
  *  - Vendors en organigrama independiente
  *  - Zoom con rueda del mouse
+ *  - Zoom inicial alejado
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -19,7 +18,8 @@ const UI = {
   avatarSize: 42,
   padding: 12,
   cardWidth: 160,
-  cardHeight: 190
+  cardHeight: 190,
+  initialScale: 0.7
 };
 
 /* ========================================================================================
@@ -48,6 +48,7 @@ let CURRENT_MODE = "PEOPLE";
    ======================================================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
+  initialScale: UI.initialScale,
   allowMove: false,
   allowCopy: false,
   allowSelect: false,
@@ -56,6 +57,8 @@ const diagram = $(go.Diagram, "diagramDiv", {
   maxScale: 2,
   padding: 60
 });
+// asegurar zoom con rueda
+diagram.toolManager.mouseWheelBehavior = go.ToolManager.WheelZoom;
 
 /* ========================================================================================
    LINK TEMPLATE
@@ -90,13 +93,16 @@ function avatar() {
   );
 }
 
-function personCard(stroke, clickable = false) {
+function personCard(stroke) {
   return $(
     go.Panel, "Auto",
-    clickable ? {
-      cursor: "pointer",
-      click: (e, node) => handleSupervisorClick(node.part.data.key)
-    } : {},
+    {
+      cursor: "default",
+      click: (e, node) => {
+        const d = node.part.data;
+        if (d.canExpand) handleSupervisorClick(d.key);
+      }
+    },
     $(go.Shape, "RoundedRectangle",
       {
         fill: "white",
@@ -142,7 +148,7 @@ function personCard(stroke, clickable = false) {
    NODE TEMPLATES — PEOPLE
    ======================================================================================== */
 diagram.nodeTemplateMap.add("Boss", $(go.Node, "Auto", personCard("#2563eb")));
-diagram.nodeTemplateMap.add("Supervisor", $(go.Node, "Auto", personCard("#2563eb", true)));
+diagram.nodeTemplateMap.add("Supervisor", $(go.Node, "Auto", personCard("#2563eb")));
 diagram.nodeTemplateMap.add("Worker", $(go.Node, "Auto", personCard("#94a3b8")));
 
 /* ========================================================================================
@@ -235,12 +241,15 @@ function renderPeople(supervisorId = null) {
   const boss = TEAM_DATA.find(p => !p.supervisorId);
   if (!boss) return;
 
+  const hasChildren = id => TEAM_DATA.some(p => p.supervisorId === id);
+
   nodes.push({
     key: boss.id,
     category: "Boss",
     name: `${boss.firstName} ${boss.lastName}`,
     role: boss.role,
     image: boss.image,
+    canExpand: hasChildren(boss.id),
     dimmed: !!supervisorId
   });
 
@@ -251,6 +260,7 @@ function renderPeople(supervisorId = null) {
       name: `${s.firstName} ${s.lastName}`,
       role: s.role,
       image: s.image,
+      canExpand: hasChildren(s.id),
       dimmed: supervisorId && supervisorId !== s.id
     });
     links.push({ from: boss.id, to: s.id });
@@ -268,6 +278,7 @@ function renderPeople(supervisorId = null) {
         name: `${w.firstName} ${w.lastName}`,
         role: w.role,
         image: w.image,
+        canExpand: false,
         group: groupKey,
         dimmed: false
       });
@@ -277,6 +288,7 @@ function renderPeople(supervisorId = null) {
   diagram.model = new go.GraphLinksModel(nodes, links);
 
   requestAnimationFrame(() => {
+    diagram.scale = UI.initialScale;
     const node = diagram.findNodeForKey(supervisorId || boss.id);
     if (node) diagram.centerRect(node.actualBounds);
   });
