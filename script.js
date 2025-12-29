@@ -155,9 +155,9 @@ diagram.groupTemplateMap.add(
     {
       layout: $(go.GridLayout, {
         wrappingWidth: Infinity,
+        wrappingColumn: 2,              // 🔥 SOLO 2 FILAS (GoJS 2.x)
         alignment: go.GridLayout.Position,
-        spacing: new go.Size(20, 20),
-        maxRows: 2               // 🔥 SOLO 2 FILAS
+        spacing: new go.Size(20, 20)
       })
     },
     $(go.Shape, { fill: "transparent", strokeWidth: 0 }),
