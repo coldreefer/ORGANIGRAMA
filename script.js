@@ -1,12 +1,15 @@
 /******************************************************************************************
  *  ORGCHART EMR — PEOPLE + VENDORS
- *  - Cards de tamaño fijo (todas iguales)
+ *  Workday-style FINAL
+ *  - Cards tamaño fijo (todas iguales)
  *  - Solo un supervisor expandido a la vez
  *  - Click SOLO si tiene gente a cargo
  *  - Blur visual del resto
  *  - Vendors en organigrama independiente
  *  - Zoom con rueda del mouse
  *  - Zoom inicial alejado
+ *  - Panning libre (mover cámara en todas direcciones)
+ *  - Animaciones suaves (piolas, no marean)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -44,20 +47,35 @@ let CURRENT_SUPERVISOR = null;
 let CURRENT_MODE = "PEOPLE";
 
 /* ========================================================================================
-   DIAGRAM
+   DIAGRAM (ZOOM + PAN + ANIMACIONES)
    ======================================================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
   initialScale: UI.initialScale,
+
   allowMove: false,
   allowCopy: false,
   allowSelect: false,
+
+  // Zoom y pan
   mouseWheelBehavior: go.Diagram.Zoom,
+  allowHorizontalScroll: true,
+  allowVerticalScroll: true,
   minScale: 0.4,
   maxScale: 2,
-  padding: 60
+
+  padding: 200,
+
+  // Animaciones suaves
+  animationManager: {
+    isEnabled: true,
+    duration: 300,
+    easing: go.Animation.EaseOutExpo
+  }
 });
-// asegurar zoom con rueda
+
+// asegurar herramientas
+diagram.toolManager.panningTool.isEnabled = true;
 diagram.toolManager.mouseWheelBehavior = go.ToolManager.WheelZoom;
 
 /* ========================================================================================
@@ -97,7 +115,7 @@ function personCard(stroke) {
   return $(
     go.Panel, "Auto",
     {
-      cursor: "default",
+      cursor: "pointer",
       click: (e, node) => {
         const d = node.part.data;
         if (d.canExpand) handleSupervisorClick(d.key);
