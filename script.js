@@ -1,15 +1,14 @@
 /******************************************************************************************
- *  ORGCHART EMR — PEOPLE + VENDORS
- *  Workday-style FINAL
+ *  ORGCHART EMR — PEOPLE + VENDORS  (FINAL ESTABLE)
  *  - Cards tamaño fijo (todas iguales)
  *  - Solo un supervisor expandido a la vez
  *  - Click SOLO si tiene gente a cargo
  *  - Blur visual del resto
  *  - Vendors en organigrama independiente
- *  - Zoom con rueda del mouse
- *  - Zoom inicial alejado
- *  - Panning libre (mover cámara en todas direcciones)
- *  - Animaciones suaves (piolas, no marean)
+ *  - Zoom con rueda del mouse (NO se resetea)
+ *  - Zoom inicial alejado (solo una vez)
+ *  - Panning libre real (arrastrar fondo)
+ *  - Animaciones suaves reales (layout + fade)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -44,10 +43,10 @@ const DEFAULT_AVATAR =
 let TEAM_DATA = [];
 let VENDORS_DATA = [];
 let CURRENT_SUPERVISOR = null;
-let CURRENT_MODE = "PEOPLE";
+let FIRST_RENDER = true;
 
 /* ========================================================================================
-   DIAGRAM (ZOOM + PAN + ANIMACIONES)
+   DIAGRAM — ZOOM + PAN REAL + ANIMACIONES
    ======================================================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
@@ -57,24 +56,25 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowCopy: false,
   allowSelect: false,
 
-  // Zoom y pan
+  // Zoom
   mouseWheelBehavior: go.Diagram.Zoom,
-  allowHorizontalScroll: true,
-  allowVerticalScroll: true,
   minScale: 0.4,
   maxScale: 2,
 
-  padding: 200,
+  // Panning real (arrastrar fondo)
+  allowHorizontalScroll: true,
+  allowVerticalScroll: true,
 
-  // Animaciones suaves
+  padding: 300,
+
   animationManager: {
     isEnabled: true,
-    duration: 300,
-    easing: go.Animation.EaseOutExpo
+    duration: 320,
+    easing: go.Animation.EaseOutCubic
   }
 });
 
-// asegurar herramientas
+// herramientas
 diagram.toolManager.panningTool.isEnabled = true;
 diagram.toolManager.mouseWheelBehavior = go.ToolManager.WheelZoom;
 
@@ -242,10 +242,11 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   RENDER PEOPLE
+   RENDER PEOPLE — NO TOCA ZOOM / PAN
    ======================================================================================== */
 function renderPeople(supervisorId = null) {
-  CURRENT_MODE = "PEOPLE";
+
+  diagram.startTransaction("render-people");
 
   diagram.layout = $(go.TreeLayout, {
     angle: 90,
@@ -296,8 +297,8 @@ function renderPeople(supervisorId = null) {
         name: `${w.firstName} ${w.lastName}`,
         role: w.role,
         image: w.image,
-        canExpand: false,
         group: groupKey,
+        canExpand: false,
         dimmed: false
       });
     });
@@ -305,11 +306,13 @@ function renderPeople(supervisorId = null) {
 
   diagram.model = new go.GraphLinksModel(nodes, links);
 
-  requestAnimationFrame(() => {
-    diagram.scale = UI.initialScale;
-    const node = diagram.findNodeForKey(supervisorId || boss.id);
-    if (node) diagram.centerRect(node.actualBounds);
-  });
+  diagram.commitTransaction("render-people");
+
+  // solo en el primer render
+  if (FIRST_RENDER) {
+    requestAnimationFrame(() => diagram.zoomToFit());
+    FIRST_RENDER = false;
+  }
 }
 
 /* ========================================================================================
@@ -324,7 +327,8 @@ function handleSupervisorClick(key) {
    RENDER VENDORS
    ======================================================================================== */
 function renderVendors() {
-  CURRENT_MODE = "VENDORS";
+
+  diagram.startTransaction("render-vendors");
 
   diagram.layout = $(go.TreeLayout, {
     angle: 90,
@@ -368,6 +372,7 @@ function renderVendors() {
   });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
+  diagram.commitTransaction("render-vendors");
   diagram.zoomToFit();
 }
 
