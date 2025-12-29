@@ -1,11 +1,11 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — WORKDAY PRO (AJUSTE UI + CONTROLES)
+ *  ORGANIGRAMA EMR — PEOPLE + VENDORS (OVERLAY)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
 
 /* ========================================================================================
-   CONFIG UI (AJUSTADO)
+   CONFIG UI
    ======================================================================================== */
 const UI = {
   avatarSize: 40,
@@ -13,7 +13,7 @@ const UI = {
 };
 
 /* ========================================================================================
-   AVATAR DEFAULT
+   AVATAR DEFAULT (PEOPLE)
    ======================================================================================== */
 const DEFAULT_AVATAR =
   "data:image/svg+xml;utf8," +
@@ -30,11 +30,12 @@ const DEFAULT_AVATAR =
    ESTADO GLOBAL
    ======================================================================================== */
 let TEAM_DATA = [];
+let VENDORS_DATA = [];
 let CURRENT_PERSON_ID = null;
 let NAV_STACK = [];
 
 /* ========================================================================================
-   DIAGRAM
+   DIAGRAM (PEOPLE)
    ======================================================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
@@ -45,10 +46,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
   minScale: 0.4,
   maxScale: 2,
   padding: 60,
-  animationManager: {
-    isEnabled: true,
-    duration: 350
-  },
+  animationManager: { isEnabled: true, duration: 350 },
   layout: $(go.TreeLayout, {
     angle: 90,
     layerSpacing: 90,
@@ -56,7 +54,6 @@ const diagram = $(go.Diagram, "diagramDiv", {
   })
 });
 
-// escala inicial cómoda (CLAVE)
 diagram.scale = 0.85;
 
 /* ========================================================================================
@@ -69,7 +66,7 @@ diagram.linkTemplate = $(
 );
 
 /* ========================================================================================
-   HELPERS
+   HELPERS PEOPLE
    ======================================================================================== */
 function resolveImage(row) {
   if (!row || !row.ImageURL) return DEFAULT_AVATAR;
@@ -118,10 +115,8 @@ function personCard(stroke, clickable, isFocus) {
       go.Panel, "Vertical",
       { margin: UI.cardMargin, alignment: go.Spot.Center },
       avatar(),
-      $(go.TextBlock, {
-        font: "bold 12.5px sans-serif",
-        textAlign: "center"
-      }, new go.Binding("text", "name")),
+      $(go.TextBlock, { font: "bold 12.5px sans-serif", textAlign: "center" },
+        new go.Binding("text", "name")),
       $(go.TextBlock, {
         font: "11px sans-serif",
         stroke: "#475569",
@@ -145,7 +140,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   CORE — RENDER PERSON
+   RENDER PEOPLE
    ======================================================================================== */
 function renderPerson(personId, animate = true) {
   const person = TEAM_DATA.find(p => p.id === personId);
@@ -190,14 +185,13 @@ function renderPerson(personId, animate = true) {
 }
 
 /* ========================================================================================
-   LOAD CSV
+   LOAD PEOPLE CSV
    ======================================================================================== */
 Papa.parse("team.csv", {
   download: true,
   header: true,
   delimiter: ";",
   complete: r => {
-
     TEAM_DATA = r.data
       .filter(p => p["Email (required)"])
       .map(p => ({
@@ -215,34 +209,80 @@ Papa.parse("team.csv", {
 });
 
 /* ========================================================================================
-   CONTROLES UI (ZOOM / FIT / FULLSCREEN)
+   LOAD VENDORS CSV
    ======================================================================================== */
-document.getElementById("btnZoomIn").onclick = () => {
+Papa.parse("vendors.csv", {
+  download: true,
+  header: true,
+  delimiter: ";",
+  complete: r => {
+    VENDORS_DATA = r.data.filter(v => v["Department"]);
+  }
+});
+
+/* ========================================================================================
+   VENDORS OVERLAY
+   ======================================================================================== */
+const vendorsOverlay = document.getElementById("teamOverlay");
+const teamGrid = document.getElementById("teamGrid");
+const teamTitle = document.getElementById("teamTitle");
+const btnCloseTeam = document.getElementById("btnCloseTeam");
+
+function renderVendorsOverlay() {
+  teamGrid.innerHTML = "";
+  teamTitle.textContent = "Vendors por Departamento";
+
+  const grouped = {};
+
+  VENDORS_DATA.forEach(v => {
+    const dept = v.Department.trim();
+    if (!grouped[dept]) grouped[dept] = [];
+    grouped[dept].push(v);
+  });
+
+  Object.keys(grouped).forEach(dept => {
+    const section = document.createElement("div");
+    section.style.gridColumn = "1 / -1";
+    section.style.marginTop = "24px";
+    section.innerHTML = `<h3 style="margin:8px 0;color:#0f172a">${dept}</h3>`;
+    teamGrid.appendChild(section);
+
+    grouped[dept].forEach(v => {
+      const card = document.createElement("div");
+      card.className = "team-card";
+      card.innerHTML = `
+        <div>${v["First name (required)"]} ${v["Last name (required)"]}</div>
+        <div>${v.Position || ""}</div>
+      `;
+      teamGrid.appendChild(card);
+    });
+  });
+
+  vendorsOverlay.classList.add("visible");
+}
+
+/* ========================================================================================
+   CONTROLES
+   ======================================================================================== */
+document.getElementById("btnZoomIn").onclick = () =>
   diagram.scale = Math.min(diagram.scale + 0.1, diagram.maxScale);
-};
 
-document.getElementById("btnZoomOut").onclick = () => {
+document.getElementById("btnZoomOut").onclick = () =>
   diagram.scale = Math.max(diagram.scale - 0.1, diagram.minScale);
-};
 
-document.getElementById("btnFit").onclick = () => {
+document.getElementById("btnFit").onclick = () =>
   diagram.zoomToFit();
-};
 
 document.getElementById("btnFull").onclick = () => {
   const el = document.getElementById("diagramWrapper");
-  if (!document.fullscreenElement) {
-    el.requestFullscreen();
-  } else {
-    document.exitFullscreen();
-  }
+  document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen();
 };
 
-/* ========================================================================================
-   BOTÓN ROOT
-   ======================================================================================== */
 document.getElementById("btnTeams").onclick = () => {
   const root = TEAM_DATA.find(p => !p.supervisorId);
   NAV_STACK = [];
   if (root) renderPerson(root.id, true);
 };
+
+document.getElementById("btnVendorsDept").onclick = renderVendorsOverlay;
+btnCloseTeam.onclick = () => vendorsOverlay.classList.remove("visible");
