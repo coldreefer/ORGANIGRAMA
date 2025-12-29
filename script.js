@@ -61,7 +61,7 @@ diagram.linkTemplate = $(
   { routing: go.Link.Orthogonal, corner: 12 },
   $(go.Shape,
     { stroke: "#cbd5e1", strokeWidth: 1.4 },
-    new go.Binding("opacity", "dimmed", d => d ? 0.25 : 1).ofObject()
+    new go.Binding("opacity", "dimmed", d => d ? 0.05 : 1).ofObject()
   )
 );
 
@@ -94,7 +94,7 @@ function personCard(stroke, clickable = false) {
     } : {},
     $(go.Shape, "RoundedRectangle",
       { fill: "white", stroke, strokeWidth: 2 },
-      new go.Binding("opacity", "dimmed", d => d ? 0.25 : 1)
+      new go.Binding("opacity", "dimmed", d => d ? 0.05 : 1)
     ),
     $(go.Panel, "Vertical",
       { margin: UI.padding },
@@ -102,12 +102,12 @@ function personCard(stroke, clickable = false) {
       $(go.TextBlock,
         { font: "bold 12.5px sans-serif", textAlign: "center" },
         new go.Binding("text", "name"),
-        new go.Binding("opacity", "dimmed", d => d ? 0.25 : 1)
+        new go.Binding("opacity", "dimmed", d => d ? 0.05 : 1)
       ),
       $(go.TextBlock,
         { font: "11px sans-serif", stroke: "#475569", textAlign: "center" },
         new go.Binding("text", "role"),
-        new go.Binding("opacity", "dimmed", d => d ? 0.25 : 1)
+        new go.Binding("opacity", "dimmed", d => d ? 0.05 : 1)
       )
     )
   );
