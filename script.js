@@ -38,7 +38,7 @@ let NAV_STACK = [];
 let CURRENT_MODE = "PEOPLE"; // PEOPLE | VENDORS
 
 /* ========================================================================================
-   DIAGRAM (ÚNICO)
+   DIAGRAM (ÚNICO)  👉 IGUAL QUE ANTES
    ======================================================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
@@ -53,14 +53,10 @@ const diagram = $(go.Diagram, "diagramDiv", {
     isEnabled: true,
     duration: 350
   },
-  // 🔥 LAYOUT CLAVE: 2 FILAS HORIZONTALES
   layout: $(go.TreeLayout, {
-    angle: 0, // expansión horizontal
+    angle: 90,          // 👈 NO SE TOCA
     layerSpacing: 90,
-    nodeSpacing: 40,
-    alignment: go.TreeLayout.AlignmentCenterChildren,
-    arrangement: go.TreeLayout.ArrangementFixedRoots,
-    breadthLimit: 2 // máximo 2 FILAS
+    nodeSpacing: 40
   })
 });
 
@@ -151,7 +147,26 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   NODE TEMPLATES — VENDORS
+   GROUP TEMPLATE — SOLO PARA TRABAJADORES
+   ======================================================================================== */
+diagram.groupTemplateMap.add(
+  "ReportsGroup",
+  $(go.Group, "Auto",
+    {
+      layout: $(go.GridLayout, {
+        wrappingWidth: Infinity,
+        alignment: go.GridLayout.Position,
+        spacing: new go.Size(20, 20),
+        maxRows: 2               // 🔥 SOLO 2 FILAS
+      })
+    },
+    $(go.Shape, { fill: "transparent", strokeWidth: 0 }),
+    $(go.Placeholder, { padding: 10 })
+  )
+);
+
+/* ========================================================================================
+   NODE TEMPLATES — VENDORS (SIN CAMBIOS)
    ======================================================================================== */
 diagram.nodeTemplateMap.add(
   "VendorRoot",
@@ -205,7 +220,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   RENDER PEOPLE
+   RENDER PEOPLE  👉 SOLO AQUÍ SE AÑADE EL GROUP
    ======================================================================================== */
 function renderPerson(personId, animate = true) {
   CURRENT_MODE = "PEOPLE";
@@ -218,6 +233,7 @@ function renderPerson(personId, animate = true) {
   const nodes = [];
   const links = [];
 
+  // Supervisor
   nodes.push({
     key: person.id,
     id: person.id,
@@ -226,6 +242,15 @@ function renderPerson(personId, animate = true) {
     role: person.role,
     image: person.image
   });
+
+  // Group de trabajadores
+  const groupKey = person.id + "_reports";
+  nodes.push({
+    key: groupKey,
+    isGroup: true,
+    category: "ReportsGroup"
+  });
+  links.push({ from: person.id, to: groupKey });
 
   TEAM_DATA
     .filter(p => p.supervisorId === person.id)
@@ -236,9 +261,9 @@ function renderPerson(personId, animate = true) {
         category: "Report",
         name: `${r.firstName} ${r.lastName}`,
         role: r.role,
-        image: r.image
+        image: r.image,
+        group: groupKey
       });
-      links.push({ from: person.id, to: r.id });
     });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
@@ -285,7 +310,7 @@ Papa.parse("vendors.csv", {
 });
 
 /* ========================================================================================
-   RENDER VENDORS TREE
+   RENDER VENDORS TREE (SIN CAMBIOS)
    ======================================================================================== */
 function renderVendorsTree() {
   CURRENT_MODE = "VENDORS";
