@@ -1,5 +1,6 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — PEOPLE + VENDORS (TREE GOJS COMPLETO Y CORRECTO)
+ *  ORGANIGRAMA EMR — PEOPLE + VENDORS (ESTILO WORKDAY)
+ *  GoJS — ESTABLE Y COMPLETO
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -8,12 +9,12 @@ const $ = go.GraphObject.make;
    CONFIG UI
    ======================================================================================== */
 const UI = {
-  avatarSize: 40,
-  cardMargin: 12
+  avatarSize: 42,
+  cardPadding: 12
 };
 
 /* ========================================================================================
-   AVATAR DEFAULT (PEOPLE)
+   AVATAR DEFAULT
    ======================================================================================== */
 const DEFAULT_AVATAR =
   "data:image/svg+xml;utf8," +
@@ -31,13 +32,10 @@ const DEFAULT_AVATAR =
    ======================================================================================== */
 let TEAM_DATA = [];
 let VENDORS_DATA = [];
-
-let CURRENT_PERSON_ID = null;
-let NAV_STACK = [];
-let CURRENT_MODE = "PEOPLE"; // PEOPLE | VENDORS
+let CURRENT_MODE = "PEOPLE";
 
 /* ========================================================================================
-   DIAGRAM (ÚNICO – ORGCHART REAL)
+   DIAGRAM
    ======================================================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
@@ -47,31 +45,22 @@ const diagram = $(go.Diagram, "diagramDiv", {
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.4,
   maxScale: 2,
-  padding: 60,
-  animationManager: {
-    isEnabled: true,
-    duration: 350
-  },
-  layout: $(go.TreeLayout, {
-    angle: 90,              // jerarquía clásica (jefe arriba)
-    layerSpacing: 90,
-    nodeSpacing: 40
-  })
+  padding: 60
 });
 
-diagram.scale = 0.85;
+diagram.scale = 0.9;
 
 /* ========================================================================================
-   LINKS
+   LINK TEMPLATE
    ======================================================================================== */
 diagram.linkTemplate = $(
   go.Link,
-  { routing: go.Link.Orthogonal, corner: 10 },
-  $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.3 })
+  { routing: go.Link.Orthogonal, corner: 12 },
+  $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.4 })
 );
 
 /* ========================================================================================
-   HELPERS PEOPLE
+   HELPERS
    ======================================================================================== */
 function resolveImage(row) {
   if (!row || !row.ImageURL) return DEFAULT_AVATAR;
@@ -91,26 +80,9 @@ function avatar() {
   );
 }
 
-function personCard(stroke, clickable, isFocus) {
+function personCard(stroke) {
   return $(
     go.Panel, "Auto",
-    {
-      cursor: clickable ? "pointer" : "default",
-      click: (e, panel) => {
-        const data = panel.part.data;
-
-        if (isFocus && NAV_STACK.length > 0) {
-          const prev = NAV_STACK.pop();
-          renderPerson(prev, true);
-          return;
-        }
-
-        if (clickable && data.id !== CURRENT_PERSON_ID) {
-          NAV_STACK.push(CURRENT_PERSON_ID);
-          renderPerson(data.id, true);
-        }
-      }
-    },
     $(go.Shape, "RoundedRectangle", {
       fill: "white",
       stroke,
@@ -118,7 +90,7 @@ function personCard(stroke, clickable, isFocus) {
     }),
     $(
       go.Panel, "Vertical",
-      { margin: UI.cardMargin, alignment: go.Spot.Center },
+      { margin: UI.cardPadding },
       avatar(),
       $(go.TextBlock,
         { font: "bold 12.5px sans-serif", textAlign: "center" },
@@ -133,31 +105,27 @@ function personCard(stroke, clickable, isFocus) {
 }
 
 /* ========================================================================================
-   NODE TEMPLATES — PEOPLE
+   PEOPLE TEMPLATES
    ======================================================================================== */
 diagram.nodeTemplateMap.add(
   "Focus",
-  $(go.Node, "Auto", personCard("#2563eb", true, true))
+  $(go.Node, "Auto", personCard("#2563eb"))
 );
 
 diagram.nodeTemplateMap.add(
   "Report",
-  $(go.Node, "Auto", personCard("#14b8a6", false, false))
+  $(go.Node, "Auto", personCard("#94a3b8"))
 );
 
-/* ========================================================================================
-   NODE TEMPLATE — CONTENEDOR DE TRABAJADORES (2 FILAS HORIZONTALES)
-   ======================================================================================== */
 diagram.nodeTemplateMap.add(
-  "WorkersRow",
-  $(go.Node, "Auto",
+  "ReportsRow",
+  $(go.Group, "Auto",
     {
       layout: $(go.GridLayout, {
-        wrappingWidth: Infinity,
-        wrappingColumn: 2,          // 🔥 2 filas
-        alignment: go.GridLayout.Position,
-        spacing: new go.Size(20, 20)
-      })
+        wrappingColumn: Infinity,
+        spacing: new go.Size(24, 24)
+      }),
+      selectable: false
     },
     $(go.Shape, { fill: "transparent", strokeWidth: 0 }),
     $(go.Placeholder, { padding: 10 })
@@ -165,33 +133,18 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   NODE TEMPLATES — VENDORS
+   VENDOR TEMPLATES
    ======================================================================================== */
-diagram.nodeTemplateMap.add(
-  "VendorRoot",
-  $(go.Node, "Auto",
-    $(go.Shape, "RoundedRectangle", {
-      fill: "white",
-      stroke: "#2563eb",
-      strokeWidth: 2
-    }),
-    $(go.TextBlock,
-      { margin: 12, font: "bold 13px sans-serif" },
-      new go.Binding("text", "label")
-    )
-  )
-);
-
 diagram.nodeTemplateMap.add(
   "VendorDept",
   $(go.Node, "Auto",
     $(go.Shape, "RoundedRectangle", {
       fill: "#f8fafc",
-      stroke: "#0ea5e9",
+      stroke: "#2563eb",
       strokeWidth: 2
     }),
     $(go.TextBlock,
-      { margin: 12, font: "bold 12px sans-serif" },
+      { margin: 12, font: "bold 13px sans-serif" },
       new go.Binding("text", "label")
     )
   )
@@ -219,61 +172,92 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   RENDER PEOPLE — JERARQUÍA ORIGINAL + TRABAJADORES EN 2 FILAS
+   RENDER PEOPLE
    ======================================================================================== */
-function renderPerson(personId, animate = true) {
+function renderPeople() {
   CURRENT_MODE = "PEOPLE";
 
-  const person = TEAM_DATA.find(p => p.id === personId);
-  if (!person) return;
+  diagram.layout = $(go.TreeLayout, {
+    angle: 90,
+    layerSpacing: 90,
+    nodeSpacing: 40
+  });
 
-  CURRENT_PERSON_ID = personId;
+  const root = TEAM_DATA.find(p => !p.supervisorId);
+  if (!root) return;
 
   const nodes = [];
   const links = [];
 
-  // Supervisor
   nodes.push({
-    key: person.id,
-    id: person.id,
+    key: root.id,
     category: "Focus",
-    name: `${person.firstName} ${person.lastName}`,
-    role: person.role,
-    image: person.image
+    name: `${root.firstName} ${root.lastName}`,
+    role: root.role,
+    image: root.image
   });
 
-  // Contenedor de trabajadores
-  const rowKey = person.id + "_workers";
-  nodes.push({
-    key: rowKey,
-    category: "WorkersRow"
-  });
+  const rowKey = root.id + "_row";
+  nodes.push({ key: rowKey, category: "ReportsRow" });
+  links.push({ from: root.id, to: rowKey });
 
-  links.push({ from: person.id, to: rowKey });
-
-  // Trabajadores
   TEAM_DATA
-    .filter(p => p.supervisorId === person.id)
-    .forEach(w => {
+    .filter(p => p.supervisorId === root.id)
+    .forEach(r => {
       nodes.push({
-        key: w.id,
-        id: w.id,
+        key: r.id,
         category: "Report",
-        name: `${w.firstName} ${w.lastName}`,
-        role: w.role,
-        image: w.image
+        name: `${r.firstName} ${r.lastName}`,
+        role: r.role,
+        image: r.image,
+        group: rowKey
       });
-      links.push({ from: rowKey, to: w.id });
     });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
+}
 
-  if (animate) {
-    requestAnimationFrame(() => {
-      const node = diagram.findNodeForKey(person.id);
-      if (node) diagram.centerRect(node.actualBounds);
+/* ========================================================================================
+   RENDER VENDORS
+   ======================================================================================== */
+function renderVendors() {
+  CURRENT_MODE = "VENDORS";
+
+  diagram.layout = $(go.GridLayout, {
+    wrappingColumn: Infinity,
+    spacing: new go.Size(40, 40)
+  });
+
+  const nodes = [];
+  const links = [];
+
+  const grouped = {};
+  VENDORS_DATA.forEach(v => {
+    if (!grouped[v.Department]) grouped[v.Department] = [];
+    grouped[v.Department].push(v);
+  });
+
+  Object.keys(grouped).forEach(dept => {
+    nodes.push({
+      key: dept,
+      category: "VendorDept",
+      label: dept
     });
-  }
+
+    grouped[dept].forEach(v => {
+      const key = v["Email (required)"];
+      nodes.push({
+        key,
+        category: "VendorItem",
+        label: `${v["First name (required)"]} ${v["Last name (required)"]}`,
+        sub: v.Position || ""
+      });
+      links.push({ from: dept, to: key });
+    });
+  });
+
+  diagram.model = new go.GraphLinksModel(nodes, links);
+  diagram.zoomToFit();
 }
 
 /* ========================================================================================
@@ -294,9 +278,7 @@ Papa.parse("team.csv", {
         role: p.Position || "",
         image: resolveImage(p)
       }));
-
-    const root = TEAM_DATA.find(p => !p.supervisorId);
-    if (root) renderPerson(root.id, false);
+    renderPeople();
   }
 });
 
@@ -310,55 +292,11 @@ Papa.parse("vendors.csv", {
 });
 
 /* ========================================================================================
-   RENDER VENDORS TREE
-   ======================================================================================== */
-function renderVendorsTree() {
-  CURRENT_MODE = "VENDORS";
-
-  const nodes = [];
-  const links = [];
-
-  nodes.push({
-    key: "__VENDORS__",
-    category: "VendorRoot",
-    label: "Vendors"
-  });
-
-  const grouped = {};
-  VENDORS_DATA.forEach(v => {
-    const d = v.Department.trim();
-    if (!grouped[d]) grouped[d] = [];
-    grouped[d].push(v);
-  });
-
-  Object.keys(grouped).forEach(dept => {
-    nodes.push({
-      key: dept,
-      category: "VendorDept",
-      label: dept
-    });
-
-    links.push({ from: "__VENDORS__", to: dept });
-
-    grouped[dept].forEach(v => {
-      const key = v["Email (required)"];
-      nodes.push({
-        key,
-        category: "VendorItem",
-        label: `${v["First name (required)"]} ${v["Last name (required)"]}`,
-        sub: v.Position || ""
-      });
-      links.push({ from: dept, to: key });
-    });
-  });
-
-  diagram.model = new go.GraphLinksModel(nodes, links);
-  diagram.zoomToFit();
-}
-
-/* ========================================================================================
    CONTROLES
    ======================================================================================== */
+document.getElementById("btnTeams").onclick = renderPeople;
+document.getElementById("btnVendorsDept").onclick = renderVendors;
+
 document.getElementById("btnZoomIn").onclick = () =>
   diagram.scale = Math.min(diagram.scale + 0.1, diagram.maxScale);
 
@@ -367,16 +305,3 @@ document.getElementById("btnZoomOut").onclick = () =>
 
 document.getElementById("btnFit").onclick = () =>
   diagram.zoomToFit();
-
-document.getElementById("btnTeams").onclick = () => {
-  const root = TEAM_DATA.find(p => !p.supervisorId);
-  NAV_STACK = [];
-  if (root) renderPerson(root.id, true);
-};
-
-document.getElementById("btnVendorsDept").onclick = renderVendorsTree;
-
-document.getElementById("btnFull").onclick = () => {
-  const el = document.getElementById("diagramWrapper");
-  document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen();
-};
