@@ -1,11 +1,13 @@
 /******************************************************************************************
  *  ORGCHART EMR — PEOPLE + VENDORS
  *  Workday-style:
+ *  - Cards de tamaño fijo (todas iguales)
  *  - Solo un supervisor expandido a la vez
  *  - Click supervisor = muestra SOLO trabajadores (2 filas)
  *  - Click otra vez = colapsa
  *  - Blur visual del resto
  *  - Vendors en organigrama independiente
+ *  - Zoom con rueda del mouse
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -15,7 +17,9 @@ const $ = go.GraphObject.make;
    ======================================================================================== */
 const UI = {
   avatarSize: 42,
-  padding: 12
+  padding: 12,
+  cardWidth: 160,
+  cardHeight: 190
 };
 
 /* ========================================================================================
@@ -54,7 +58,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ========================================================================================
-   LINK TEMPLATE (CON BLUR)
+   LINK TEMPLATE
    ======================================================================================== */
 diagram.linkTemplate = $(
   go.Link,
@@ -79,7 +83,6 @@ function avatar() {
     {
       width: UI.avatarSize,
       height: UI.avatarSize,
-      imageStretch: go.GraphObject.UniformToFill,
       margin: new go.Margin(0, 0, 8, 0)
     },
     new go.Binding("source", "image"),
@@ -95,19 +98,39 @@ function personCard(stroke, clickable = false) {
       click: (e, node) => handleSupervisorClick(node.part.data.key)
     } : {},
     $(go.Shape, "RoundedRectangle",
-      { fill: "white", stroke, strokeWidth: 2 },
+      {
+        fill: "white",
+        stroke,
+        strokeWidth: 2,
+        desiredSize: new go.Size(UI.cardWidth, UI.cardHeight)
+      },
       new go.Binding("opacity", "dimmed", d => d ? 0.05 : 1)
     ),
     $(go.Panel, "Vertical",
-      { margin: UI.padding },
+      {
+        margin: UI.padding,
+        width: UI.cardWidth - 20,
+        alignment: go.Spot.Center
+      },
       avatar(),
       $(go.TextBlock,
-        { font: "bold 12.5px sans-serif", textAlign: "center" },
+        {
+          font: "bold 12.5px sans-serif",
+          textAlign: "center",
+          maxLines: 1,
+          overflow: go.TextBlock.Ellipsis
+        },
         new go.Binding("text", "name"),
         new go.Binding("opacity", "dimmed", d => d ? 0.05 : 1)
       ),
       $(go.TextBlock,
-        { font: "11px sans-serif", stroke: "#475569", textAlign: "center" },
+        {
+          font: "11px sans-serif",
+          stroke: "#475569",
+          textAlign: "center",
+          maxLines: 2,
+          overflow: go.TextBlock.Ellipsis
+        },
         new go.Binding("text", "role"),
         new go.Binding("opacity", "dimmed", d => d ? 0.05 : 1)
       )
@@ -130,7 +153,7 @@ diagram.nodeTemplateMap.add(
   $(go.Group, "Auto",
     {
       layout: $(go.GridLayout, {
-        wrappingColumn: 4, // ≈ 2 filas
+        wrappingColumn: 4,
         spacing: new go.Size(24, 24)
       }),
       selectable: false
@@ -141,7 +164,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   NODE TEMPLATES — VENDORS (SIN CAMBIOS)
+   NODE TEMPLATES — VENDORS
    ======================================================================================== */
 diagram.nodeTemplateMap.add(
   "VendorRoot",
@@ -195,7 +218,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   RENDER PEOPLE (MODIFICADO)
+   RENDER PEOPLE
    ======================================================================================== */
 function renderPeople(supervisorId = null) {
   CURRENT_MODE = "PEOPLE";
@@ -221,8 +244,7 @@ function renderPeople(supervisorId = null) {
     dimmed: !!supervisorId
   });
 
-  const supervisors = TEAM_DATA.filter(p => p.supervisorId === boss.id);
-  supervisors.forEach(s => {
+  TEAM_DATA.filter(p => p.supervisorId === boss.id).forEach(s => {
     nodes.push({
       key: s.id,
       category: "Supervisor",
@@ -239,19 +261,17 @@ function renderPeople(supervisorId = null) {
     nodes.push({ key: groupKey, category: "WorkersGroup" });
     links.push({ from: supervisorId, to: groupKey });
 
-    TEAM_DATA
-      .filter(p => p.supervisorId === supervisorId)
-      .forEach(w => {
-        nodes.push({
-          key: w.id,
-          category: "Worker",
-          name: `${w.firstName} ${w.lastName}`,
-          role: w.role,
-          image: w.image,
-          group: groupKey,
-          dimmed: false
-        });
+    TEAM_DATA.filter(p => p.supervisorId === supervisorId).forEach(w => {
+      nodes.push({
+        key: w.id,
+        category: "Worker",
+        name: `${w.firstName} ${w.lastName}`,
+        role: w.role,
+        image: w.image,
+        group: groupKey,
+        dimmed: false
       });
+    });
   }
 
   diagram.model = new go.GraphLinksModel(nodes, links);
@@ -266,17 +286,12 @@ function renderPeople(supervisorId = null) {
    SUPERVISOR CLICK
    ======================================================================================== */
 function handleSupervisorClick(key) {
-  if (CURRENT_SUPERVISOR === key) {
-    CURRENT_SUPERVISOR = null;
-    renderPeople();
-  } else {
-    CURRENT_SUPERVISOR = key;
-    renderPeople(key);
-  }
+  CURRENT_SUPERVISOR = (CURRENT_SUPERVISOR === key) ? null : key;
+  renderPeople(CURRENT_SUPERVISOR);
 }
 
 /* ========================================================================================
-   RENDER VENDORS (SIN CAMBIOS)
+   RENDER VENDORS
    ======================================================================================== */
 function renderVendors() {
   CURRENT_MODE = "VENDORS";
