@@ -1,5 +1,5 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — PEOPLE + VENDORS (TREE GOJS COMPLETO)
+ *  ORGANIGRAMA EMR — PEOPLE + VENDORS (TREE GOJS COMPLETO Y CORRECTO)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -34,11 +34,10 @@ let VENDORS_DATA = [];
 
 let CURRENT_PERSON_ID = null;
 let NAV_STACK = [];
-
 let CURRENT_MODE = "PEOPLE"; // PEOPLE | VENDORS
 
 /* ========================================================================================
-   DIAGRAM (ÚNICO) — NO SE TOCA LA JERARQUÍA
+   DIAGRAM (ÚNICO – ORGCHART REAL)
    ======================================================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
@@ -54,7 +53,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
     duration: 350
   },
   layout: $(go.TreeLayout, {
-    angle: 90,
+    angle: 90,              // jerarquía clásica (jefe arriba)
     layerSpacing: 90,
     nodeSpacing: 40
   })
@@ -143,20 +142,19 @@ diagram.nodeTemplateMap.add(
 
 diagram.nodeTemplateMap.add(
   "Report",
-  $(go.Node, "Auto", personCard("#14b8a6", true, false))
+  $(go.Node, "Auto", personCard("#14b8a6", false, false))
 );
 
 /* ========================================================================================
-   GROUP TEMPLATE — SOLO PARA TRABAJADORES (2 FILAS, SIN ROMPER TREE)
+   NODE TEMPLATE — CONTENEDOR DE TRABAJADORES (2 FILAS HORIZONTALES)
    ======================================================================================== */
-diagram.groupTemplateMap.add(
-  "ReportsGroup",
-  $(go.Group, "Auto",
+diagram.nodeTemplateMap.add(
+  "WorkersRow",
+  $(go.Node, "Auto",
     {
-      isLayoutPositioned: false,   // 🔥 CORRECCIÓN CLAVE
       layout: $(go.GridLayout, {
         wrappingWidth: Infinity,
-        wrappingColumn: 2,
+        wrappingColumn: 2,          // 🔥 2 filas
         alignment: go.GridLayout.Position,
         spacing: new go.Size(20, 20)
       })
@@ -221,7 +219,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   RENDER PEOPLE — MISMA JERARQUÍA
+   RENDER PEOPLE — JERARQUÍA ORIGINAL + TRABAJADORES EN 2 FILAS
    ======================================================================================== */
 function renderPerson(personId, animate = true) {
   CURRENT_MODE = "PEOPLE";
@@ -234,6 +232,7 @@ function renderPerson(personId, animate = true) {
   const nodes = [];
   const links = [];
 
+  // Supervisor
   nodes.push({
     key: person.id,
     id: person.id,
@@ -243,27 +242,28 @@ function renderPerson(personId, animate = true) {
     image: person.image
   });
 
-  const groupKey = person.id + "_reports";
+  // Contenedor de trabajadores
+  const rowKey = person.id + "_workers";
   nodes.push({
-    key: groupKey,
-    isGroup: true,
-    category: "ReportsGroup"
+    key: rowKey,
+    category: "WorkersRow"
   });
 
-  links.push({ from: person.id, to: groupKey });
+  links.push({ from: person.id, to: rowKey });
 
+  // Trabajadores
   TEAM_DATA
     .filter(p => p.supervisorId === person.id)
-    .forEach(r => {
+    .forEach(w => {
       nodes.push({
-        key: r.id,
-        id: r.id,
+        key: w.id,
+        id: w.id,
         category: "Report",
-        name: `${r.firstName} ${r.lastName}`,
-        role: r.role,
-        image: r.image,
-        group: groupKey
+        name: `${w.firstName} ${w.lastName}`,
+        role: w.role,
+        image: w.image
       });
+      links.push({ from: rowKey, to: w.id });
     });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
