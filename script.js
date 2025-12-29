@@ -1,5 +1,5 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — PEOPLE + VENDORS (CICLEABLE)
+ *  ORGANIGRAMA EMR — PEOPLE + VENDORS (TREE GOJS COMPLETO)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -35,13 +35,10 @@ let VENDORS_DATA = [];
 let CURRENT_PERSON_ID = null;
 let NAV_STACK = [];
 
-// Vendors navigation
-let VENDORS_LEVEL = "ROOT"; // ROOT | DEPT
-let CURRENT_DEPT = null;
-let VENDORS_STACK = [];
+let CURRENT_MODE = "PEOPLE"; // PEOPLE | VENDORS
 
 /* ========================================================================================
-   DIAGRAM (PEOPLE)
+   DIAGRAM (ÚNICO)
    ======================================================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
@@ -52,7 +49,10 @@ const diagram = $(go.Diagram, "diagramDiv", {
   minScale: 0.4,
   maxScale: 2,
   padding: 60,
-  animationManager: { isEnabled: true, duration: 350 },
+  animationManager: {
+    isEnabled: true,
+    duration: 350
+  },
   layout: $(go.TreeLayout, {
     angle: 90,
     layerSpacing: 90,
@@ -123,16 +123,18 @@ function personCard(stroke, clickable, isFocus) {
       avatar(),
       $(go.TextBlock,
         { font: "bold 12.5px sans-serif", textAlign: "center" },
-        new go.Binding("text", "name")),
+        new go.Binding("text", "name")
+      ),
       $(go.TextBlock,
         { font: "11px sans-serif", stroke: "#475569", textAlign: "center" },
-        new go.Binding("text", "role"))
+        new go.Binding("text", "role")
+      )
     )
   );
 }
 
 /* ========================================================================================
-   NODE TEMPLATES
+   NODE TEMPLATES — PEOPLE
    ======================================================================================== */
 diagram.nodeTemplateMap.add(
   "Focus",
@@ -145,9 +147,65 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
+   NODE TEMPLATES — VENDORS
+   ======================================================================================== */
+diagram.nodeTemplateMap.add(
+  "VendorRoot",
+  $(go.Node, "Auto",
+    $(go.Shape, "RoundedRectangle", {
+      fill: "white",
+      stroke: "#2563eb",
+      strokeWidth: 2
+    }),
+    $(go.TextBlock,
+      { margin: 12, font: "bold 13px sans-serif" },
+      new go.Binding("text", "label")
+    )
+  )
+);
+
+diagram.nodeTemplateMap.add(
+  "VendorDept",
+  $(go.Node, "Auto",
+    $(go.Shape, "RoundedRectangle", {
+      fill: "#f8fafc",
+      stroke: "#0ea5e9",
+      strokeWidth: 2
+    }),
+    $(go.TextBlock,
+      { margin: 12, font: "bold 12px sans-serif" },
+      new go.Binding("text", "label")
+    )
+  )
+);
+
+diagram.nodeTemplateMap.add(
+  "VendorItem",
+  $(go.Node, "Auto",
+    $(go.Shape, "RoundedRectangle", {
+      fill: "white",
+      stroke: "#10b981",
+      strokeWidth: 2
+    }),
+    $(go.Panel, "Vertical", { margin: 10 },
+      $(go.TextBlock,
+        { font: "bold 12px sans-serif", textAlign: "center" },
+        new go.Binding("text", "label")
+      ),
+      $(go.TextBlock,
+        { font: "11px sans-serif", stroke: "#475569", textAlign: "center" },
+        new go.Binding("text", "sub")
+      )
+    )
+  )
+);
+
+/* ========================================================================================
    RENDER PEOPLE
    ======================================================================================== */
 function renderPerson(personId, animate = true) {
+  CURRENT_MODE = "PEOPLE";
+
   const person = TEAM_DATA.find(p => p.id === personId);
   if (!person) return;
 
@@ -197,14 +255,17 @@ Papa.parse("team.csv", {
   header: true,
   delimiter: ";",
   complete: r => {
-    TEAM_DATA = r.data.filter(p => p["Email (required)"]).map(p => ({
-      id: p["Email (required)"],
-      supervisorId: p["SupervisorEmail (required)"] || null,
-      firstName: p["First name (required)"] || "",
-      lastName: p["Last name (required)"] || "",
-      role: p.Position || "",
-      image: resolveImage(p)
-    }));
+    TEAM_DATA = r.data
+      .filter(p => p["Email (required)"])
+      .map(p => ({
+        id: p["Email (required)"],
+        supervisorId: p["SupervisorEmail (required)"] || null,
+        firstName: p["First name (required)"] || "",
+        lastName: p["Last name (required)"] || "",
+        role: p.Position || "",
+        image: resolveImage(p)
+      }));
+
     const root = TEAM_DATA.find(p => !p.supervisorId);
     if (root) renderPerson(root.id, false);
   }
@@ -220,77 +281,55 @@ Papa.parse("vendors.csv", {
 });
 
 /* ========================================================================================
-   VENDORS OVERLAY — CICLEABLE
+   RENDER VENDORS TREE (GOJS REAL)
    ======================================================================================== */
-const vendorsOverlay = document.getElementById("teamOverlay");
-const teamGrid = document.getElementById("teamGrid");
-const teamTitle = document.getElementById("teamTitle");
-const btnCloseTeam = document.getElementById("btnCloseTeam");
+function renderVendorsTree() {
+  CURRENT_MODE = "VENDORS";
 
-function renderVendorsRoot() {
-  teamGrid.innerHTML = "";
-  teamTitle.textContent = "VENDORS";
-  VENDORS_LEVEL = "ROOT";
+  const nodes = [];
+  const links = [];
 
-  const depts = [...new Set(VENDORS_DATA.map(v => v.Department.trim()))];
-
-  depts.forEach(dept => {
-    const card = document.createElement("div");
-    card.className = "team-card clickable";
-    card.innerHTML = `<div>${dept}</div>`;
-    card.onclick = () => {
-      VENDORS_STACK.push("ROOT");
-      renderVendorsDept(dept);
-    };
-    teamGrid.appendChild(card);
+  nodes.push({
+    key: "__VENDORS__",
+    category: "VendorRoot",
+    label: "Vendors"
   });
-}
 
-function renderVendorsDept(dept) {
-  teamGrid.innerHTML = "";
-  teamTitle.textContent = dept;
-  VENDORS_LEVEL = "DEPT";
-  CURRENT_DEPT = dept;
+  const grouped = {};
+  VENDORS_DATA.forEach(v => {
+    const d = v.Department.trim();
+    if (!grouped[d]) grouped[d] = [];
+    grouped[d].push(v);
+  });
 
-  const row = document.createElement("div");
-  row.className = "vendor-row";
-
-  VENDORS_DATA
-    .filter(v => v.Department.trim() === dept)
-    .forEach(v => {
-      const card = document.createElement("div");
-      card.className = "team-card";
-      card.innerHTML = `
-        <div>${v["First name (required)"]} ${v["Last name (required)"]}</div>
-        <div>${v.Position || ""}</div>
-      `;
-      row.appendChild(card);
+  Object.keys(grouped).forEach(dept => {
+    nodes.push({
+      key: dept,
+      category: "VendorDept",
+      label: dept
     });
 
-  teamGrid.appendChild(row);
-}
+    links.push({ from: "__VENDORS__", to: dept });
 
-function vendorsBack() {
-  if (VENDORS_STACK.length === 0) return;
-  VENDORS_STACK.pop();
-  renderVendorsRoot();
+    grouped[dept].forEach(v => {
+      const key = v["Email (required)"];
+      nodes.push({
+        key,
+        category: "VendorItem",
+        label: `${v["First name (required)"]} ${v["Last name (required)"]}`,
+        sub: v.Position || ""
+      });
+      links.push({ from: dept, to: key });
+    });
+  });
+
+  diagram.model = new go.GraphLinksModel(nodes, links);
+  diagram.zoomToFit();
 }
 
 /* ========================================================================================
    CONTROLES
    ======================================================================================== */
-document.getElementById("btnVendorsDept").onclick = () => {
-  VENDORS_STACK = [];
-  renderVendorsRoot();
-  vendorsOverlay.classList.add("visible");
-};
-
-btnCloseTeam.onclick = () => vendorsOverlay.classList.remove("visible");
-
-teamTitle.onclick = () => {
-  if (VENDORS_LEVEL === "DEPT") vendorsBack();
-};
-
 document.getElementById("btnZoomIn").onclick = () =>
   diagram.scale = Math.min(diagram.scale + 0.1, diagram.maxScale);
 
@@ -300,13 +339,15 @@ document.getElementById("btnZoomOut").onclick = () =>
 document.getElementById("btnFit").onclick = () =>
   diagram.zoomToFit();
 
-document.getElementById("btnFull").onclick = () => {
-  const el = document.getElementById("diagramWrapper");
-  document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen();
-};
-
 document.getElementById("btnTeams").onclick = () => {
   const root = TEAM_DATA.find(p => !p.supervisorId);
   NAV_STACK = [];
   if (root) renderPerson(root.id, true);
+};
+
+document.getElementById("btnVendorsDept").onclick = renderVendorsTree;
+
+document.getElementById("btnFull").onclick = () => {
+  const el = document.getElementById("diagramWrapper");
+  document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen();
 };
