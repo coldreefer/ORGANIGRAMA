@@ -54,7 +54,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
     duration: 350
   },
   layout: $(go.TreeLayout, {
-    angle: 90,          // jefe arriba, supervisores debajo (original)
+    angle: 90,
     layerSpacing: 90,
     nodeSpacing: 40
   })
@@ -147,15 +147,16 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   GROUP TEMPLATE — SOLO PARA TRABAJADORES (2 FILAS HORIZONTALES)
+   GROUP TEMPLATE — SOLO PARA TRABAJADORES (2 FILAS, SIN ROMPER TREE)
    ======================================================================================== */
 diagram.groupTemplateMap.add(
   "ReportsGroup",
   $(go.Group, "Auto",
     {
+      isLayoutPositioned: false,   // 🔥 CORRECCIÓN CLAVE
       layout: $(go.GridLayout, {
-        wrappingWidth: Infinity,     // horizontal
-        wrappingColumn: 2,           // 🔥 máximo 2 FILAS (GoJS 2.x)
+        wrappingWidth: Infinity,
+        wrappingColumn: 2,
         alignment: go.GridLayout.Position,
         spacing: new go.Size(20, 20)
       })
@@ -220,7 +221,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   RENDER PEOPLE (MISMA JERARQUÍA, SOLO SE AGREGA GROUP)
+   RENDER PEOPLE — MISMA JERARQUÍA
    ======================================================================================== */
 function renderPerson(personId, animate = true) {
   CURRENT_MODE = "PEOPLE";
@@ -233,7 +234,6 @@ function renderPerson(personId, animate = true) {
   const nodes = [];
   const links = [];
 
-  // Supervisor
   nodes.push({
     key: person.id,
     id: person.id,
@@ -243,13 +243,13 @@ function renderPerson(personId, animate = true) {
     image: person.image
   });
 
-  // Grupo de trabajadores
   const groupKey = person.id + "_reports";
   nodes.push({
     key: groupKey,
     isGroup: true,
     category: "ReportsGroup"
   });
+
   links.push({ from: person.id, to: groupKey });
 
   TEAM_DATA
