@@ -53,10 +53,14 @@ const diagram = $(go.Diagram, "diagramDiv", {
     isEnabled: true,
     duration: 350
   },
+  // 🔥 LAYOUT CLAVE: 2 FILAS HORIZONTALES
   layout: $(go.TreeLayout, {
-    angle: 90,
+    angle: 0, // expansión horizontal
     layerSpacing: 90,
-    nodeSpacing: 40
+    nodeSpacing: 40,
+    alignment: go.TreeLayout.AlignmentCenterChildren,
+    arrangement: go.TreeLayout.ArrangementFixedRoots,
+    breadthLimit: 2 // máximo 2 FILAS
   })
 });
 
@@ -281,7 +285,7 @@ Papa.parse("vendors.csv", {
 });
 
 /* ========================================================================================
-   RENDER VENDORS TREE (GOJS REAL)
+   RENDER VENDORS TREE
    ======================================================================================== */
 function renderVendorsTree() {
   CURRENT_MODE = "VENDORS";
