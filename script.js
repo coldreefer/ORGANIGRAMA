@@ -1,10 +1,10 @@
 /******************************************************************************************
  *  ORGCHART EMR — PEOPLE + VENDORS
- *  Comportamiento tipo Workday:
+ *  Workday-style:
  *  - Solo un supervisor expandido a la vez
- *  - Click = expand / collapse con animación
- *  - Áreas solo como contenedores
- *  - Vendors también como organigrama
+ *  - Click supervisor = muestra SOLO trabajadores
+ *  - Click otra vez = colapsa
+ *  - Vendors en organigrama independiente
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -36,7 +36,7 @@ const DEFAULT_AVATAR =
 let TEAM_DATA = [];
 let VENDORS_DATA = [];
 let CURRENT_SUPERVISOR = null;
-let CURRENT_MODE = "PEOPLE"; // PEOPLE | VENDORS
+let CURRENT_MODE = "PEOPLE";
 
 /* ========================================================================================
    DIAGRAM
@@ -88,7 +88,7 @@ function personCard(stroke, clickable = false) {
     clickable
       ? {
           cursor: "pointer",
-          click: (e, node) => handleSupervisorClick(node.part.data)
+          click: (e, node) => handleSupervisorClick(node.part.data.key)
         }
       : {},
     $(go.Shape, "RoundedRectangle", {
@@ -112,21 +112,6 @@ function personCard(stroke, clickable = false) {
   );
 }
 
-function areaCard(color) {
-  return $(
-    go.Panel, "Auto",
-    $(go.Shape, "RoundedRectangle", {
-      fill: "#f8fafc",
-      stroke: color,
-      strokeWidth: 2
-    }),
-    $(go.TextBlock,
-      { margin: 10, font: "bold 12px sans-serif" },
-      new go.Binding("text", "label")
-    )
-  );
-}
-
 /* ========================================================================================
    NODE TEMPLATES — PEOPLE
    ======================================================================================== */
@@ -145,22 +130,37 @@ diagram.nodeTemplateMap.add(
   $(go.Node, "Auto", personCard("#94a3b8"))
 );
 
-diagram.nodeTemplateMap.add(
-  "Area",
-  $(go.Node, "Auto", areaCard("#0ea5e9"))
-);
-
 /* ========================================================================================
-   NODE TEMPLATES — VENDORS
+   NODE TEMPLATES — VENDORS (SIN CAMBIOS)
    ======================================================================================== */
 diagram.nodeTemplateMap.add(
   "VendorRoot",
-  $(go.Node, "Auto", areaCard("#2563eb"))
+  $(go.Node, "Auto",
+    $(go.Shape, "RoundedRectangle", {
+      fill: "#f8fafc",
+      stroke: "#2563eb",
+      strokeWidth: 2
+    }),
+    $(go.TextBlock,
+      { margin: 12, font: "bold 13px sans-serif" },
+      new go.Binding("text", "label")
+    )
+  )
 );
 
 diagram.nodeTemplateMap.add(
   "VendorArea",
-  $(go.Node, "Auto", areaCard("#0ea5e9"))
+  $(go.Node, "Auto",
+    $(go.Shape, "RoundedRectangle", {
+      fill: "#f8fafc",
+      stroke: "#0ea5e9",
+      strokeWidth: 2
+    }),
+    $(go.TextBlock,
+      { margin: 10, font: "bold 12px sans-serif" },
+      new go.Binding("text", "label")
+    )
+  )
 );
 
 diagram.nodeTemplateMap.add(
@@ -185,7 +185,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   RENDER PEOPLE (WORKDAY STYLE)
+   RENDER PEOPLE (CORREGIDO)
    ======================================================================================== */
 function renderPeople(supervisorId = null) {
   CURRENT_MODE = "PEOPLE";
@@ -202,6 +202,7 @@ function renderPeople(supervisorId = null) {
   const boss = TEAM_DATA.find(p => !p.supervisorId);
   if (!boss) return;
 
+  // Boss
   nodes.push({
     key: boss.id,
     category: "Boss",
@@ -210,8 +211,8 @@ function renderPeople(supervisorId = null) {
     image: boss.image
   });
 
+  // Supervisores
   const supervisors = TEAM_DATA.filter(p => p.supervisorId === boss.id);
-
   supervisors.forEach(s => {
     nodes.push({
       key: s.id,
@@ -223,27 +224,20 @@ function renderPeople(supervisorId = null) {
     links.push({ from: boss.id, to: s.id });
   });
 
+  // Trabajadores (SOLO personas)
   if (supervisorId) {
-    const areas = ["Lavado", "Inspección", "Reefer", "Box"];
-
-    areas.forEach(area => {
-      const areaKey = supervisorId + "_" + area;
-      nodes.push({ key: areaKey, category: "Area", label: area });
-      links.push({ from: supervisorId, to: areaKey });
-
-      TEAM_DATA
-        .filter(p => p.supervisorId === supervisorId && p.Area === area)
-        .forEach(w => {
-          nodes.push({
-            key: w.id,
-            category: "Worker",
-            name: `${w.firstName} ${w.lastName}`,
-            role: w.role,
-            image: w.image
-          });
-          links.push({ from: areaKey, to: w.id });
+    TEAM_DATA
+      .filter(p => p.supervisorId === supervisorId)
+      .forEach(w => {
+        nodes.push({
+          key: w.id,
+          category: "Worker",
+          name: `${w.firstName} ${w.lastName}`,
+          role: w.role,
+          image: w.image
         });
-    });
+        links.push({ from: supervisorId, to: w.id });
+      });
   }
 
   diagram.model = new go.GraphLinksModel(nodes, links);
@@ -257,18 +251,18 @@ function renderPeople(supervisorId = null) {
 /* ========================================================================================
    SUPERVISOR CLICK
    ======================================================================================== */
-function handleSupervisorClick(data) {
-  if (CURRENT_SUPERVISOR === data.key) {
+function handleSupervisorClick(key) {
+  if (CURRENT_SUPERVISOR === key) {
     CURRENT_SUPERVISOR = null;
     renderPeople();
   } else {
-    CURRENT_SUPERVISOR = data.key;
-    renderPeople(data.key);
+    CURRENT_SUPERVISOR = key;
+    renderPeople(key);
   }
 }
 
 /* ========================================================================================
-   RENDER VENDORS (ORGCHART)
+   RENDER VENDORS (IGUAL AL TUYO)
    ======================================================================================== */
 function renderVendors() {
   CURRENT_MODE = "VENDORS";
@@ -334,7 +328,6 @@ Papa.parse("team.csv", {
         firstName: p["First name (required)"] || "",
         lastName: p["Last name (required)"] || "",
         role: p.Position || "",
-        Area: p.Area || "",
         image: resolveImage(p)
       }));
     renderPeople();
