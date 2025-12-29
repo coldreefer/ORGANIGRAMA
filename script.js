@@ -1,5 +1,5 @@
 /******************************************************************************************
- *  ORGCHART EMR — PEOPLE + VENDORS  (FINAL ESTABLE)
+ *  ORGCHART EMR — PEOPLE + VENDORS  (FINAL ESTABLE CORREGIDO)
  *  - Cards tamaño fijo (todas iguales)
  *  - Solo un supervisor expandido a la vez
  *  - Click SOLO si tiene gente a cargo
@@ -9,6 +9,7 @@
  *  - Zoom inicial alejado (solo una vez)
  *  - Panning libre real (arrastrar fondo)
  *  - Animaciones suaves reales (layout + fade)
+ *  - SIN errores de transacción / model
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -56,12 +57,10 @@ const diagram = $(go.Diagram, "diagramDiv", {
   allowCopy: false,
   allowSelect: false,
 
-  // Zoom
   mouseWheelBehavior: go.Diagram.Zoom,
   minScale: 0.4,
   maxScale: 2,
 
-  // Panning real (arrastrar fondo)
   allowHorizontalScroll: true,
   allowVerticalScroll: true,
 
@@ -69,12 +68,11 @@ const diagram = $(go.Diagram, "diagramDiv", {
 
   animationManager: {
     isEnabled: true,
-    duration: 320,
+    duration: 300,
     easing: go.Animation.EaseOutCubic
   }
 });
 
-// herramientas
 diagram.toolManager.panningTool.isEnabled = true;
 diagram.toolManager.mouseWheelBehavior = go.ToolManager.WheelZoom;
 
@@ -118,7 +116,7 @@ function personCard(stroke) {
       cursor: "pointer",
       click: (e, node) => {
         const d = node.part.data;
-        if (d.canExpand) handleSupervisorClick(d.key);
+        if (d.canExpand) toggleSupervisor(d.key);
       }
     },
     $(go.Shape, "RoundedRectangle",
@@ -242,11 +240,9 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   RENDER PEOPLE — NO TOCA ZOOM / PAN
+   RENDER PEOPLE (SIN TRANSACCIONES)
    ======================================================================================== */
 function renderPeople(supervisorId = null) {
-
-  diagram.startTransaction("render-people");
 
   diagram.layout = $(go.TreeLayout, {
     angle: 90,
@@ -306,9 +302,6 @@ function renderPeople(supervisorId = null) {
 
   diagram.model = new go.GraphLinksModel(nodes, links);
 
-  diagram.commitTransaction("render-people");
-
-  // solo en el primer render
   if (FIRST_RENDER) {
     requestAnimationFrame(() => diagram.zoomToFit());
     FIRST_RENDER = false;
@@ -318,7 +311,7 @@ function renderPeople(supervisorId = null) {
 /* ========================================================================================
    SUPERVISOR CLICK
    ======================================================================================== */
-function handleSupervisorClick(key) {
+function toggleSupervisor(key) {
   CURRENT_SUPERVISOR = (CURRENT_SUPERVISOR === key) ? null : key;
   renderPeople(CURRENT_SUPERVISOR);
 }
@@ -327,8 +320,6 @@ function handleSupervisorClick(key) {
    RENDER VENDORS
    ======================================================================================== */
 function renderVendors() {
-
-  diagram.startTransaction("render-vendors");
 
   diagram.layout = $(go.TreeLayout, {
     angle: 90,
@@ -372,7 +363,6 @@ function renderVendors() {
   });
 
   diagram.model = new go.GraphLinksModel(nodes, links);
-  diagram.commitTransaction("render-vendors");
   diagram.zoomToFit();
 }
 
