@@ -252,3 +252,16 @@ header p {
   gap: 20px;
   flex-wrap: nowrap;
 }
+/* ===============================
+   VENDORS — CICLEABLE
+   =============================== */
+
+.team-card.clickable {
+  cursor: pointer;
+}
+
+.vendor-row {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
