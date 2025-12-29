@@ -115,13 +115,18 @@ function personCard(stroke, clickable, isFocus) {
       go.Panel, "Vertical",
       { margin: UI.cardMargin, alignment: go.Spot.Center },
       avatar(),
-      $(go.TextBlock, { font: "bold 12.5px sans-serif", textAlign: "center" },
-        new go.Binding("text", "name")),
-      $(go.TextBlock, {
-        font: "11px sans-serif",
-        stroke: "#475569",
-        textAlign: "center"
-      }, new go.Binding("text", "role"))
+      $(go.TextBlock,
+        { font: "bold 12.5px sans-serif", textAlign: "center" },
+        new go.Binding("text", "name")
+      ),
+      $(go.TextBlock,
+        {
+          font: "11px sans-serif",
+          stroke: "#475569",
+          textAlign: "center"
+        },
+        new go.Binding("text", "role")
+      )
     )
   );
 }
@@ -216,12 +221,12 @@ Papa.parse("vendors.csv", {
   header: true,
   delimiter: ";",
   complete: r => {
-    VENDORS_DATA = r.data.filter(v => v["Department"]);
+    VENDORS_DATA = r.data.filter(v => v.Department);
   }
 });
 
 /* ========================================================================================
-   VENDORS OVERLAY
+   VENDORS OVERLAY (JERARQUÍA VERTICAL)
    ======================================================================================== */
 const vendorsOverlay = document.getElementById("teamOverlay");
 const teamGrid = document.getElementById("teamGrid");
@@ -230,7 +235,7 @@ const btnCloseTeam = document.getElementById("btnCloseTeam");
 
 function renderVendorsOverlay() {
   teamGrid.innerHTML = "";
-  teamTitle.textContent = "Vendors por Departamento";
+  teamTitle.textContent = "VENDORS";
 
   const grouped = {};
 
@@ -242,10 +247,14 @@ function renderVendorsOverlay() {
 
   Object.keys(grouped).forEach(dept => {
     const section = document.createElement("div");
-    section.style.gridColumn = "1 / -1";
-    section.style.marginTop = "24px";
-    section.innerHTML = `<h3 style="margin:8px 0;color:#0f172a">${dept}</h3>`;
-    teamGrid.appendChild(section);
+    section.className = "vendor-section";
+
+    const title = document.createElement("h3");
+    title.textContent = dept;
+    section.appendChild(title);
+
+    const row = document.createElement("div");
+    row.className = "vendor-row";
 
     grouped[dept].forEach(v => {
       const card = document.createElement("div");
@@ -254,8 +263,11 @@ function renderVendorsOverlay() {
         <div>${v["First name (required)"]} ${v["Last name (required)"]}</div>
         <div>${v.Position || ""}</div>
       `;
-      teamGrid.appendChild(card);
+      row.appendChild(card);
     });
+
+    section.appendChild(row);
+    teamGrid.appendChild(section);
   });
 
   vendorsOverlay.classList.add("visible");
