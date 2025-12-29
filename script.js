@@ -1,6 +1,10 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — PEOPLE + VENDORS (ESTILO WORKDAY)
- *  GoJS — ESTABLE Y COMPLETO
+ *  ORGCHART EMR — PEOPLE + VENDORS
+ *  Comportamiento tipo Workday:
+ *  - Solo un supervisor expandido a la vez
+ *  - Click = expand / collapse con animación
+ *  - Áreas solo como contenedores
+ *  - Vendors también como organigrama
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -10,7 +14,7 @@ const $ = go.GraphObject.make;
    ======================================================================================== */
 const UI = {
   avatarSize: 42,
-  cardPadding: 12
+  padding: 12
 };
 
 /* ========================================================================================
@@ -24,15 +28,15 @@ const DEFAULT_AVATAR =
   <circle cx="50" cy="50" r="46" fill="#f1f5f9"/>
   <circle cx="50" cy="42" r="16" fill="#9ca3af"/>
   <path d="M22 88c4-20 52-20 56 0" fill="#9ca3af"/>
-</svg>
-`);
+</svg>`);
 
 /* ========================================================================================
    ESTADO GLOBAL
    ======================================================================================== */
 let TEAM_DATA = [];
 let VENDORS_DATA = [];
-let CURRENT_MODE = "PEOPLE";
+let CURRENT_SUPERVISOR = null;
+let CURRENT_MODE = "PEOPLE"; // PEOPLE | VENDORS
 
 /* ========================================================================================
    DIAGRAM
@@ -47,8 +51,6 @@ const diagram = $(go.Diagram, "diagramDiv", {
   maxScale: 2,
   padding: 60
 });
-
-diagram.scale = 0.9;
 
 /* ========================================================================================
    LINK TEMPLATE
@@ -80,9 +82,15 @@ function avatar() {
   );
 }
 
-function personCard(stroke) {
+function personCard(stroke, clickable = false) {
   return $(
     go.Panel, "Auto",
+    clickable
+      ? {
+          cursor: "pointer",
+          click: (e, node) => handleSupervisorClick(node.part.data)
+        }
+      : {},
     $(go.Shape, "RoundedRectangle", {
       fill: "white",
       stroke,
@@ -90,7 +98,7 @@ function personCard(stroke) {
     }),
     $(
       go.Panel, "Vertical",
-      { margin: UI.cardPadding },
+      { margin: UI.padding },
       avatar(),
       $(go.TextBlock,
         { font: "bold 12.5px sans-serif", textAlign: "center" },
@@ -104,50 +112,55 @@ function personCard(stroke) {
   );
 }
 
+function areaCard(color) {
+  return $(
+    go.Panel, "Auto",
+    $(go.Shape, "RoundedRectangle", {
+      fill: "#f8fafc",
+      stroke: color,
+      strokeWidth: 2
+    }),
+    $(go.TextBlock,
+      { margin: 10, font: "bold 12px sans-serif" },
+      new go.Binding("text", "label")
+    )
+  );
+}
+
 /* ========================================================================================
-   PEOPLE TEMPLATES
+   NODE TEMPLATES — PEOPLE
    ======================================================================================== */
 diagram.nodeTemplateMap.add(
-  "Focus",
+  "Boss",
   $(go.Node, "Auto", personCard("#2563eb"))
 );
 
 diagram.nodeTemplateMap.add(
-  "Report",
+  "Supervisor",
+  $(go.Node, "Auto", personCard("#2563eb", true))
+);
+
+diagram.nodeTemplateMap.add(
+  "Worker",
   $(go.Node, "Auto", personCard("#94a3b8"))
 );
 
 diagram.nodeTemplateMap.add(
-  "ReportsRow",
-  $(go.Group, "Auto",
-    {
-      layout: $(go.GridLayout, {
-        wrappingColumn: Infinity,
-        spacing: new go.Size(24, 24)
-      }),
-      selectable: false
-    },
-    $(go.Shape, { fill: "transparent", strokeWidth: 0 }),
-    $(go.Placeholder, { padding: 10 })
-  )
+  "Area",
+  $(go.Node, "Auto", areaCard("#0ea5e9"))
 );
 
 /* ========================================================================================
-   VENDOR TEMPLATES
+   NODE TEMPLATES — VENDORS
    ======================================================================================== */
 diagram.nodeTemplateMap.add(
-  "VendorDept",
-  $(go.Node, "Auto",
-    $(go.Shape, "RoundedRectangle", {
-      fill: "#f8fafc",
-      stroke: "#2563eb",
-      strokeWidth: 2
-    }),
-    $(go.TextBlock,
-      { margin: 12, font: "bold 13px sans-serif" },
-      new go.Binding("text", "label")
-    )
-  )
+  "VendorRoot",
+  $(go.Node, "Auto", areaCard("#2563eb"))
+);
+
+diagram.nodeTemplateMap.add(
+  "VendorArea",
+  $(go.Node, "Auto", areaCard("#0ea5e9"))
 );
 
 diagram.nodeTemplateMap.add(
@@ -160,11 +173,11 @@ diagram.nodeTemplateMap.add(
     }),
     $(go.Panel, "Vertical", { margin: 10 },
       $(go.TextBlock,
-        { font: "bold 12px sans-serif", textAlign: "center" },
+        { font: "bold 12px sans-serif" },
         new go.Binding("text", "label")
       ),
       $(go.TextBlock,
-        { font: "11px sans-serif", stroke: "#475569", textAlign: "center" },
+        { font: "11px sans-serif", stroke: "#475569" },
         new go.Binding("text", "sub")
       )
     )
@@ -172,9 +185,9 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   RENDER PEOPLE
+   RENDER PEOPLE (WORKDAY STYLE)
    ======================================================================================== */
-function renderPeople() {
+function renderPeople(supervisorId = null) {
   CURRENT_MODE = "PEOPLE";
 
   diagram.layout = $(go.TreeLayout, {
@@ -183,53 +196,97 @@ function renderPeople() {
     nodeSpacing: 40
   });
 
-  const root = TEAM_DATA.find(p => !p.supervisorId);
-  if (!root) return;
+  const nodes = [];
+  const links = [];
+
+  const boss = TEAM_DATA.find(p => !p.supervisorId);
+  if (!boss) return;
+
+  nodes.push({
+    key: boss.id,
+    category: "Boss",
+    name: `${boss.firstName} ${boss.lastName}`,
+    role: boss.role,
+    image: boss.image
+  });
+
+  const supervisors = TEAM_DATA.filter(p => p.supervisorId === boss.id);
+
+  supervisors.forEach(s => {
+    nodes.push({
+      key: s.id,
+      category: "Supervisor",
+      name: `${s.firstName} ${s.lastName}`,
+      role: s.role,
+      image: s.image
+    });
+    links.push({ from: boss.id, to: s.id });
+  });
+
+  if (supervisorId) {
+    const areas = ["Lavado", "Inspección", "Reefer", "Box"];
+
+    areas.forEach(area => {
+      const areaKey = supervisorId + "_" + area;
+      nodes.push({ key: areaKey, category: "Area", label: area });
+      links.push({ from: supervisorId, to: areaKey });
+
+      TEAM_DATA
+        .filter(p => p.supervisorId === supervisorId && p.Area === area)
+        .forEach(w => {
+          nodes.push({
+            key: w.id,
+            category: "Worker",
+            name: `${w.firstName} ${w.lastName}`,
+            role: w.role,
+            image: w.image
+          });
+          links.push({ from: areaKey, to: w.id });
+        });
+    });
+  }
+
+  diagram.model = new go.GraphLinksModel(nodes, links);
+
+  requestAnimationFrame(() => {
+    const node = diagram.findNodeForKey(supervisorId || boss.id);
+    if (node) diagram.centerRect(node.actualBounds);
+  });
+}
+
+/* ========================================================================================
+   SUPERVISOR CLICK
+   ======================================================================================== */
+function handleSupervisorClick(data) {
+  if (CURRENT_SUPERVISOR === data.key) {
+    CURRENT_SUPERVISOR = null;
+    renderPeople();
+  } else {
+    CURRENT_SUPERVISOR = data.key;
+    renderPeople(data.key);
+  }
+}
+
+/* ========================================================================================
+   RENDER VENDORS (ORGCHART)
+   ======================================================================================== */
+function renderVendors() {
+  CURRENT_MODE = "VENDORS";
+
+  diagram.layout = $(go.TreeLayout, {
+    angle: 90,
+    layerSpacing: 80,
+    nodeSpacing: 40
+  });
 
   const nodes = [];
   const links = [];
 
   nodes.push({
-    key: root.id,
-    category: "Focus",
-    name: `${root.firstName} ${root.lastName}`,
-    role: root.role,
-    image: root.image
+    key: "VENDORS",
+    category: "VendorRoot",
+    label: "Vendors"
   });
-
-  const rowKey = root.id + "_row";
-  nodes.push({ key: rowKey, category: "ReportsRow" });
-  links.push({ from: root.id, to: rowKey });
-
-  TEAM_DATA
-    .filter(p => p.supervisorId === root.id)
-    .forEach(r => {
-      nodes.push({
-        key: r.id,
-        category: "Report",
-        name: `${r.firstName} ${r.lastName}`,
-        role: r.role,
-        image: r.image,
-        group: rowKey
-      });
-    });
-
-  diagram.model = new go.GraphLinksModel(nodes, links);
-}
-
-/* ========================================================================================
-   RENDER VENDORS
-   ======================================================================================== */
-function renderVendors() {
-  CURRENT_MODE = "VENDORS";
-
-  diagram.layout = $(go.GridLayout, {
-    wrappingColumn: Infinity,
-    spacing: new go.Size(40, 40)
-  });
-
-  const nodes = [];
-  const links = [];
 
   const grouped = {};
   VENDORS_DATA.forEach(v => {
@@ -240,9 +297,10 @@ function renderVendors() {
   Object.keys(grouped).forEach(dept => {
     nodes.push({
       key: dept,
-      category: "VendorDept",
+      category: "VendorArea",
       label: dept
     });
+    links.push({ from: "VENDORS", to: dept });
 
     grouped[dept].forEach(v => {
       const key = v["Email (required)"];
@@ -276,6 +334,7 @@ Papa.parse("team.csv", {
         firstName: p["First name (required)"] || "",
         lastName: p["Last name (required)"] || "",
         role: p.Position || "",
+        Area: p.Area || "",
         image: resolveImage(p)
       }));
     renderPeople();
@@ -294,7 +353,11 @@ Papa.parse("vendors.csv", {
 /* ========================================================================================
    CONTROLES
    ======================================================================================== */
-document.getElementById("btnTeams").onclick = renderPeople;
+document.getElementById("btnTeams").onclick = () => {
+  CURRENT_SUPERVISOR = null;
+  renderPeople();
+};
+
 document.getElementById("btnVendorsDept").onclick = renderVendors;
 
 document.getElementById("btnZoomIn").onclick = () =>
