@@ -79,9 +79,11 @@ function avatar() {
     {
       width: UI.avatarSize,
       height: UI.avatarSize,
+      imageStretch: go.GraphObject.UniformToFill,
       margin: new go.Margin(0, 0, 8, 0)
     },
-    new go.Binding("source", "image")
+    new go.Binding("source", "image"),
+    new go.Binding("opacity", "dimmed", d => d ? 0.02 : 1)
   );
 }
 
