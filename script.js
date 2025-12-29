@@ -38,7 +38,7 @@ let NAV_STACK = [];
 let CURRENT_MODE = "PEOPLE"; // PEOPLE | VENDORS
 
 /* ========================================================================================
-   DIAGRAM (ÚNICO)  👉 IGUAL QUE ANTES
+   DIAGRAM (ÚNICO) — NO SE TOCA LA JERARQUÍA
    ======================================================================================== */
 const diagram = $(go.Diagram, "diagramDiv", {
   initialContentAlignment: go.Spot.Center,
@@ -54,7 +54,7 @@ const diagram = $(go.Diagram, "diagramDiv", {
     duration: 350
   },
   layout: $(go.TreeLayout, {
-    angle: 90,          // 👈 NO SE TOCA
+    angle: 90,          // jefe arriba, supervisores debajo (original)
     layerSpacing: 90,
     nodeSpacing: 40
   })
@@ -147,15 +147,15 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   GROUP TEMPLATE — SOLO PARA TRABAJADORES
+   GROUP TEMPLATE — SOLO PARA TRABAJADORES (2 FILAS HORIZONTALES)
    ======================================================================================== */
 diagram.groupTemplateMap.add(
   "ReportsGroup",
   $(go.Group, "Auto",
     {
       layout: $(go.GridLayout, {
-        wrappingWidth: Infinity,
-        wrappingColumn: 2,              // 🔥 SOLO 2 FILAS (GoJS 2.x)
+        wrappingWidth: Infinity,     // horizontal
+        wrappingColumn: 2,           // 🔥 máximo 2 FILAS (GoJS 2.x)
         alignment: go.GridLayout.Position,
         spacing: new go.Size(20, 20)
       })
@@ -166,7 +166,7 @@ diagram.groupTemplateMap.add(
 );
 
 /* ========================================================================================
-   NODE TEMPLATES — VENDORS (SIN CAMBIOS)
+   NODE TEMPLATES — VENDORS
    ======================================================================================== */
 diagram.nodeTemplateMap.add(
   "VendorRoot",
@@ -220,7 +220,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   RENDER PEOPLE  👉 SOLO AQUÍ SE AÑADE EL GROUP
+   RENDER PEOPLE (MISMA JERARQUÍA, SOLO SE AGREGA GROUP)
    ======================================================================================== */
 function renderPerson(personId, animate = true) {
   CURRENT_MODE = "PEOPLE";
@@ -243,7 +243,7 @@ function renderPerson(personId, animate = true) {
     image: person.image
   });
 
-  // Group de trabajadores
+  // Grupo de trabajadores
   const groupKey = person.id + "_reports";
   nodes.push({
     key: groupKey,
@@ -310,7 +310,7 @@ Papa.parse("vendors.csv", {
 });
 
 /* ========================================================================================
-   RENDER VENDORS TREE (SIN CAMBIOS)
+   RENDER VENDORS TREE
    ======================================================================================== */
 function renderVendorsTree() {
   CURRENT_MODE = "VENDORS";
