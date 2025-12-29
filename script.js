@@ -1,5 +1,5 @@
 /******************************************************************************************
- *  ORGANIGRAMA EMR — PEOPLE + VENDORS (OVERLAY)
+ *  ORGANIGRAMA EMR — PEOPLE + VENDORS (CICLEABLE)
  ******************************************************************************************/
 
 const $ = go.GraphObject.make;
@@ -31,8 +31,14 @@ const DEFAULT_AVATAR =
    ======================================================================================== */
 let TEAM_DATA = [];
 let VENDORS_DATA = [];
+
 let CURRENT_PERSON_ID = null;
 let NAV_STACK = [];
+
+// Vendors navigation
+let VENDORS_LEVEL = "ROOT"; // ROOT | DEPT
+let CURRENT_DEPT = null;
+let VENDORS_STACK = [];
 
 /* ========================================================================================
    DIAGRAM (PEOPLE)
@@ -117,16 +123,10 @@ function personCard(stroke, clickable, isFocus) {
       avatar(),
       $(go.TextBlock,
         { font: "bold 12.5px sans-serif", textAlign: "center" },
-        new go.Binding("text", "name")
-      ),
+        new go.Binding("text", "name")),
       $(go.TextBlock,
-        {
-          font: "11px sans-serif",
-          stroke: "#475569",
-          textAlign: "center"
-        },
-        new go.Binding("text", "role")
-      )
+        { font: "11px sans-serif", stroke: "#475569", textAlign: "center" },
+        new go.Binding("text", "role"))
     )
   );
 }
@@ -190,32 +190,26 @@ function renderPerson(personId, animate = true) {
 }
 
 /* ========================================================================================
-   LOAD PEOPLE CSV
+   LOAD CSVs
    ======================================================================================== */
 Papa.parse("team.csv", {
   download: true,
   header: true,
   delimiter: ";",
   complete: r => {
-    TEAM_DATA = r.data
-      .filter(p => p["Email (required)"])
-      .map(p => ({
-        id: p["Email (required)"],
-        supervisorId: p["SupervisorEmail (required)"] || null,
-        firstName: p["First name (required)"] || "",
-        lastName: p["Last name (required)"] || "",
-        role: p.Position || "",
-        image: resolveImage(p)
-      }));
-
+    TEAM_DATA = r.data.filter(p => p["Email (required)"]).map(p => ({
+      id: p["Email (required)"],
+      supervisorId: p["SupervisorEmail (required)"] || null,
+      firstName: p["First name (required)"] || "",
+      lastName: p["Last name (required)"] || "",
+      role: p.Position || "",
+      image: resolveImage(p)
+    }));
     const root = TEAM_DATA.find(p => !p.supervisorId);
     if (root) renderPerson(root.id, false);
   }
 });
 
-/* ========================================================================================
-   LOAD VENDORS CSV
-   ======================================================================================== */
 Papa.parse("vendors.csv", {
   download: true,
   header: true,
@@ -226,37 +220,44 @@ Papa.parse("vendors.csv", {
 });
 
 /* ========================================================================================
-   VENDORS OVERLAY (JERARQUÍA VERTICAL)
+   VENDORS OVERLAY — CICLEABLE
    ======================================================================================== */
 const vendorsOverlay = document.getElementById("teamOverlay");
 const teamGrid = document.getElementById("teamGrid");
 const teamTitle = document.getElementById("teamTitle");
 const btnCloseTeam = document.getElementById("btnCloseTeam");
 
-function renderVendorsOverlay() {
+function renderVendorsRoot() {
   teamGrid.innerHTML = "";
   teamTitle.textContent = "VENDORS";
+  VENDORS_LEVEL = "ROOT";
 
-  const grouped = {};
+  const depts = [...new Set(VENDORS_DATA.map(v => v.Department.trim()))];
 
-  VENDORS_DATA.forEach(v => {
-    const dept = v.Department.trim();
-    if (!grouped[dept]) grouped[dept] = [];
-    grouped[dept].push(v);
+  depts.forEach(dept => {
+    const card = document.createElement("div");
+    card.className = "team-card clickable";
+    card.innerHTML = `<div>${dept}</div>`;
+    card.onclick = () => {
+      VENDORS_STACK.push("ROOT");
+      renderVendorsDept(dept);
+    };
+    teamGrid.appendChild(card);
   });
+}
 
-  Object.keys(grouped).forEach(dept => {
-    const section = document.createElement("div");
-    section.className = "vendor-section";
+function renderVendorsDept(dept) {
+  teamGrid.innerHTML = "";
+  teamTitle.textContent = dept;
+  VENDORS_LEVEL = "DEPT";
+  CURRENT_DEPT = dept;
 
-    const title = document.createElement("h3");
-    title.textContent = dept;
-    section.appendChild(title);
+  const row = document.createElement("div");
+  row.className = "vendor-row";
 
-    const row = document.createElement("div");
-    row.className = "vendor-row";
-
-    grouped[dept].forEach(v => {
+  VENDORS_DATA
+    .filter(v => v.Department.trim() === dept)
+    .forEach(v => {
       const card = document.createElement("div");
       card.className = "team-card";
       card.innerHTML = `
@@ -266,16 +267,30 @@ function renderVendorsOverlay() {
       row.appendChild(card);
     });
 
-    section.appendChild(row);
-    teamGrid.appendChild(section);
-  });
+  teamGrid.appendChild(row);
+}
 
-  vendorsOverlay.classList.add("visible");
+function vendorsBack() {
+  if (VENDORS_STACK.length === 0) return;
+  VENDORS_STACK.pop();
+  renderVendorsRoot();
 }
 
 /* ========================================================================================
    CONTROLES
    ======================================================================================== */
+document.getElementById("btnVendorsDept").onclick = () => {
+  VENDORS_STACK = [];
+  renderVendorsRoot();
+  vendorsOverlay.classList.add("visible");
+};
+
+btnCloseTeam.onclick = () => vendorsOverlay.classList.remove("visible");
+
+teamTitle.onclick = () => {
+  if (VENDORS_LEVEL === "DEPT") vendorsBack();
+};
+
 document.getElementById("btnZoomIn").onclick = () =>
   diagram.scale = Math.min(diagram.scale + 0.1, diagram.maxScale);
 
@@ -295,6 +310,3 @@ document.getElementById("btnTeams").onclick = () => {
   NAV_STACK = [];
   if (root) renderPerson(root.id, true);
 };
-
-document.getElementById("btnVendorsDept").onclick = renderVendorsOverlay;
-btnCloseTeam.onclick = () => vendorsOverlay.classList.remove("visible");
