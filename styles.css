@@ -221,3 +221,34 @@ header p {
   gap: 20px;
   justify-content: center;
 }
+/* ===============================
+   VENDORS — JERARQUÍA VERTICAL
+   =============================== */
+
+#teamGrid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.vendor-section {
+  width: 100%;
+  max-width: 1200px;
+  margin-bottom: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.vendor-section h3 {
+  margin-bottom: 20px;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.vendor-row {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: nowrap;
+}
