@@ -2,8 +2,9 @@
  *  ORGCHART EMR — PEOPLE + VENDORS
  *  Workday-style:
  *  - Solo un supervisor expandido a la vez
- *  - Click supervisor = muestra SOLO trabajadores
+ *  - Click supervisor = muestra SOLO trabajadores (2 filas)
  *  - Click otra vez = colapsa
+ *  - Blur visual del resto
  *  - Vendors en organigrama independiente
  ******************************************************************************************/
 
@@ -53,12 +54,15 @@ const diagram = $(go.Diagram, "diagramDiv", {
 });
 
 /* ========================================================================================
-   LINK TEMPLATE
+   LINK TEMPLATE (CON BLUR)
    ======================================================================================== */
 diagram.linkTemplate = $(
   go.Link,
   { routing: go.Link.Orthogonal, corner: 12 },
-  $(go.Shape, { stroke: "#cbd5e1", strokeWidth: 1.4 })
+  $(go.Shape,
+    { stroke: "#cbd5e1", strokeWidth: 1.4 },
+    new go.Binding("opacity", "dimmed", d => d ? 0.25 : 1).ofObject()
+  )
 );
 
 /* ========================================================================================
@@ -75,7 +79,6 @@ function avatar() {
     {
       width: UI.avatarSize,
       height: UI.avatarSize,
-      imageStretch: go.GraphObject.UniformToFill,
       margin: new go.Margin(0, 0, 8, 0)
     },
     new go.Binding("source", "image")
@@ -85,28 +88,26 @@ function avatar() {
 function personCard(stroke, clickable = false) {
   return $(
     go.Panel, "Auto",
-    clickable
-      ? {
-          cursor: "pointer",
-          click: (e, node) => handleSupervisorClick(node.part.data.key)
-        }
-      : {},
-    $(go.Shape, "RoundedRectangle", {
-      fill: "white",
-      stroke,
-      strokeWidth: 2
-    }),
-    $(
-      go.Panel, "Vertical",
+    clickable ? {
+      cursor: "pointer",
+      click: (e, node) => handleSupervisorClick(node.part.data.key)
+    } : {},
+    $(go.Shape, "RoundedRectangle",
+      { fill: "white", stroke, strokeWidth: 2 },
+      new go.Binding("opacity", "dimmed", d => d ? 0.25 : 1)
+    ),
+    $(go.Panel, "Vertical",
       { margin: UI.padding },
       avatar(),
       $(go.TextBlock,
         { font: "bold 12.5px sans-serif", textAlign: "center" },
-        new go.Binding("text", "name")
+        new go.Binding("text", "name"),
+        new go.Binding("opacity", "dimmed", d => d ? 0.25 : 1)
       ),
       $(go.TextBlock,
         { font: "11px sans-serif", stroke: "#475569", textAlign: "center" },
-        new go.Binding("text", "role")
+        new go.Binding("text", "role"),
+        new go.Binding("opacity", "dimmed", d => d ? 0.25 : 1)
       )
     )
   );
@@ -115,19 +116,26 @@ function personCard(stroke, clickable = false) {
 /* ========================================================================================
    NODE TEMPLATES — PEOPLE
    ======================================================================================== */
-diagram.nodeTemplateMap.add(
-  "Boss",
-  $(go.Node, "Auto", personCard("#2563eb"))
-);
+diagram.nodeTemplateMap.add("Boss", $(go.Node, "Auto", personCard("#2563eb")));
+diagram.nodeTemplateMap.add("Supervisor", $(go.Node, "Auto", personCard("#2563eb", true)));
+diagram.nodeTemplateMap.add("Worker", $(go.Node, "Auto", personCard("#94a3b8")));
 
+/* ========================================================================================
+   WORKERS GROUP (2 FILAS)
+   ======================================================================================== */
 diagram.nodeTemplateMap.add(
-  "Supervisor",
-  $(go.Node, "Auto", personCard("#2563eb", true))
-);
-
-diagram.nodeTemplateMap.add(
-  "Worker",
-  $(go.Node, "Auto", personCard("#94a3b8"))
+  "WorkersGroup",
+  $(go.Group, "Auto",
+    {
+      layout: $(go.GridLayout, {
+        wrappingColumn: 4, // ≈ 2 filas
+        spacing: new go.Size(24, 24)
+      }),
+      selectable: false
+    },
+    $(go.Shape, { fill: "transparent", strokeWidth: 0 }),
+    $(go.Placeholder, { padding: 10 })
+  )
 );
 
 /* ========================================================================================
@@ -185,7 +193,7 @@ diagram.nodeTemplateMap.add(
 );
 
 /* ========================================================================================
-   RENDER PEOPLE (CORREGIDO)
+   RENDER PEOPLE (MODIFICADO)
    ======================================================================================== */
 function renderPeople(supervisorId = null) {
   CURRENT_MODE = "PEOPLE";
@@ -202,16 +210,15 @@ function renderPeople(supervisorId = null) {
   const boss = TEAM_DATA.find(p => !p.supervisorId);
   if (!boss) return;
 
-  // Boss
   nodes.push({
     key: boss.id,
     category: "Boss",
     name: `${boss.firstName} ${boss.lastName}`,
     role: boss.role,
-    image: boss.image
+    image: boss.image,
+    dimmed: !!supervisorId
   });
 
-  // Supervisores
   const supervisors = TEAM_DATA.filter(p => p.supervisorId === boss.id);
   supervisors.forEach(s => {
     nodes.push({
@@ -219,13 +226,17 @@ function renderPeople(supervisorId = null) {
       category: "Supervisor",
       name: `${s.firstName} ${s.lastName}`,
       role: s.role,
-      image: s.image
+      image: s.image,
+      dimmed: supervisorId && supervisorId !== s.id
     });
     links.push({ from: boss.id, to: s.id });
   });
 
-  // Trabajadores (SOLO personas)
   if (supervisorId) {
+    const groupKey = supervisorId + "_workers";
+    nodes.push({ key: groupKey, category: "WorkersGroup" });
+    links.push({ from: supervisorId, to: groupKey });
+
     TEAM_DATA
       .filter(p => p.supervisorId === supervisorId)
       .forEach(w => {
@@ -234,9 +245,10 @@ function renderPeople(supervisorId = null) {
           category: "Worker",
           name: `${w.firstName} ${w.lastName}`,
           role: w.role,
-          image: w.image
+          image: w.image,
+          group: groupKey,
+          dimmed: false
         });
-        links.push({ from: supervisorId, to: w.id });
       });
   }
 
@@ -262,7 +274,7 @@ function handleSupervisorClick(key) {
 }
 
 /* ========================================================================================
-   RENDER VENDORS (IGUAL AL TUYO)
+   RENDER VENDORS (SIN CAMBIOS)
    ======================================================================================== */
 function renderVendors() {
   CURRENT_MODE = "VENDORS";
